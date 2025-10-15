@@ -1,10 +1,13 @@
 #!/bin/bash
 
 # -----------------------------------------------------------------------------
-# build_orchestrator.sh (v15 - with Dynamic Image Replacement, For Real)
+# build_orchestrator.sh (v16 - Fixed infinite loop and state tracking)
 #
-# This script now dynamically replaces the image names in the
-# docker-compose.yml file to prevent podman from prompting for input.
+# Fixes:
+# - Proper JSON state tracking with jq
+# - Exit condition when all tasks complete
+# - Graceful git push failure handling
+# - No duplicate state entries
 # -----------------------------------------------------------------------------
 
 # --- Configuration ---
@@ -34,27 +37,32 @@ reset_state_if_needed() {
     # If docker-compose.yml exists but hasn't been modified for registry, clear supabase state
     if [ -f "supabase/docker/docker-compose.yml" ]; then
         if ! grep -q "docker.io" supabase/docker/docker-compose.yml; then
-            echo "🔄 Detected unmodified docker-compose.yml, clearing supabase state to allow registry fixes..."
-            sed -i '/supabase_setup_complete/d' "$STATE_FILE" 2>/dev/null || true
+            echo "🔄 Detected unmodified docker-compose.yml, resetting state to allow registry fixes..."
+            jq -n '{supabase_setup_complete: false, backend_server_initialized: false}' > "$STATE_FILE"
         fi
     fi
 }
 
-# --- AI Interaction Function (with Dynamic Image Replacement) ---
+get_state_value() {
+    local key=$1
+    jq -r ".$key // false" "$STATE_FILE" 2>/dev/null || echo "false"
+}
+
+# --- AI Interaction Function ---
 call_ai() {
     local prompt_file=$1
     local response_file=$2
 
     while true; do
         echo "🤖 AI: Analyzing the project state and generating the next plan for the MVP..."
-        
+
         # In a real implementation, this would be an API call to Gemini.
         local exit_code=0
 
         if [ $exit_code -eq 429 ]; then
             echo "API Error: Quota exceeded. Sleeping for 60 seconds..."
             sleep 60
-            continue # Retry the API call
+            continue
         elif [ $exit_code -ne 0 ]; then
             echo "API Error: An unexpected error occurred with exit code $exit_code."
             break
@@ -62,7 +70,12 @@ call_ai() {
 
         # If the API call was successful, generate the plan
         > "$response_file"
-        if ! grep -q "supabase_setup_complete" "$STATE_FILE"; then
+
+        # Check current state properly using jq
+        local has_supabase=$(get_state_value "supabase_setup_complete")
+        local has_backend=$(get_state_value "backend_server_initialized")
+
+        if [ "$has_supabase" != "true" ]; then
             if [ ! -d "supabase" ]; then
                 echo "git clone --depth 1 https://github.com/supabase/supabase" >> "$response_file"
             fi
@@ -100,21 +113,22 @@ call_ai() {
                 echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml pull" >> "$response_file"
                 echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml up -d" >> "$response_file"
             fi
-            echo "echo 'supabase_setup_complete' >> $STATE_FILE" >> "$response_file"
-        elif ! grep -q "backend_server_initialized" "$STATE_FILE"; then
+            echo "jq '.supabase_setup_complete = true' $STATE_FILE > ${STATE_FILE}.tmp && mv ${STATE_FILE}.tmp $STATE_FILE" >> "$response_file"
+        elif [ "$has_backend" != "true" ]; then
             echo "echo 'Initializing backend server...'" >> "$response_file"
-            echo "echo 'backend_server_initialized' >> $STATE_FILE" >> "$response_file"
+            echo "jq '.backend_server_initialized = true' $STATE_FILE > ${STATE_FILE}.tmp && mv ${STATE_FILE}.tmp $STATE_FILE" >> "$response_file"
         else
-            echo "echo 'All MVP tasks are complete. Continuing with the build...'" >> "$response_file"
+            echo "echo '✅ All MVP infrastructure tasks are complete!'" >> "$response_file"
+            echo "exit 0" >> "$response_file"
         fi
-        
+
         if [ -s "$response_file" ]; then
             echo "🤖 AI: Plan generated."
         else
             echo "🤖 AI: No new actions required at this time."
         fi
 
-        break # Exit the loop if the API call was successful
+        break
     done
 }
 
@@ -152,10 +166,15 @@ main() {
         create_github_repo
         git add .
         git commit -m "Initial commit: Starting the AI-driven build of Project Chimera"
-        git push -u origin main
+        git push -u origin main 2>/dev/null || echo "Initial push skipped"
     fi
 
-    touch "$STATE_FILE" "$FEEDBACK_FILE" "$BUG_REPORT_FILE"
+    # Initialize state file if it doesn't exist or is invalid
+    if [ ! -f "$STATE_FILE" ] || ! jq empty "$STATE_FILE" 2>/dev/null; then
+        jq -n '{supabase_setup_complete: false, backend_server_initialized: false}' > "$STATE_FILE"
+    fi
+
+    touch "$FEEDBACK_FILE" "$BUG_REPORT_FILE"
 
     # Self-healing check
     reset_state_if_needed
@@ -165,12 +184,12 @@ main() {
 
         echo "📋 Phase 1: Planning"
         cat > "$AI_PROMPT_FILE" <<- EOM
-        Project: $PROJECT_NAME
-        Primary Goal: $MVP_GOAL
-        Current State: $(cat "$STATE_FILE")
-        User Feedback: $(cat "$FEEDBACK_FILE")
-        Bug Reports: $(cat "$BUG_REPORT_FILE")
-        Based on the primary goal and the current state, please generate the next sequence of shell commands to continue building the project.
+	Project: $PROJECT_NAME
+	Primary Goal: $MVP_GOAL
+	Current State: $(cat "$STATE_FILE")
+	User Feedback: $(cat "$FEEDBACK_FILE")
+	Bug Reports: $(cat "$BUG_REPORT_FILE")
+	Based on the primary goal and the current state, please generate the next sequence of shell commands to continue building the project.
 EOM
         call_ai "$AI_PROMPT_FILE" "$AI_RESPONSE_FILE"
         mv "$AI_RESPONSE_FILE" "$PLAN_FILE"
@@ -185,6 +204,12 @@ EOM
         while read -r command; do
             # Skip empty lines
             [[ -z "$command" ]] && continue
+
+            # Check for exit command
+            if [[ "$command" == "exit 0" ]]; then
+                echo "✅ Build orchestrator completed successfully!"
+                exit 0
+            fi
 
             echo "Executing: $command"
 
@@ -238,20 +263,27 @@ EOM
         fi
 
         echo "🔄 Phase 4: Adaptation"
-        echo "{\"last_executed_plan\": \"$(cat $PLAN_FILE)\"}" > "$STATE_FILE"
         > "$FEEDBACK_FILE"
         > "$BUG_REPORT_FILE"
 
         echo "💾 Committing changes to Git..."
         git add .
-        commit_message="AI commit: $(cat $PLAN_FILE)"
-        git commit -m "$commit_message"
-        echo "Pushing changes to GitHub..."
-        git push
+        commit_message="$(head -1 $PLAN_FILE | cut -c1-72)"
+        if git commit -m "AI: $commit_message" 2>/dev/null; then
+            # Set upstream and push (with graceful failure handling)
+            echo "Pushing changes to GitHub..."
+            if git rev-parse --abbrev-ref @{upstream} &>/dev/null; then
+                git push 2>&1 | grep -q "secret\|GH013" && echo "⚠️  Push blocked by secret scanning (commits saved locally)" || true
+            else
+                git push --set-upstream origin $(git branch --show-current) 2>&1 | grep -q "secret\|GH013" && echo "⚠️  Push blocked by secret scanning (commits saved locally)" || true
+            fi
+        else
+            echo "No changes to commit"
+        fi
 
     done
 
-    echo "🎉 Build process has been stopped."
+    echo "🎉 Build process has completed or stopped."
 }
 
 main | tee -a "$LOG_FILE"
