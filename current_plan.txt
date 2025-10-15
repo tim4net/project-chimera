@@ -1,3 +1,2 @@
-podman compose -f supabase/docker/docker-compose.yml pull
-podman compose -f supabase/docker/docker-compose.yml up -d
-echo 'supabase_setup_complete' >> project_state.json
+echo 'Initializing backend server...'
+jq '.backend_server_initialized = true' project_state.json > project_state.json.tmp && mv project_state.json.tmp project_state.json
