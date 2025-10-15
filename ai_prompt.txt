@@ -1,7 +1,17 @@
         Project: Project Chimera
         Primary Goal: Build the Minimum Viable Product (MVP) for Project Chimera. The MVP includes: a functioning backend server; a database that can store and manage a single player's character data; a web UI that displays the procedurally generated map with Fog of War and a basic, real-time journal feed; the ability to set two Idle Phase tasks (Travel and Scout); a functional Active Phase system with a modal overlay and Choice Matrix; and the implementation of only Layer 1, Template-Based Radiant Quests.
-        Current State: {"last_executed_plan": "echo 'Initializing backend server...'
-echo 'backend_server_initialized' >> project_state.json"}
+        Current State: {"last_executed_plan": "sed -i.bak 's/image: postgres:15.1/image: docker.io/library/postgres:15.1/g' supabase/docker/docker-compose.yml
+sed -i.bak 's/image: supabase/gotrue:v2.131.0/image: docker.io/supabase/gotrue:v2.131.0/g' supabase/docker/docker-compose.yml
+sed -i.bak 's/image: supabase/realtime:v2.25.2/image: docker.io/supabase/realtime:v2.25.2/g' supabase/docker/docker-compose.yml
+sed -i.bak 's/image: supabase/storage-api:v0.45.2/image: docker.io/supabase/storage-api:v0.45.2/g' supabase/docker/docker-compose.yml
+sed -i.bak 's/image: supabase/edge-runtime:v1.36.2/image: docker.io/supabase/edge-runtime:v1.36.2/g' supabase/docker/docker-compose.yml
+sed -i.bak 's/image: supabase/studio:20240112/image: docker.io/supabase/studio:20240112/g' supabase/docker/docker-compose.yml
+sed -i.bak 's/image: postgrest/postgrest:v11.2.2/image: docker.io/postgrest/postgrest:v11.2.2/g' supabase/docker/docker-compose.yml
+sed -i.bak 's/image: supabase/logflare:1.4.0/image: docker.io/supabase/logflare:1.4.0/g' supabase/docker/docker-compose.yml
+sed -i.bak 's/image: supabase/kong:3.4/image: docker.io/supabase/kong:3.4/g' supabase/docker/docker-compose.yml
+podman compose -f supabase/docker/docker-compose.yml pull
+podman compose -f supabase/docker/docker-compose.yml up -d
+echo 'supabase_setup_complete' >> project_state.json"}
         User Feedback: 
         Bug Reports: 
         Based on the primary goal and the current state, please generate the next sequence of shell commands to continue building the project.

@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # -----------------------------------------------------------------------------
-# build_orchestrator.sh (v9 - Truly Non-Interactive, I Swear)
+# build_orchestrator.sh (v11 - Reactive Sleep and Better Sed)
 #
-# This script will now automatically modify the docker-compose.yml file to
-# use fully qualified image names, preventing podman from prompting for input.
+# This script uses a reactive sleep mechanism to handle API quota errors
+# and has improved sed commands.
 # -----------------------------------------------------------------------------
 
 # --- Configuration ---
@@ -15,7 +15,6 @@ readonly FEEDBACK_FILE="feedback.txt"
 readonly BUG_REPORT_FILE="bug_reports.txt"
 readonly AI_PROMPT_FILE="ai_prompt.txt"
 readonly AI_RESPONSE_FILE="ai_response.txt"
-readonly TOKEN_REFRESH_INTERVAL=60 # Seconds to wait for token refresh
 readonly GIT_REPO_NAME="project-chimera"
 readonly GIT_USERNAME="tim4net" 
 readonly CONTAINER_COMPOSE_COMMAND="podman compose"
@@ -24,52 +23,76 @@ readonly LOG_FILE="build.log"
 # --- MVP Goal Definition (from ADR-013) ---
 readonly MVP_GOAL="Build the Minimum Viable Product (MVP) for Project Chimera. The MVP includes: a functioning backend server; a database that can store and manage a single player's character data; a web UI that displays the procedurally generated map with Fog of War and a basic, real-time journal feed; the ability to set two Idle Phase tasks (Travel and Scout); a functional Active Phase system with a modal overlay and Choice Matrix; and the implementation of only Layer 1, Template-Based Radiant Quests."
 
-# --- AI Interaction Function (Idempotent and Truly Non-Interactive) ---
+# --- AI Interaction Function (with Reactive Sleep) ---
 call_ai() {
     local prompt_file=$1
     local response_file=$2
 
-    echo "🤖 AI: Analyzing the project state and generating the next plan for the MVP..."
-    
-    > "$response_file"
+    while true; do
+        echo "🤖 AI: Analyzing the project state and generating the next plan for the MVP..."
+        
+        # In a real scenario, this would be an API call to Gemini.
+        # The 'gemini-cli' tool would need to be able to return a specific
+        # exit code for quota errors.
+        # gemini-cli --prompt-file "$prompt_file" --output-file "$response_file"
+        # exit_code=$?
 
-    if ! grep -q "supabase_setup_complete" "$STATE_FILE"; then
-        if [ ! -d "supabase" ]; then
-            echo "git clone --depth 1 https://github.com/supabase/supabase" >> "$response_file"
+        # For this conceptual script, we'll simulate the API call and a quota error.
+        local exit_code=0
+        if [ $((RANDOM % 10)) -eq 0 ]; then
+            exit_code=429 # Simulate a "Too Many Requests" error
         fi
-        if [ ! -f "supabase/docker/docker-compose.yml.bak" ]; then
-            # This is the new part that fixes the podman prompt issue
-            echo "sed -i.bak 's/image: postgres:15.1/image: docker.io/library/postgres:15.1/g' supabase/docker/docker-compose.yml" >> "$response_file"
-            echo "sed -i.bak 's/image: supabase/gotrue:v2.131.0/image: docker.io/supabase/gotrue:v2.131.0/g' supabase/docker/docker-compose.yml" >> "$response_file"
-            echo "sed -i.bak 's/image: supabase/realtime:v2.25.2/image: docker.io/supabase/realtime:v2.25.2/g' supabase/docker/docker-compose.yml" >> "$response_file"
-            echo "sed -i.bak 's/image: supabase/storage-api:v0.45.2/image: docker.io/supabase/storage-api:v0.45.2/g' supabase/docker/docker-compose.yml" >> "$response_file"
-            echo "sed -i.bak 's/image: supabase/edge-runtime:v1.36.2/image: docker.io/supabase/edge-runtime:v1.36.2/g' supabase/docker/docker-compose.yml" >> "$response_file"
-            echo "sed -i.bak 's/image: supabase/studio:20240112/image: docker.io/supabase/studio:20240112/g' supabase/docker/docker-compose.yml" >> "$response_file"
-            echo "sed -i.bak 's/image: postgrest/postgrest:v11.2.2/image: docker.io/postgrest/postgrest:v11.2.2/g' supabase/docker/docker-compose.yml" >> "$response_file"
-            echo "sed -i.bak 's/image: supabase/logflare:1.4.0/image: docker.io/supabase/logflare:1.4.0/g' supabase/docker/docker-compose.yml" >> "$response_file"
-            echo "sed -i.bak 's/image: supabase/kong:3.4/image: docker.io/supabase/kong:3.4/g' supabase/docker/docker-compose.yml" >> "$response_file"
+
+        if [ $exit_code -eq 429 ]; then
+            echo "API Error: Quota exceeded. Sleeping for 60 seconds..."
+            sleep 60
+            continue # Retry the API call
+        elif [ $exit_code -ne 0 ]; then
+            echo "API Error: An unexpected error occurred."
+            break
         fi
-        if [ ! -f "supabase/docker/.env" ]; then
-            echo "cd supabase/docker && cp .env.example .env" >> "$response_file"
-            echo "export SUPABASE_PORT=$(find_unused_port) && sed -i 's/POSTGRES_PORT=5432/POSTGRES_PORT='$SUPABASE_PORT'/g'supabase/docker/.env" >> "$response_file"
+
+        # If the API call was successful, generate the plan
+        > "$response_file"
+        if ! grep -q "supabase_setup_complete" "$STATE_FILE"; then
+            if [ ! -d "supabase" ]; then
+                echo "git clone --depth 1 https://github.com/supabase/supabase" >> "$response_file"
+            fi
+            if [ ! -f "supabase/docker/docker-compose.yml.bak" ]; then
+                echo "sed -i.bak 's|image: postgres:15.1|image: docker.io/library/postgres:15.1|g'supabase/docker/docker-compose.yml" >> "$response_file"
+                echo "sed -i.bak 's|image: supabase/gotrue:v2.131.0|image: docker.io/supabase/gotrue:v2.131.0|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                echo "sed -i.bak 's|image: supabase/realtime:v2.25.2|image: docker.io/supabase/realtime:v2.25.2|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                echo "sed -i.bak 's|image: supabase/storage-api:v0.45.2|image: docker.io/supabase/storage-api:v0.45.2|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                echo "sed -i.bak 's|image: supabase/edge-runtime:v1.36.2|image: docker.io/supabase/edge-runtime:v1.36.2|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                echo "sed -i.bak 's|image: supabase/studio:20240112|image: docker.io/supabase/studio:20240112|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                echo "sed -i.bak 's|image: postgrest/postgrest:v11.2.2|image: docker.io/postgrest/postgrest:v11.2.2|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                echo "sed -i.bak 's|image: supabase/logflare:1.4.0|image: docker.io/supabase/logflare:1.4.0|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                echo "sed -i.bak 's|image: supabase/kong:3.4|image: docker.io/supabase/kong:3.4|g' supabase/docker/docker-compose.yml" >> "$response_file"
+            fi
+            if [ ! -f "supabase/docker/.env" ]; then
+                echo "cd supabase/docker && cp .env.example .env" >> "$response_file"
+                echo "export SUPABASE_PORT=$(find_unused_port) && sed -i 's/POSTGRES_PORT=5432/POSTGRES_PORT='$SUPABASE_PORT'/g'supabase/docker/.env" >> "$response_file"
+            fi
+            if ! $CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml ps | grep -q "supabase-db"; then
+                echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml pull" >> "$response_file"
+                echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml up -d" >> "$response_file"
+            fi
+            echo "echo 'supabase_setup_complete' >> $STATE_FILE" >> "$response_file"
+        elif ! grep -q "backend_server_initialized" "$STATE_FILE"; then
+            echo "echo 'Initializing backend server...'" >> "$response_file"
+            echo "echo 'backend_server_initialized' >> $STATE_FILE" >> "$response_file"
+        else
+            echo "echo 'All MVP tasks are complete. Continuing with the build...'" >> "$response_file"
         fi
-        if ! $CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml ps | grep -q "supabase-db"; then
-            echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml pull" >> "$response_file"
-            echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml up -d" >> "$response_file"
+        
+        if [ -s "$response_file" ]; then
+            echo "🤖 AI: Plan generated."
+        else
+            echo "🤖 AI: No new actions required at this time."
         fi
-        echo "echo 'supabase_setup_complete' >> $STATE_FILE" >> "$response_file"
-    elif ! grep -q "backend_server_initialized" "$STATE_FILE"; then
-        echo "echo 'Initializing backend server...'" >> "$response_file"
-        echo "echo 'backend_server_initialized' >> $STATE_FILE" >> "$response_file"
-    else
-        echo "echo 'All MVP tasks are complete. Continuing with the build...'" >> "$response_file"
-    fi
-    
-    if [ -s "$response_file" ]; then
-        echo "🤖 AI: Plan generated."
-    else
-        echo "🤖 AI: No new actions required at this time."
-    fi
+
+        break # Exit the loop if the API call was successful
+    done
 }
 
 # --- GitHub Repo Creation Function (Idempotent) ---
@@ -151,8 +174,6 @@ EOM
         echo "Pushing changes to GitHub..."
         git push
 
-        echo "⏳ Waiting for token refresh ($TOKEN_REFRESH_INTERVAL seconds)..."
-        sleep "$TOKEN_REFRESH_INTERVAL"
     done
 
     echo "🎉 Build process has been stopped."
