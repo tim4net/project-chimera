@@ -37,8 +37,9 @@ reset_state_if_needed() {
     # If docker-compose.yml exists but hasn't been modified for registry, clear supabase state
     if [ -f "supabase/docker/docker-compose.yml" ]; then
         if ! grep -q "docker.io" supabase/docker/docker-compose.yml; then
-            echo "🔄 Detected unmodified docker-compose.yml, resetting state to allow registry fixes..."
-            jq -n '{supabase_setup_complete: false, backend_server_initialized: false}' > "$STATE_FILE"
+            echo "🔄 Detected unmodified docker-compose.yml, resetting Supabase state..."
+            jq '.supabase_setup_complete = false' "$STATE_FILE" > "${STATE_FILE}.tmp"
+            mv "${STATE_FILE}.tmp" "$STATE_FILE"
         fi
     fi
 }
@@ -59,33 +60,28 @@ call_ai() {
         # Build context for Gemini including project architecture
         local context_file=$(mktemp)
         cat > "$context_file" <<-EOF
-You are an AI build orchestrator for Project Chimera. Your job is to generate shell commands to build the project according to the architectural specifications.
+You are an AI build orchestrator for Project Chimera. Generate shell commands to build the next component.
 
-PROJECT CONTEXT:
-$(cat project.md | head -200)
+TASK ARCHITECTURE:
+$(cat ARCHITECTURE_TASKS.md)
 
 CURRENT STATE:
 $(cat "$STATE_FILE")
 
-MVP SCOPE (from ADR-013):
-- Core Infrastructure: Backend server + Supabase database
-- Onboarding: Character creation wizard + Gemini Pro opening scene
-- Web UI: Map display with Fog of War + journal feed
-- Core Gameplay: Travel and Scout idle tasks + Active Phase system
-- AI Integration: Local LLM for narration + Gemini Pro for onboarding
-- Progression: XP, leveling, basic loot
-
-CURRENT TASK:
+CURRENT PROMPT:
 $(cat "$prompt_file")
 
-Generate ONLY shell commands (one per line) to complete the next development step. Focus on:
-1. Setting up the technology stack (Node.js/Python backend, React frontend)
-2. Creating project structure and configuration files
-3. Installing dependencies
-4. Setting up development environment
-5. Creating basic scaffolding for MVP features
+INSTRUCTIONS:
+1. Review completed tasks in state file
+2. Identify the next pending task with no incomplete dependencies
+3. Generate shell commands to implement that task
+4. Commands must be idempotent (safe to run multiple times)
+5. End with: jq '.tasks_completed += ["TASK-ID"]' $STATE_FILE > tmp.json && mv tmp.json $STATE_FILE
+6. If all MVP tasks complete, output: echo '✅ MVP Complete!' && exit 0
 
-Do NOT include explanations, only executable shell commands.
+OUTPUT FORMAT:
+Generate ONLY executable shell commands, one per line.
+NO explanations, NO markdown, NO comments.
 EOF
 
         # Call Gemini API
@@ -211,7 +207,20 @@ main() {
 
     # Initialize state file if it doesn't exist or is invalid
     if [ ! -f "$STATE_FILE" ] || ! jq empty "$STATE_FILE" 2>/dev/null; then
-        jq -n '{supabase_setup_complete: false, backend_server_initialized: false}' > "$STATE_FILE"
+        jq -n '{
+          supabase_setup_complete: false,
+          backend_server_initialized: false,
+          tasks_completed: [],
+          tasks_in_progress: [],
+          current_sprint: 1
+        }' > "$STATE_FILE"
+    fi
+
+    # Migrate old state format if needed
+    if ! jq -e '.tasks_completed' "$STATE_FILE" &>/dev/null; then
+        echo "🔄 Migrating state file to new format..."
+        jq '. + {tasks_completed: [], tasks_in_progress: [], current_sprint: 1}' "$STATE_FILE" > "${STATE_FILE}.tmp"
+        mv "${STATE_FILE}.tmp" "$STATE_FILE"
     fi
 
     touch "$FEEDBACK_FILE" "$BUG_REPORT_FILE"
