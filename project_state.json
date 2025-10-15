@@ -1,3 +1,4 @@
-{"last_executed_plan": "podman compose -f supabase/docker/docker-compose.yml pull
-podman compose -f supabase/docker/docker-compose.yml up -d
-echo 'supabase_setup_complete' >> project_state.json"}
+{
+  "supabase_setup_complete": true,
+  "backend_server_initialized": false
+}
