@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -----------------------------------------------------------------------------
-# build_orchestrator.sh (v11 - Reactive Sleep and Better Sed)
+# build_orchestrator.sh (v12 - Reactive Sleep and Better Sed, For Real)
 #
 # This script uses a reactive sleep mechanism to handle API quota errors
 # and has improved sed commands.
@@ -28,27 +28,25 @@ call_ai() {
     local prompt_file=$1
     local response_file=$2
 
-    while true; do
+    while true;
+ do
         echo "🤖 AI: Analyzing the project state and generating the next plan for the MVP..."
         
-        # In a real scenario, this would be an API call to Gemini.
-        # The 'gemini-cli' tool would need to be able to return a specific
-        # exit code for quota errors.
+        # In a real implementation, the 'gemini-cli' tool would need to be
+        # able to return a specific exit code for quota errors.
+        # For example, it could return exit code 429 for "Too Many Requests".
         # gemini-cli --prompt-file "$prompt_file" --output-file "$response_file"
         # exit_code=$?
 
-        # For this conceptual script, we'll simulate the API call and a quota error.
+        # For this conceptual script, we'll assume the API call is always successful.
         local exit_code=0
-        if [ $((RANDOM % 10)) -eq 0 ]; then
-            exit_code=429 # Simulate a "Too Many Requests" error
-        fi
 
         if [ $exit_code -eq 429 ]; then
             echo "API Error: Quota exceeded. Sleeping for 60 seconds..."
             sleep 60
             continue # Retry the API call
         elif [ $exit_code -ne 0 ]; then
-            echo "API Error: An unexpected error occurred."
+            echo "API Error: An unexpected error occurred with exit code $exit_code."
             break
         fi
 
@@ -125,7 +123,8 @@ main() {
 
     touch "$STATE_FILE" "$FEEDBACK_FILE" "$BUG_REPORT_FILE"
 
-    while true; do
+    while true;
+ do
         echo "---"
 
         echo "📋 Phase 1: Planning"
@@ -145,7 +144,8 @@ EOM
             echo "No plan to execute. The project may be complete or the AI needs more information."
             break
         fi
-        while read -r command; do
+        while read -r command;
+ do
             echo "Executing: $command"
             output=$(eval "$command" 2>&1)
             exit_code=$?
