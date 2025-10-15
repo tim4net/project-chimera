@@ -67,12 +67,14 @@ podman compose -f supabase/docker/docker-compose.yml logs -f
 
 ### Infrastructure Scripts
 
-**build_orchestrator.sh** - AI-driven build automation script
-- Automatically sets up Supabase infrastructure
-- Fixes Docker registry prefixes for Podman compatibility
-- Self-healing: detects and fixes configuration issues
-- Includes retry logic for network failures
-- Runs verification checks before starting
+**build_orchestrator.sh** - AI-driven build automation with Gemini integration (v16)
+- **Gemini Integration**: Calls Gemini API to generate build plans based on ARCHITECTURE_TASKS.md
+- **Fallback Logic**: Uses hardcoded infrastructure setup if Gemini unavailable
+- **4-Step TDD Workflow**: Define Tests → Implement → Test → Review (iterative)
+- **Self-Healing**: Automatically detects and fixes configuration issues
+- **State Tracking**: JSON-based task completion tracking with jq
+- **Error Handling**: Retry logic for network failures, graceful git push failure handling
+- **Exit Condition**: Completes successfully when all MVP tasks done
 
 **verify_setup.sh** - Infrastructure verification script
 - Checks project structure and required files
@@ -134,17 +136,29 @@ The current development focuses on the **Minimum Viable Product** with these con
 
 ## Important Files
 
+### Documentation
 - `project.md`: Complete Architectural Decision Records (ADRs) documenting all design decisions
 - `GEMINI.md`: Project overview and development conventions (lighter version)
 - `CLAUDE.md`: This file - guidance for Claude Code agents
-- `build_orchestrator.sh`: AI-driven build automation with self-healing capabilities
+- `ARCHITECTURE_TASKS.md`: Complete MVP task breakdown with IDs and dependencies (763 lines)
+- `TASK_WORKFLOW.md`: 4-step TDD workflow for AI-driven development
+- `FIXES.md`: Documentation of orchestrator bug fixes
+
+### Scripts
+- `build_orchestrator.sh`: AI-driven build automation with Gemini integration (v16)
 - `verify_setup.sh`: Infrastructure verification script for quality assurance
 - `clean_start.sh`: Cleanup script to reset environment to fresh state
-- `project_state.json`: Tracks orchestrator execution state
+
+### State and Logs
+- `project_state.json`: Enhanced JSON state tracking with task completion arrays
 - `bug_reports.txt`: Logs command failures and errors for debugging
 - `build.log`: Complete execution log of orchestrator runs
-- `supabase/docker/docker-compose.yml`: Supabase container configuration (modified by orchestrator for Podman registry compatibility)
-- `supabase/docker/.env`: Supabase environment configuration
+- `prompts/`: Directory for AI prompts (created by orchestrator)
+- `test_results/`: Test specifications, implementations, and verification logs
+
+### Configuration
+- `supabase/docker/docker-compose.yml`: Supabase container configuration (modified by orchestrator)
+- `supabase/docker/.env`: Supabase environment configuration (⚠️ not tracked in git - contains secrets)
 
 ## Git Workflow
 
