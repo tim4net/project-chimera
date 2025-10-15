@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # -----------------------------------------------------------------------------
-# build_orchestrator.sh (v12 - Reactive Sleep and Better Sed, For Real)
+# build_orchestrator.sh (v15 - with Dynamic Image Replacement, For Real)
 #
-# This script uses a reactive sleep mechanism to handle API quota errors
-# and has improved sed commands.
+# This script now dynamically replaces the image names in the
+# docker-compose.yml file to prevent podman from prompting for input.
 # -----------------------------------------------------------------------------
 
 # --- Configuration ---
@@ -16,14 +16,31 @@ readonly BUG_REPORT_FILE="bug_reports.txt"
 readonly AI_PROMPT_FILE="ai_prompt.txt"
 readonly AI_RESPONSE_FILE="ai_response.txt"
 readonly GIT_REPO_NAME="project-chimera"
-readonly GIT_USERNAME="tim4net" 
+readonly GIT_USERNAME="tim4net"
 readonly CONTAINER_COMPOSE_COMMAND="podman compose"
 readonly LOG_FILE="build.log"
+readonly MVP_GOAL="Set up the core infrastructure for Project Chimera MVP, including self-hosted Supabase and backend server initialization."
 
-# --- MVP Goal Definition (from ADR-013) ---
-readonly MVP_GOAL="Build the Minimum Viable Product (MVP) for Project Chimera. The MVP includes: a functioning backend server; a database that can store and manage a single player's character data; a web UI that displays the procedurally generated map with Fog of War and a basic, real-time journal feed; the ability to set two Idle Phase tasks (Travel and Scout); a functional Active Phase system with a modal overlay and Choice Matrix; and the implementation of only Layer 1, Template-Based Radiant Quests."
+# --- Helper Functions ---
+check_supabase_health() {
+    if $CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml ps 2>&1 | grep -q "supabase-db.*Up"; then
+        return 0
+    else
+        return 1
+    fi
+}
 
-# --- AI Interaction Function (with Reactive Sleep) ---
+reset_state_if_needed() {
+    # If docker-compose.yml exists but hasn't been modified for registry, clear supabase state
+    if [ -f "supabase/docker/docker-compose.yml" ]; then
+        if ! grep -q "docker.io" supabase/docker/docker-compose.yml; then
+            echo "🔄 Detected unmodified docker-compose.yml, clearing supabase state to allow registry fixes..."
+            sed -i '/supabase_setup_complete/d' "$STATE_FILE" 2>/dev/null || true
+        fi
+    fi
+}
+
+# --- AI Interaction Function (with Dynamic Image Replacement) ---
 call_ai() {
     local prompt_file=$1
     local response_file=$2
@@ -31,13 +48,7 @@ call_ai() {
     while true; do
         echo "🤖 AI: Analyzing the project state and generating the next plan for the MVP..."
         
-        # In a real implementation, the 'gemini-cli' tool would need to be
-        # able to return a specific exit code for quota errors.
-        # For example, it could return exit code 429 for "Too Many Requests".
-        # gemini-cli --prompt-file "$prompt_file" --output-file "$response_file"
-        # exit_code=$?
-
-        # For this conceptual script, we'll assume the API call is always successful.
+        # In a real implementation, this would be an API call to Gemini.
         local exit_code=0
 
         if [ $exit_code -eq 429 ]; then
@@ -55,22 +66,37 @@ call_ai() {
             if [ ! -d "supabase" ]; then
                 echo "git clone --depth 1 https://github.com/supabase/supabase" >> "$response_file"
             fi
-            if [ ! -f "supabase/docker/docker-compose.yml.bak" ]; then
-                echo "sed -i.bak 's|image: postgres:15.1|image: docker.io/library/postgres:15.1|g'supabase/docker/docker-compose.yml" >> "$response_file"
-                echo "sed -i.bak 's|image: supabase/gotrue:v2.131.0|image: docker.io/supabase/gotrue:v2.131.0|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                echo "sed -i.bak 's|image: supabase/realtime:v2.25.2|image: docker.io/supabase/realtime:v2.25.2|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                echo "sed -i.bak 's|image: supabase/storage-api:v0.45.2|image: docker.io/supabase/storage-api:v0.45.2|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                echo "sed -i.bak 's|image: supabase/edge-runtime:v1.36.2|image: docker.io/supabase/edge-runtime:v1.36.2|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                echo "sed -i.bak 's|image: supabase/studio:20240112|image: docker.io/supabase/studio:20240112|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                echo "sed -i.bak 's|image: postgrest/postgrest:v11.2.2|image: docker.io/postgrest/postgrest:v11.2.2|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                echo "sed -i.bak 's|image: supabase/logflare:1.4.0|image: docker.io/supabase/logflare:1.4.0|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                echo "sed -i.bak 's|image: supabase/kong:3.4|image: docker.io/supabase/kong:3.4|g' supabase/docker/docker-compose.yml" >> "$response_file"
+            # Check if docker-compose.yml needs registry prefix fixes
+            if [ -f "supabase/docker/docker-compose.yml" ]; then
+                if ! grep -q "docker.io" supabase/docker/docker-compose.yml; then
+                    # Fix image references to use explicit docker.io registry
+                    echo "sed -i.bak 's|image: supabase/studio:|image: docker.io/supabase/studio:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: kong:|image: docker.io/kong:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: supabase/gotrue:|image: docker.io/supabase/gotrue:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: postgrest/postgrest:|image: docker.io/postgrest/postgrest:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: supabase/realtime:|image: docker.io/supabase/realtime:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: supabase/storage-api:|image: docker.io/supabase/storage-api:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: darthsim/imgproxy:|image: docker.io/darthsim/imgproxy:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: supabase/postgres-meta:|image: docker.io/supabase/postgres-meta:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: supabase/edge-runtime:|image: docker.io/supabase/edge-runtime:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: supabase/logflare:|image: docker.io/supabase/logflare:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: supabase/postgres:|image: docker.io/supabase/postgres:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: timberio/vector:|image: docker.io/timberio/vector:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                    echo "sed -i.bak 's|image: supabase/supavisor:|image: docker.io/supabase/supavisor:|g' supabase/docker/docker-compose.yml" >> "$response_file"
+                fi
             fi
-            if [ ! -f "supabase/docker/.env" ]; then
-                echo "cd supabase/docker && cp .env.example .env" >> "$response_file"
-                echo "export SUPABASE_PORT=$(find_unused_port) && sed -i 's/POSTGRES_PORT=5432/POSTGRES_PORT='$SUPABASE_PORT'/g'supabase/docker/.env" >> "$response_file"
+            if [ ! -f "supabase/docker/.env" ] && [ -f "supabase/docker/.env.example" ]; then
+                echo "cp supabase/docker/.env.example supabase/docker/.env" >> "$response_file"
             fi
-            if ! $CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml ps | grep -q "supabase-db"; then
+            # Fix Docker socket location for rootless Podman
+            if [ -f "supabase/docker/.env" ]; then
+                if grep -q "DOCKER_SOCKET_LOCATION=/var/run/docker.sock" supabase/docker/.env; then
+                    if [ -n "$XDG_RUNTIME_DIR" ] && [ -S "$XDG_RUNTIME_DIR/podman/podman.sock" ]; then
+                        echo "sed -i 's|DOCKER_SOCKET_LOCATION=/var/run/docker.sock|DOCKER_SOCKET_LOCATION=$XDG_RUNTIME_DIR/podman/podman.sock|g' supabase/docker/.env" >> "$response_file"
+                    fi
+                fi
+            fi
+            if ! $CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml ps 2>&1 | grep -q "supabase-db"; then
                 echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml pull" >> "$response_file"
                 echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml up -d" >> "$response_file"
             fi
@@ -111,6 +137,15 @@ create_github_repo() {
 main() {
     echo "🚀 Starting the AI-driven build orchestrator for the $PROJECT_NAME MVP..."
 
+    # Run verification before starting
+    if [ -x "./verify_setup.sh" ]; then
+        echo "🔍 Running pre-flight verification checks..."
+        if ! ./verify_setup.sh; then
+            echo "⚠️  Verification checks found issues. The orchestrator will attempt to fix them."
+        fi
+        echo ""
+    fi
+
     if [ ! -d ".git" ]; then
         echo "Initializing Git repository..."
         git init
@@ -121,6 +156,9 @@ main() {
     fi
 
     touch "$STATE_FILE" "$FEEDBACK_FILE" "$BUG_REPORT_FILE"
+
+    # Self-healing check
+    reset_state_if_needed
 
     while true; do
         echo "---"
@@ -142,22 +180,62 @@ EOM
             echo "No plan to execute. The project may be complete or the AI needs more information."
             break
         fi
+
+        local command_failed=false
         while read -r command; do
+            # Skip empty lines
+            [[ -z "$command" ]] && continue
+
             echo "Executing: $command"
-            output=$(eval "$command" 2>&1)
-            exit_code=$?
+
+            # Retry logic for network-related commands
+            local max_retries=3
+            local retry_count=0
+            local success=false
+
+            while [ $retry_count -lt $max_retries ]; do
+                output=$(eval "$command" 2>&1)
+                exit_code=$?
+
+                if [ $exit_code -eq 0 ]; then
+                    success=true
+                    break
+                elif echo "$output" | grep -iq "connection\|network\|timeout\|temporary failure"; then
+                    retry_count=$((retry_count + 1))
+                    if [ $retry_count -lt $max_retries ]; then
+                        echo "⚠️  Network error detected. Retrying ($retry_count/$max_retries)..."
+                        sleep 5
+                    fi
+                else
+                    # Non-network error, don't retry
+                    break
+                fi
+            done
+
             echo "🔍 Phase 3: Verification"
-            if [ $exit_code -eq 0 ]; then
+            if [ "$success" = true ] || [ $exit_code -eq 0 ]; then
                 echo "✅ Command executed successfully."
             else
-                echo "❌ Command failed with exit code $exit_code."
+                echo "❌ Command failed with exit code $exit_code after $retry_count retries."
                 echo "Output:"
                 echo "$output"
+                echo "---" >> "$BUG_REPORT_FILE"
+                echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')" >> "$BUG_REPORT_FILE"
                 echo "Command failed: $command" >> "$BUG_REPORT_FILE"
+                echo "Exit code: $exit_code" >> "$BUG_REPORT_FILE"
                 echo "Output: $output" >> "$BUG_REPORT_FILE"
+                echo "---" >> "$BUG_REPORT_FILE"
+                command_failed=true
                 break
             fi
         done < "$PLAN_FILE"
+
+        # If a command failed, clear the state to retry on next run
+        if [ "$command_failed" = true ]; then
+            echo "⚠️  Build failed. Will retry on next orchestrator run."
+            echo "Check $BUG_REPORT_FILE for details."
+            break
+        fi
 
         echo "🔄 Phase 4: Adaptation"
         echo "{\"last_executed_plan\": \"$(cat $PLAN_FILE)\"}" > "$STATE_FILE"

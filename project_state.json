@@ -1,2 +1,3 @@
-{"last_executed_plan": "echo 'Initializing backend server...'
-echo 'backend_server_initialized' >> project_state.json"}
+{"last_executed_plan": "podman compose -f supabase/docker/docker-compose.yml pull
+podman compose -f supabase/docker/docker-compose.yml up -d
+echo 'supabase_setup_complete' >> project_state.json"}
