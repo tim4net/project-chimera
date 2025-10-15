@@ -28,8 +28,7 @@ call_ai() {
     local prompt_file=$1
     local response_file=$2
 
-    while true;
- do
+    while true; do
         echo "🤖 AI: Analyzing the project state and generating the next plan for the MVP..."
         
         # In a real implementation, the 'gemini-cli' tool would need to be
@@ -123,8 +122,7 @@ main() {
 
     touch "$STATE_FILE" "$FEEDBACK_FILE" "$BUG_REPORT_FILE"
 
-    while true;
- do
+    while true; do
         echo "---"
 
         echo "📋 Phase 1: Planning"
@@ -144,8 +142,7 @@ EOM
             echo "No plan to execute. The project may be complete or the AI needs more information."
             break
         fi
-        while read -r command;
- do
+        while read -r command; do
             echo "Executing: $command"
             output=$(eval "$command" 2>&1)
             exit_code=$?
