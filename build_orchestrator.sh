@@ -56,24 +56,63 @@ call_ai() {
     while true; do
         echo "🤖 AI: Analyzing the project state and generating the next plan for the MVP..."
 
-        # In a real implementation, this would be an API call to Gemini.
-        local exit_code=0
+        # Build context for Gemini including project architecture
+        local context_file=$(mktemp)
+        cat > "$context_file" <<-EOF
+You are an AI build orchestrator for Project Chimera. Your job is to generate shell commands to build the project according to the architectural specifications.
 
+PROJECT CONTEXT:
+$(cat project.md | head -200)
+
+CURRENT STATE:
+$(cat "$STATE_FILE")
+
+MVP SCOPE (from ADR-013):
+- Core Infrastructure: Backend server + Supabase database
+- Onboarding: Character creation wizard + Gemini Pro opening scene
+- Web UI: Map display with Fog of War + journal feed
+- Core Gameplay: Travel and Scout idle tasks + Active Phase system
+- AI Integration: Local LLM for narration + Gemini Pro for onboarding
+- Progression: XP, leveling, basic loot
+
+CURRENT TASK:
+$(cat "$prompt_file")
+
+Generate ONLY shell commands (one per line) to complete the next development step. Focus on:
+1. Setting up the technology stack (Node.js/Python backend, React frontend)
+2. Creating project structure and configuration files
+3. Installing dependencies
+4. Setting up development environment
+5. Creating basic scaffolding for MVP features
+
+Do NOT include explanations, only executable shell commands.
+EOF
+
+        # Call Gemini API
+        if command -v gemini &> /dev/null; then
+            if gemini chat "$(cat $context_file)" > "$response_file" 2>&1; then
+                local exit_code=$?
+            else
+                local exit_code=$?
+            fi
+        else
+            echo "⚠️  Gemini CLI not found. Falling back to hardcoded logic..."
+            local exit_code=1
+        fi
+
+        rm -f "$context_file"
+
+        # Handle API errors
         if [ $exit_code -eq 429 ]; then
             echo "API Error: Quota exceeded. Sleeping for 60 seconds..."
             sleep 60
             continue
         elif [ $exit_code -ne 0 ]; then
-            echo "API Error: An unexpected error occurred with exit code $exit_code."
-            break
-        fi
-
-        # If the API call was successful, generate the plan
-        > "$response_file"
-
-        # Check current state properly using jq
-        local has_supabase=$(get_state_value "supabase_setup_complete")
-        local has_backend=$(get_state_value "backend_server_initialized")
+            echo "⚠️  Gemini API call failed. Using fallback logic..."
+            # Fallback to hardcoded logic
+            > "$response_file"
+            local has_supabase=$(get_state_value "supabase_setup_complete")
+            local has_backend=$(get_state_value "backend_server_initialized")
 
         if [ "$has_supabase" != "true" ]; then
             if [ ! -d "supabase" ]; then
@@ -121,6 +160,7 @@ call_ai() {
             echo "echo '✅ All MVP infrastructure tasks are complete!'" >> "$response_file"
             echo "exit 0" >> "$response_file"
         fi
+        fi  # Close the "elif [ $exit_code -ne 0 ]" block
 
         if [ -s "$response_file" ]; then
             echo "🤖 AI: Plan generated."
