@@ -1,0 +1,15 @@
+        Project: Project Chimera
+
+        Primary Goal:
+        Build the Minimum Viable Product (MVP) for Project Chimera. The MVP includes: a functioning backend server; a database that can store and manage a single player's character data; a web UI that displays the procedurally generated map with Fog of War and a basic, real-time journal feed; the ability to set two Idle Phase tasks (Travel and Scout); a functional Active Phase system with a modal overlay and Choice Matrix; and the implementation of only Layer 1, Template-Based Radiant Quests.
+
+        Current State:
+        
+
+        User Feedback:
+        
+
+        Bug Reports:
+        
+
+        Based on the primary goal and the current state, please generate the next sequence of shell commands to continue building the project.

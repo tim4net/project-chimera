@@ -1,0 +1,1 @@
+{last_executed_plan: git clone --depth 1 https://github.com/supabase/supabase cd supabase/docker && cp .env.example .env export SUPABASE_PORT=8000 && sed -i 's/8000//g' .env podman compose pull podman compose up -d}
