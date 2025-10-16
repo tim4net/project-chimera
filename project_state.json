@@ -27,7 +27,8 @@
     "GM-004",
     "INFRA-001",
     "INFRA-002",
-    "INFRA-003"
+    "INFRA-003",
+    "TEST-001"
   ],
   "tasks_in_progress": [],
   "current_sprint": 1
