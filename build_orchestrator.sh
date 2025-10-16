@@ -49,6 +49,91 @@ get_state_value() {
     jq -r ".$key // false" "$STATE_FILE" 2>/dev/null || echo "false"
 }
 
+# --- Claude Error Recovery Function ---
+call_claude_for_fix() {
+    local failed_command=$1
+    local error_output=$2
+    local error_code=$3
+
+    echo ""
+    echo "🔧 Calling Claude to analyze and fix the error..."
+
+    local claude_prompt=$(mktemp)
+    cat > "$claude_prompt" <<-EOF
+An error occurred while building Project Chimera. Please analyze and provide a fix.
+
+FAILED COMMAND:
+$failed_command
+
+ERROR CODE: $error_code
+
+ERROR OUTPUT:
+$error_output
+
+CURRENT PROJECT STATE:
+$(cat "$STATE_FILE")
+
+RECENT COMMANDS (last 5):
+$(tail -5 "$PLAN_FILE" 2>/dev/null || echo "No recent commands")
+
+PROJECT CONTEXT:
+This is Project Chimera, a semi-idle RPG with AI DM. We're building the MVP.
+
+INSTRUCTIONS:
+1. Analyze the error - what went wrong?
+2. Determine the root cause
+3. Generate shell commands to fix the issue
+4. Make fixes idempotent (safe to re-run)
+
+OUTPUT FORMAT:
+First line: Brief explanation of the issue
+Following lines: Shell commands to fix (one per line, no explanations)
+EOF
+
+    # Call Claude via claude command (if available)
+    local fix_file=$(mktemp)
+    if command -v claude &> /dev/null; then
+        echo "   Using Claude CLI..."
+        claude "$(cat $claude_prompt)" > "$fix_file" 2>&1
+        local claude_exit=$?
+    else
+        # Alternative: use API directly or skip
+        echo "   ⚠️  Claude CLI not available. Attempting manual fix..."
+        claude_exit=1
+    fi
+
+    rm -f "$claude_prompt"
+
+    if [ $claude_exit -eq 0 ] && [ -s "$fix_file" ]; then
+        echo "✓ Claude provided a fix:"
+        echo ""
+
+        # Extract explanation (first line)
+        local explanation=$(head -1 "$fix_file")
+        echo "   💡 Analysis: $explanation"
+        echo ""
+
+        # Extract fix commands (skip first line, filter for valid commands)
+        local fix_commands=$(tail -n +2 "$fix_file" | grep -E "^(mkdir|echo|cp|npm|pnpm|git|jq|test|sed|podman|rm|mv|chmod)" || true)
+
+        if [ -n "$fix_commands" ]; then
+            echo "   🔧 Fix commands:"
+            echo "$fix_commands" | sed 's/^/   → /'
+            echo ""
+            echo "$fix_commands"
+            rm -f "$fix_file"
+            return 0
+        else
+            echo "   ⚠️  No executable commands found in Claude's response"
+            rm -f "$fix_file"
+            return 1
+        fi
+    else
+        rm -f "$fix_file"
+        return 1
+    fi
+}
+
 # --- AI Interaction Function ---
 call_ai() {
     local prompt_file=$1
@@ -84,13 +169,53 @@ Generate ONLY executable shell commands, one per line.
 NO explanations, NO markdown, NO comments.
 EOF
 
-        # Call Gemini API
+        # Call Gemini API with progress indication
         if command -v gemini &> /dev/null; then
-            if gemini chat "$(cat $context_file)" > "$response_file" 2>&1; then
-                local exit_code=$?
+            echo "📡 Calling Gemini API..."
+            echo "   Context size: $(cat $context_file | wc -c) bytes"
+
+            # Call Gemini and capture output with progress spinner
+            local gemini_output=$(mktemp)
+            echo -n "   Waiting for response"
+
+            # Start spinner in background
+            (while true; do
+                for s in / - \\ \|; do
+                    printf "\r   Waiting for response $s"
+                    sleep 0.2
+                done
+            done) &
+            local spinner_pid=$!
+
+            # Call Gemini
+            gemini "$(cat $context_file)" > "$gemini_output" 2>&1
+            local exit_code=$?
+
+            # Kill spinner
+            kill $spinner_pid 2>/dev/null
+            wait $spinner_pid 2>/dev/null
+
+            if [ $exit_code -eq 0 ]; then
+                printf "\r   Response received ✓     \n"
             else
-                local exit_code=$?
+                printf "\r   API call failed ✗     \n"
             fi
+
+            # Parse Gemini output - skip status messages, keep only commands
+            echo "📝 Parsing Gemini response..."
+            grep -v "^Loaded\|^Initializing\|^Connecting\|^Using model" "$gemini_output" | \
+                grep -v "^$" | \
+                grep -E "^(mkdir|echo|cp|npm|pnpm|git|jq|test|sed|podman)" > "$response_file" || true
+
+            # Show what Gemini suggested
+            if [ -s "$response_file" ]; then
+                echo "🤖 Gemini suggested $(wc -l < $response_file) commands:"
+                head -3 "$response_file" | sed 's/^/   → /'
+                local remaining=$(($(wc -l < $response_file) - 3))
+                [ $remaining -gt 0 ] && echo "   ... and $remaining more"
+            fi
+
+            rm -f "$gemini_output"
         else
             echo "⚠️  Gemini CLI not found. Falling back to hardcoded logic..."
             local exit_code=1
@@ -153,15 +278,16 @@ EOF
             echo "echo 'Initializing backend server...'" >> "$response_file"
             echo "jq '.backend_server_initialized = true' $STATE_FILE > ${STATE_FILE}.tmp && mv ${STATE_FILE}.tmp $STATE_FILE" >> "$response_file"
         else
-            echo "echo '✅ All MVP infrastructure tasks are complete!'" >> "$response_file"
-            echo "exit 0" >> "$response_file"
+            # All tasks complete - just output status message
+            echo "echo '✅ All MVP tasks complete. Infrastructure running. Ready for development.'" >> "$response_file"
         fi
         fi  # Close the "elif [ $exit_code -ne 0 ]" block
 
         if [ -s "$response_file" ]; then
-            echo "🤖 AI: Plan generated."
+            local cmd_count=$(grep -c "^" "$response_file" || echo "0")
+            echo "🤖 Gemini generated $cmd_count commands"
         else
-            echo "🤖 AI: No new actions required at this time."
+            echo "🤖 No new actions required - project is complete or waiting"
         fi
 
         break
@@ -245,22 +371,45 @@ EOM
 
         echo "🛠️ Phase 2: Execution"
         if [ ! -s "$PLAN_FILE" ]; then
-            echo "No plan to execute. The project may be complete or the AI needs more information."
+            echo "⚠️  No plan to execute. The project may be complete or the AI needs more information."
             break
         fi
 
+        echo "📋 Executing $(wc -l < $PLAN_FILE) commands from plan..."
+        echo ""
+
         local command_failed=false
+        local command_count=0
+        local total_commands=$(grep -v "^$" "$PLAN_FILE" | wc -l)
+
         while read -r command; do
             # Skip empty lines
             [[ -z "$command" ]] && continue
 
-            # Check for exit command
-            if [[ "$command" == "exit 0" ]]; then
-                echo "✅ Build orchestrator completed successfully!"
-                exit 0
+            command_count=$((command_count + 1))
+
+            # Check for completion message
+            if echo "$command" | grep -q "All MVP.*complete\|MVP Complete"; then
+                echo ""
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo "✅ MVP BUILD COMPLETE!"
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                eval "$command" 2>&1  # Execute the message
+                # Don't exit - loop will continue and do nothing since complete
+                continue
             fi
 
-            echo "Executing: $command"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "▶ Command $command_count/$total_commands"
+            echo "  $command"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # Show progress for long-running commands
+            if echo "$command" | grep -qE "podman compose.*pull|podman compose.*up|npm install|pnpm install"; then
+                echo "   ⏳ This may take a while, streaming output..."
+                echo "   ────────────────────────────────────────"
+            fi
 
             # Retry logic for network-related commands
             local max_retries=3
@@ -268,8 +417,16 @@ EOM
             local success=false
 
             while [ $retry_count -lt $max_retries ]; do
-                output=$(eval "$command" 2>&1)
-                exit_code=$?
+                # Stream output for long-running commands, capture for others
+                if echo "$command" | grep -qE "podman compose.*pull|podman compose.*up|npm install|pnpm install|git clone"; then
+                    # Stream output in real-time with indentation
+                    eval "$command" 2>&1 | sed 's/^/   │ /' | head -50
+                    exit_code=${PIPESTATUS[0]}
+                    output="(output streamed above)"
+                else
+                    output=$(eval "$command" 2>&1)
+                    exit_code=$?
+                fi
 
                 if [ $exit_code -eq 0 ]; then
                     success=true
@@ -286,29 +443,77 @@ EOM
                 fi
             done
 
-            echo "🔍 Phase 3: Verification"
+            echo "   ────────────────────────────────────────"
+            echo "🔍 Verification:"
             if [ "$success" = true ] || [ $exit_code -eq 0 ]; then
-                echo "✅ Command executed successfully."
+                echo "   ✅ Success"
             else
-                echo "❌ Command failed with exit code $exit_code after $retry_count retries."
-                echo "Output:"
-                echo "$output"
+                echo "   ❌ Failed with exit code $exit_code (attempt $((retry_count + 1))/$max_retries)"
+                if [ "$output" != "(output streamed above)" ]; then
+                    echo "   Output:"
+                    echo "$output" | head -20 | sed 's/^/   │ /'
+                fi
+
+                # Log error
                 echo "---" >> "$BUG_REPORT_FILE"
                 echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')" >> "$BUG_REPORT_FILE"
                 echo "Command failed: $command" >> "$BUG_REPORT_FILE"
                 echo "Exit code: $exit_code" >> "$BUG_REPORT_FILE"
                 echo "Output: $output" >> "$BUG_REPORT_FILE"
                 echo "---" >> "$BUG_REPORT_FILE"
-                command_failed=true
-                break
+
+                # Call Claude to fix the error
+                local fix_commands=$(call_claude_for_fix "$command" "$output" "$exit_code")
+
+                if [ -n "$fix_commands" ]; then
+                    echo "🔄 Applying Claude's fix..."
+                    echo ""
+
+                    # Execute fix commands
+                    local fix_failed=false
+                    while IFS= read -r fix_cmd; do
+                        [[ -z "$fix_cmd" ]] && continue
+                        echo "   Executing fix: $fix_cmd"
+                        local fix_output=$(eval "$fix_cmd" 2>&1)
+                        local fix_exit=$?
+
+                        if [ $fix_exit -eq 0 ]; then
+                            echo "   ✓ Fix applied"
+                        else
+                            echo "   ✗ Fix failed: $fix_output"
+                            fix_failed=true
+                            break
+                        fi
+                    done <<< "$fix_commands"
+
+                    if [ "$fix_failed" = false ]; then
+                        echo ""
+                        echo "✅ Error fixed by Claude! Continuing with plan..."
+                        continue  # Continue with next command in plan
+                    else
+                        echo "❌ Claude's fix failed. Stopping build."
+                        command_failed=true
+                        break
+                    fi
+                else
+                    echo "⚠️  No automatic fix available. Stopping build."
+                    command_failed=true
+                    break
+                fi
             fi
         done < "$PLAN_FILE"
 
-        # If a command failed, clear the state to retry on next run
+        # If a command failed, log and retry
         if [ "$command_failed" = true ]; then
-            echo "⚠️  Build failed. Will retry on next orchestrator run."
-            echo "Check $BUG_REPORT_FILE for details."
-            break
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "⚠️  Build encountered an error that couldn't be auto-fixed."
+            echo "   Check $BUG_REPORT_FILE for details."
+            echo "   Self-healing: Will retry with fresh Gemini context..."
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            sleep 5  # Brief pause before retry
+            continue  # Continue to next loop iteration
         fi
 
         echo "🔄 Phase 4: Adaptation"
