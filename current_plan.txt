@@ -1,4 +1,2 @@
-mkdir -p supabase/migrations
-cat > supabase/migrations/$(date +%Y%m%d%H%M%S)_db_002_core_characters.sql <<'EOF'
-echo "Created DB-002 migration file."
-jq '.tasks_completed += ["DB-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+cat > supabase/migrations/20251015191622_db_003_core_inventory.sql <<'EOF'
+jq '.tasks_completed += ["DB-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
