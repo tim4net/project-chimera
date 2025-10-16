@@ -98,7 +98,7 @@ verify_supabase_containers() {
     local failed_containers=()
 
     for container in "${critical_containers[@]}"; do
-        if echo "$compose_output" | grep -q "$container.*Up"; then
+        if echo "$compose_output" | grep -q "Up.*$container"; then
             print_status "PASS" "Container $container is running"
         else
             failed_containers+=("$container")
