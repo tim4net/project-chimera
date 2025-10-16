@@ -1,6 +1,7 @@
-mkdir -p backend/src/prompts
-cat > backend/src/prompts/system.js <<'EOF'
-cat > backend/src/prompts/narrative.js <<'EOF'
-cat > backend/src/prompts/items.js <<'EOF'
-cat > backend/src/prompts/onboarding.js <<'EOF'
-jq '.tasks_completed += ["AI-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p frontend/src/components/CharacterSheet
+cat > frontend/src/components/CharacterSheet/CharacterSheet.tsx <<'EOF'
+cat > frontend/src/components/CharacterSheet/StatsPanel.tsx <<'EOF'
+cat > frontend/src/components/CharacterSheet/InventoryPanel.tsx <<'EOF'
+cat > frontend/src/components/CharacterSheet/SpellsPanel.tsx <<'EOF'
+cat > frontend/src/components/CharacterSheet/ProgressionPanel.tsx <<'EOF'
+jq '.tasks_completed += ["FE-007"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
