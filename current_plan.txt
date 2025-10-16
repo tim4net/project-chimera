@@ -1,2 +1,5 @@
-echo 'Initializing backend server...'
-jq '.backend_server_initialized = true' project_state.json > project_state.json.tmp && mv project_state.json.tmp project_state.json
+mkdir -p backend/src backend/tests
+mkdir -p frontend/src frontend/public
+mkdir -p shared
+mkdir -p docs
+jq '.tasks_completed += ["INFRA-001"]' project_state.json > tmp.json && mv tmp.json project_state.json
