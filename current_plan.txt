@@ -1,2 +1,5 @@
-cat > supabase/migrations/20251015191623_db_004_core_journal.sql <<'EOF'
-jq '.tasks_completed += ["DB-004"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+echo 'Implementing BE-002: Character Management API'
+mkdir -p backend/src/routes
+cat > backend/src/routes/characters.js <<'EOF'
+cat > backend/src/server.js <<'EOF'
+jq '.tasks_completed += ["BE-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json

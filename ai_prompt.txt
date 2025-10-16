@@ -1,5 +1,10 @@
 Project: Project Chimera
-Primary Goal: Set up the core infrastructure for Project Chimera MVP, including self-hosted Supabase and backend server initialization.
+
+COMPLETED TASKS: BE-001,DB-001,DB-002,DB-003,DB-004,INFRA-001,INFRA-002,INFRA-003
+
+NEXT TASK TO IDENTIFY:
+Review ARCHITECTURE_TASKS.md and select the next task where all dependencies are met.
+
 Current State: {
   "supabase_setup_complete": true,
   "backend_server_initialized": true,
@@ -8,6 +13,7 @@ Current State: {
     "DB-001",
     "DB-002",
     "DB-003",
+    "DB-004",
     "INFRA-001",
     "INFRA-002",
     "INFRA-003"
@@ -17,4 +23,5 @@ Current State: {
 }
 User Feedback: 
 Bug Reports: 
-Based on the primary goal and the current state, please generate the next sequence of shell commands to continue building the project.
+
+Generate shell commands to implement the next ready task.
