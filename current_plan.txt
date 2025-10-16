@@ -1,2 +1,4 @@
-cat > supabase/migrations/20251015191622_db_003_core_inventory.sql <<'EOF'
-jq '.tasks_completed += ["DB-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p backend/src/routes
+cat > backend/src/routes/auth.js <<'EOF'
+cat > backend/src/server.js <<'EOF'
+jq '.tasks_completed += ["BE-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
