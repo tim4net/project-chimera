@@ -1,5 +1,7 @@
-mkdir -p frontend/src/components/idle
-cat > frontend/src/components/idle/IdleTaskPanel.tsx <<'EOF'
-cat > frontend/src/components/idle/TaskButton.tsx <<'EOF'
-cat > frontend/src/components/idle/TaskStatus.tsx <<'EOF'
-jq '.tasks_completed += ["FE-005"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p backend/src/prompts backend/src/services
+cat > backend/src/prompts/travel.txt <<'EOF'
+cat > backend/src/prompts/scout.txt <<'EOF'
+cat > backend/src/prompts/encounter.txt <<'EOF'
+cat > backend/src/prompts/item.txt <<'EOF'
+cat > backend/src/services/localLlmService.js <<'EOF'
+jq '.tasks_completed += ["AI-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json

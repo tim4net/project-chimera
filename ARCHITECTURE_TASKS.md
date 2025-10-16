@@ -337,6 +337,7 @@ CREATE POLICY "Users can view own journal" ON public.journal_entries
 **Implementation**:
 - Procedural generation using campaign seed
 - Fog of War - only return explored tiles
+- Shared Fog of War - for group members in the same location
 - Biomes, settlements, dungeons
 - Cache generated regions in database
 
