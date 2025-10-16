@@ -1,6 +1,6 @@
-mkdir -p frontend/src/tests
-cat > frontend/src/tests/auth.test.tsx <<'EOF'
-cat > frontend/src/tests/character.test.tsx <<'EOF'
-cat > frontend/src/tests/map.test.tsx <<'EOF'
-cat > frontend/src/tests/journal.test.tsx <<'EOF'
-jq '.tasks_completed += ["TEST-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+echo "--- DEPLOY-001: Setting up Development Environment ---"
+cat > backend/Dockerfile.dev <<'EOF'
+cat > frontend/Dockerfile.dev <<'EOF'
+cat > docker-compose.app.yml <<'EOF'
+cat > dev-env.sh <<'EOF'
+jq '.tasks_completed += ["DEPLOY-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
