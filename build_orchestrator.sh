@@ -157,16 +157,31 @@ CURRENT PROMPT:
 $(cat "$prompt_file")
 
 INSTRUCTIONS:
-1. Review completed tasks in state file
-2. Identify the next pending task with no incomplete dependencies
-3. Generate shell commands to implement that task
-4. Commands must be idempotent (safe to run multiple times)
-5. End with: jq '.tasks_completed += ["TASK-ID"]' $STATE_FILE > tmp.json && mv tmp.json $STATE_FILE
-6. If all MVP tasks complete, output: echo '✅ MVP Complete!' && exit 0
+1. Review completed tasks: $(jq -r '.tasks_completed | join(", ")' "$STATE_FILE" 2>/dev/null || echo "none")
+2. IMPORTANT: You can work on ANY task whose dependencies are all complete
+   - Don't just do tasks in order!
+   - Pick the highest-priority ready task
+   - Multiple tasks may be ready at once - choose the most impactful
+3. Check the dependency graph - a task is READY if:
+   - All its dependencies are in tasks_completed[]
+   - It's not already in tasks_completed[]
+4. Generate shell commands to implement ONE ready task
+5. Commands must be idempotent (safe to run multiple times)
+6. End with: jq '.tasks_completed += ["TASK-ID"]' $STATE_FILE > tmp.json && mv tmp.json $STATE_FILE
+7. If NO tasks are ready (waiting on dependencies), output: echo '⏳ Waiting for dependencies'
+8. If ALL MVP tasks complete, output: echo '✅ MVP Complete!'
+
+PRIORITY ORDER (when multiple tasks ready):
+1. Infrastructure (INFRA-*) - blocks everything
+2. Database (DB-*) - blocks backend
+3. Backend (BE-*) - blocks frontend features
+4. Frontend (FE-*) - user-facing
+5. Testing (TEST-*) - quality assurance
 
 OUTPUT FORMAT:
 Generate ONLY executable shell commands, one per line.
 NO explanations, NO markdown, NO comments.
+First line must be a valid command (not status text).
 EOF
 
         # Call Gemini API with progress indication

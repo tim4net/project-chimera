@@ -669,6 +669,32 @@ CREATE POLICY "Users can view own journal" ON public.journal_entries
 
 ---
 
+## TASK EXECUTION RULES
+
+### Dependency Resolution
+- Tasks can be executed OUT OF ORDER
+- A task is READY when ALL dependencies are complete
+- Multiple tasks may be ready simultaneously - choose by priority
+- Non-essential tasks should NOT block essential ones
+
+### Priority Matrix
+1. **Critical Path**: INFRA → DB → BE → FE (main features)
+2. **Parallel Work**: Tests can be written alongside implementation
+3. **Nice-to-Have**: Documentation, polish, optional features
+
+### Example Scenarios
+
+**Scenario 1**: After INFRA-002 completes
+- Ready: INFRA-003 (Frontend stack) - CAN START IMMEDIATELY
+- Ready: DB-001 (Auth tables) - CAN START IMMEDIATELY
+- Blocked: BE-001 (needs DB-001)
+→ Agent should pick DB-001 (higher priority) OR INFRA-003 (parallel work)
+
+**Scenario 2**: DB schema tasks
+- DB-001, DB-002, DB-003 have linear dependencies
+- BUT: Can work on INFRA-003 (frontend) while waiting
+- Don't block on non-critical tasks!
+
 ## TASK DEPENDENCY GRAPH
 
 ```
