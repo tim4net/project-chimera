@@ -1,4 +1,2 @@
-mkdir -p backend/src/routes
-cat > backend/src/routes/auth.js <<'EOF'
-cat > backend/src/server.js <<'EOF'
-jq '.tasks_completed += ["BE-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+cat > supabase/migrations/20251015191623_db_004_core_journal.sql <<'EOF'
+jq '.tasks_completed += ["DB-004"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
