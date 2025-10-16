@@ -209,7 +209,7 @@ EOF
             echo ""
             # Extract what we're asking for
             local completed=$(jq -r '.tasks_completed | length' "$STATE_FILE" 2>/dev/null || echo "0")
-            echo "   Completed: $completed/28 MVP tasks"
+            echo "   Completed: $completed/30 MVP tasks"
             echo "   Asking: Select and implement next ready task"
             echo "   Context: $(cat $context_file | wc -c) bytes sent to Gemini"
             echo ""
