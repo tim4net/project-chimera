@@ -10,6 +10,56 @@ The project is built on a flexible architecture that supports both solo and mult
 
 The project is in its early stages, and there are no explicit build or run commands defined in the `package.json` file.
 
+## Building and Running
+
+The project is composed of a frontend and a backend.
+
+### Frontend
+
+To run the frontend in development mode:
+
+```bash
+cd frontend
+npm install # Or pnpm install, yarn install
+npm run dev
+```
+
+To build the frontend for production:
+
+```bash
+cd frontend
+npm install # Or pnpm install, yarn install
+npm run build
+```
+
+### Backend
+
+To run the backend in development mode:
+
+```bash
+cd backend
+npm install # Or pnpm install, yarn install (using the root package.json dependencies)
+npm run dev
+```
+
+To start the backend in production mode:
+
+```bash
+cd backend
+npm install # Or pnpm install, yarn install (using the root package.json dependencies)
+npm run start
+```
+
+To run backend tests:
+
+```bash
+cd backend
+npm install # Or pnpm install, yarn install (using the root package.json dependencies)
+npm run test
+```
+
+**Note:** The backend currently relies on dependencies defined in the root `package.json`. Ensure you run `npm install` (or equivalent) in the `backend` directory to link these dependencies.
+
 ```
 # TODO: Add build and run commands once they are defined.
 ```

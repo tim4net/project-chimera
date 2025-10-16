@@ -85,10 +85,10 @@ call_gemini_api() {
     local gemini_output=$(mktemp)
     echo -n "   Waiting for response"
 
-    (while true; do for s in / - \ |; do printf "\r   Waiting for response $s"; sleep 0.2; done; done) &
+    (while true; do for s in / - \\ \|; do printf "\r   Waiting for response $s"; sleep 0.2; done; done) &
     local spinner_pid=$!
 
-    gemini "$(cat $context_file)" > "$gemini_output" 2>&1
+    gemini -m gemini-2.5-flash "$(cat $context_file)" > "$gemini_output" 2>&1
     local exit_code=$?
 
     kill $spinner_pid 2>/dev/null
@@ -115,9 +115,12 @@ run_define_stage() {
     local prompt_template="prompts/${task_id}_1_define.txt"
     local test_spec_file="test_results/${task_id}_spec.sh"
 
-    # Create prompt for defining tests
+    local task_description=$(grep -A 2 "### ${task_id}:" ARCHITECTURE_TASKS.md | grep "Description:" | sed 's/\*\*Description\*\*: //g')
+
     cat > "$AI_PROMPT_FILE" <<-EOF
 Task: $task_id
+Description: $task_description
+
 Generate a detailed test specification that defines success criteria for this task.
 OUTPUT FORMAT (plain text):
 1. List all directories and files that must exist
@@ -152,15 +155,19 @@ run_implement_stage() {
     local impl_file="test_results/${task_id}_impl.sh"
 
     # Create prompt for implementation
+    local task_description=$(grep -A 2 "### ${task_id}:" ARCHITECTURE_TASKS.md | grep "Description:" | sed 's/Description: //')
+
     cat > "$AI_PROMPT_FILE" <<-EOF
 Task: $task_id
+Description: $task_description
 TEST SPECIFICATION:
 $(cat "$test_spec_file")
 CURRENT STATE:
 $(cat "$STATE_FILE")
-Generate shell commands to implement this task and pass all verification checks.
-OUTPUT FORMAT:
-Generate ONLY executable shell commands, one per line.
+Your goal is to implement the task described above.
+Generate ONLY executable shell commands. Each command must be on a new line.
+DO NOT include any explanations, comments, or markdown.
+The commands should implement the task and pass all verification checks in the TEST SPECIFICATION.
 Include commands to:
 1. Create all required directories and files.
 2. Add content to files as needed.

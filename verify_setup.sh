@@ -188,7 +188,7 @@ verify_orchestrator_script() {
     fi
 
     # Check for required functions
-    local required_functions=("call_ai" "create_github_repo" "check_supabase_health" "reset_state_if_needed")
+    local required_functions=("call_gemini_api" "check_supabase_health" "reset_state_if_needed")
     local missing_functions=()
 
     for func in "${required_functions[@]}"; do
