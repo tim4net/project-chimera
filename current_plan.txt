@@ -1,9 +1,6 @@
-echo "Setting up backend testing environment..."
-cat > backend/jest.config.js <<'EOF'
-mkdir -p backend/tests
-cat > backend/tests/auth.middleware.test.ts <<'EOF'
-cat > backend/tests/character.crud.test.ts <<'EOF'
-cat > backend/tests/dice.mechanics.test.ts <<'EOF'
-cat > backend/tests/combat.calculations.test.ts <<'EOF'
-cat > backend/tests/task.resolution.test.ts <<'EOF'
-jq '.tasks_completed += ["TEST-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p frontend/src/tests
+cat > frontend/src/tests/auth.test.tsx <<'EOF'
+cat > frontend/src/tests/character.test.tsx <<'EOF'
+cat > frontend/src/tests/map.test.tsx <<'EOF'
+cat > frontend/src/tests/journal.test.tsx <<'EOF'
+jq '.tasks_completed += ["TEST-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
