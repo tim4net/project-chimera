@@ -1,6 +1,3 @@
-mkdir -p frontend/src/components/active_phase
-cat > frontend/src/components/active_phase/ActivePhaseModal.tsx <<'EOF'
-cat > frontend/src/components/active_phase/EventNarrative.tsx <<'EOF'
-cat > frontend/src/components/active_phase/ChoiceMatrix.tsx <<'EOF'
-cat > frontend/src/components/active_phase/EventOutcome.tsx <<'EOF'
-jq '.tasks_completed += ["FE-006"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p backend/src/services
+cat > backend/src/services/levelingService.js <<'EOF'
+jq '.tasks_completed += ["GM-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
