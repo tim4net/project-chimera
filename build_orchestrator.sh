@@ -167,7 +167,7 @@ INSTRUCTIONS:
    - It's not already in tasks_completed[]
 4. Generate shell commands to implement ONE ready task
 5. Commands must be idempotent (safe to run multiple times)
-6. End with: jq '.tasks_completed += ["TASK-ID"]' $STATE_FILE > tmp.json && mv tmp.json $STATE_FILE
+6. End with: jq '.tasks_completed += ["TASK-ID"] | .tasks_completed |= unique' $STATE_FILE > tmp.json && mv tmp.json $STATE_FILE
 7. If NO tasks are ready (waiting on dependencies), output: echo '⏳ Waiting for dependencies'
 8. If ALL MVP tasks complete, output: echo '✅ MVP Complete!'
 
@@ -186,8 +186,20 @@ EOF
 
         # Call Gemini API with progress indication
         if command -v gemini &> /dev/null; then
-            echo "📡 Calling Gemini API..."
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📡 GEMINI API CALL"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # Show the prompt being sent
+            echo "📝 Prompt Preview:"
+            echo "   ┌─ Current State ─────────────────────────"
+            cat "$STATE_FILE" | sed 's/^/   │ /'
+            echo "   └─────────────────────────────────────────"
+            echo ""
+            echo "   Task Request: $(grep 'Primary Goal' "$prompt_file" | head -1)"
             echo "   Context size: $(cat $context_file | wc -c) bytes"
+            echo ""
 
             # Call Gemini and capture output with progress spinner
             local gemini_output=$(mktemp)
@@ -217,18 +229,50 @@ EOF
             fi
 
             # Parse Gemini output - skip status messages, keep only commands
-            echo "📝 Parsing Gemini response..."
+            echo "📝 Parsing response..."
             grep -v "^Loaded\|^Initializing\|^Connecting\|^Using model" "$gemini_output" | \
                 grep -v "^$" | \
-                grep -E "^(mkdir|echo|cp|npm|pnpm|git|jq|test|sed|podman)" > "$response_file" || true
+                grep -E "^(mkdir|echo|cp|npm|pnpm|git|jq|test|sed|podman|cat|touch)" > "$response_file" || true
 
-            # Show what Gemini suggested
+            # Show summary of Gemini's response
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🤖 GEMINI RESPONSE SUMMARY"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
             if [ -s "$response_file" ]; then
-                echo "🤖 Gemini suggested $(wc -l < $response_file) commands:"
+                local cmd_count=$(wc -l < $response_file)
+                echo "   Commands generated: $cmd_count"
+                echo ""
+
+                # Analyze what Gemini is doing
+                local has_mkdir=$(grep -c "^mkdir" "$response_file" || echo "0")
+                local has_npm=$(grep -c "^npm\|^pnpm" "$response_file" || echo "0")
+                local has_git=$(grep -c "^git" "$response_file" || echo "0")
+                local has_jq=$(grep -c "^jq.*tasks_completed" "$response_file" || echo "0")
+
+                echo "   Summary:"
+                [ $has_mkdir -gt 0 ] && echo "   • Creating $has_mkdir directories"
+                [ $has_npm -gt 0 ] && echo "   • Installing dependencies ($has_npm npm commands)"
+                [ $has_git -gt 0 ] && echo "   • Git operations: $has_git"
+                [ $has_jq -gt 0 ] && echo "   • Marking task complete: Yes"
+
+                # Detect which task is being worked on
+                local task_id=$(grep -o 'tasks_completed.*\["[A-Z-]*[0-9]*"\]' "$response_file" | grep -o '[A-Z-]*-[0-9]*' | head -1)
+                if [ -n "$task_id" ]; then
+                    echo "   • Task: $task_id"
+                fi
+
+                echo ""
+                echo "   First 3 commands:"
                 head -3 "$response_file" | sed 's/^/   → /'
-                local remaining=$(($(wc -l < $response_file) - 3))
-                [ $remaining -gt 0 ] && echo "   ... and $remaining more"
+                local remaining=$((cmd_count - 3))
+                [ $remaining -gt 0 ] && echo "   ... and $remaining more commands"
+            else
+                echo "   ⚠️  No commands generated"
             fi
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
 
             rm -f "$gemini_output"
         else
