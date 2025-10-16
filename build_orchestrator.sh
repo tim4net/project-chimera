@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# -----------------------------------------------------------------------------
-# build_orchestrator.sh (v16 - Fixed infinite loop and state tracking)
+# ----------------------------------------------------------------------------
+# build_orchestrator.sh (v17 - TDD Workflow)
 #
-# Fixes:
-# - Proper JSON state tracking with jq
-# - Exit condition when all tasks complete
-# - Graceful git push failure handling
-# - No duplicate state entries
-# -----------------------------------------------------------------------------
+# Implements the 4-stage TDD workflow for each task:
+# 1. DEFINE: Generate tests first.
+# 2. IMPLEMENT: Write code to pass the tests.
+# 3. TEST: Run the tests.
+# 4. REVIEW: AI reviews the code and test results.
+# ----------------------------------------------------------------------------
 
 # --- Configuration ---
 readonly PROJECT_NAME="Project Chimera"
@@ -34,7 +34,6 @@ check_supabase_health() {
 }
 
 reset_state_if_needed() {
-    # If docker-compose.yml exists but hasn't been modified for registry, clear supabase state
     if [ -f "supabase/docker/docker-compose.yml" ]; then
         if ! grep -q "docker.io" supabase/docker/docker-compose.yml; then
             echo "🔄 Detected unmodified docker-compose.yml, resetting Supabase state..."
@@ -46,349 +45,251 @@ reset_state_if_needed() {
 
 get_state_value() {
     local key=$1
-    jq -r ".$key // false" "$STATE_FILE" 2>/dev/null || echo "false"
+    jq -r ".$key // \"\"" "$STATE_FILE" 2>/dev/null || echo ""
 }
 
-# --- Claude Error Recovery Function ---
-call_claude_for_fix() {
-    local failed_command=$1
-    local error_output=$2
-    local error_code=$3
+update_state_value() {
+    local key=$1
+    local value=$2
+    jq --arg val "$value" ".$key = \$val" "$STATE_FILE" > "${STATE_FILE}.tmp"
+    mv "${STATE_FILE}.tmp" "$STATE_FILE"
+}
 
+# --- AI Interaction Functions ---
+
+call_gemini_api() {
+    local context_file=$1
+    local response_file=$2
+    
     echo ""
-    echo "🔧 Calling Claude to analyze and fix the error..."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📡 GEMINI API CALL"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    echo "📝 Prompt Preview:"
+    echo "   ┌─ Current State ─────────────────────────"
+    cat "$STATE_FILE" | sed 's/^/   │ /'
+    echo "   └─────────────────────────────────────────"
+    echo ""
+    
+    local completed=$(jq -r '.tasks_completed | length' "$STATE_FILE" 2>/dev/null || echo "0")
+    echo "   Completed: $completed/30 MVP tasks"
+    echo "   Context: $(cat $context_file | wc -c) bytes sent to Gemini"
+    echo ""
+    echo "   Full Prompt to Gemini:"
+    echo "   ┌─────────────────────────────────────────"
+    cat "$context_file" | sed 's/^/   │ /'
+    echo "   └─────────────────────────────────────────"
+    echo ""
 
-    local claude_prompt=$(mktemp)
-    cat > "$claude_prompt" <<-EOF
-An error occurred while building Project Chimera. Please analyze and provide a fix.
+    local gemini_output=$(mktemp)
+    echo -n "   Waiting for response"
 
-FAILED COMMAND:
-$failed_command
+    (while true; do for s in / - \ |; do printf "\r   Waiting for response $s"; sleep 0.2; done; done) &
+    local spinner_pid=$!
 
-ERROR CODE: $error_code
+    gemini "$(cat $context_file)" > "$gemini_output" 2>&1
+    local exit_code=$?
 
-ERROR OUTPUT:
-$error_output
+    kill $spinner_pid 2>/dev/null
+    wait $spinner_pid 2>/dev/null
 
-CURRENT PROJECT STATE:
-$(cat "$STATE_FILE")
-
-RECENT COMMANDS (last 5):
-$(tail -5 "$PLAN_FILE" 2>/dev/null || echo "No recent commands")
-
-PROJECT CONTEXT:
-This is Project Chimera, a semi-idle RPG with AI DM. We're building the MVP.
-
-INSTRUCTIONS:
-1. Analyze the error - what went wrong?
-2. Determine the root cause
-3. Generate shell commands to fix the issue
-4. Make fixes idempotent (safe to re-run)
-
-OUTPUT FORMAT:
-First line: Brief explanation of the issue
-Following lines: Shell commands to fix (one per line, no explanations)
-EOF
-
-    # Call Claude via claude command (if available)
-    local fix_file=$(mktemp)
-    if command -v claude &> /dev/null; then
-        echo "   Using Claude CLI..."
-        claude "$(cat $claude_prompt)" > "$fix_file" 2>&1
-        local claude_exit=$?
+    if [ $exit_code -eq 0 ]; then
+        printf "\r   Response received ✓     \n"
     else
-        # Alternative: use API directly or skip
-        echo "   ⚠️  Claude CLI not available. Attempting manual fix..."
-        claude_exit=1
+        printf "\r   API call failed ✗     \n"
     fi
 
-    rm -f "$claude_prompt"
+    grep -v "^Loaded\|^Initializing\|^Connecting\|^Using model" "$gemini_output" | grep -v "^$" > "$response_file" || true
+    
+    rm -f "$gemini_output"
+    return $exit_code
+}
 
-    if [ $claude_exit -eq 0 ] && [ -s "$fix_file" ]; then
-        echo "✓ Claude provided a fix:"
-        echo ""
+# --- TDD Workflow Stage Functions ---
 
-        # Extract explanation (first line)
-        local explanation=$(head -1 "$fix_file")
-        echo "   💡 Analysis: $explanation"
-        echo ""
+run_define_stage() {
+    local task_id=$1
+    echo "🔍 Stage 1: DEFINE for task $task_id"
+    
+    local prompt_template="prompts/${task_id}_1_define.txt"
+    local test_spec_file="test_results/${task_id}_spec.sh"
 
-        # Extract fix commands (skip first line, filter for valid commands)
-        local fix_commands=$(tail -n +2 "$fix_file" | grep -E "^(mkdir|echo|cp|npm|pnpm|git|jq|test|sed|podman|rm|mv|chmod)" || true)
+    # Create prompt for defining tests
+    cat > "$AI_PROMPT_FILE" <<-EOF
+Task: $task_id
+Generate a detailed test specification that defines success criteria for this task.
+OUTPUT FORMAT (plain text):
+1. List all directories and files that must exist
+2. Define any file content requirements
+3. Specify validation checks (e.g., valid package.json, correct file permissions)
+4. Provide a shell script to verify completion
+Example verification script format:
+#!/bin/bash
+# Verify $task_id completion
+test -d backend/src || exit 1
+test -f backend/package.json || exit 1
+echo "✓ $task_id complete"
+EOF
 
-        if [ -n "$fix_commands" ]; then
-            echo "   🔧 Fix commands:"
-            echo "$fix_commands" | sed 's/^/   → /'
-            echo ""
-            echo "$fix_commands"
-            rm -f "$fix_file"
-            return 0
-        else
-            echo "   ⚠️  No executable commands found in Claude's response"
-            rm -f "$fix_file"
-            return 1
-        fi
+    call_gemini_api "$AI_PROMPT_FILE" "$test_spec_file"
+    if [ ! -s "$test_spec_file" ]; then
+        echo "❌ AI failed to generate a test specification for $task_id."
+        return 1
+    fi
+    
+    chmod +x "$test_spec_file"
+    echo "✅ Test specification for $task_id saved to $test_spec_file"
+    update_state_value "current_task_step" "implement"
+    return 0
+}
+
+run_implement_stage() {
+    local task_id=$1
+    echo "💻 Stage 2: IMPLEMENT for task $task_id"
+    
+    local test_spec_file="test_results/${task_id}_spec.sh"
+    local impl_file="test_results/${task_id}_impl.sh"
+
+    # Create prompt for implementation
+    cat > "$AI_PROMPT_FILE" <<-EOF
+Task: $task_id
+TEST SPECIFICATION:
+$(cat "$test_spec_file")
+CURRENT STATE:
+$(cat "$STATE_FILE")
+Generate shell commands to implement this task and pass all verification checks.
+OUTPUT FORMAT:
+Generate ONLY executable shell commands, one per line.
+Include commands to:
+1. Create all required directories and files.
+2. Add content to files as needed.
+3. Set proper permissions.
+EOF
+
+    call_gemini_api "$AI_PROMPT_FILE" "$impl_file"
+    if [ ! -s "$impl_file" ]; then
+        echo "❌ AI failed to generate implementation for $task_id."
+        return 1
+    fi
+    
+    echo "✅ Implementation plan for $task_id saved to $impl_file"
+    update_state_value "current_task_step" "test"
+    return 0
+}
+
+run_test_stage() {
+    local task_id=$1
+    echo "⚙️ Stage 3: TEST for task $task_id"
+    
+    local impl_file="test_results/${task_id}_impl.sh"
+    local test_spec_file="test_results/${task_id}_spec.sh"
+    local execution_log="test_results/${task_id}_execution.log"
+    local verification_log="test_results/${task_id}_verification.log"
+    local status_file="test_results/${task_id}_status.txt"
+
+    echo "Executing implementation..."
+    bash -e "$impl_file" > "$execution_log" 2>&1
+    
+    echo "Running verification script..."
+    bash "$test_spec_file" > "$verification_log" 2>&1
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        echo "PASS" > "$status_file"
+        echo "✅ Tests for $task_id PASSED"
+        update_state_value "current_task_step" "review"
+        update_state_value "review_iteration" 0
+        return 0
     else
-        rm -f "$fix_file"
+        echo "FAIL" > "$status_file"
+        echo "❌ Tests for $task_id FAILED"
+        update_state_value "current_task_step" "review"
+        update_state_value "review_iteration" 0
         return 1
     fi
 }
 
-# --- AI Interaction Function ---
-call_ai() {
-    local prompt_file=$1
-    local response_file=$2
-
+run_review_stage() {
+    local task_id=$1
+    local max_iterations=5
+    
     while true; do
-        echo "🤖 AI: Analyzing the project state and generating the next plan for the MVP..."
+        local iteration=$(get_state_value "review_iteration")
+        if [ "$iteration" -ge "$max_iterations" ]; then
+            echo "⚠️ Max review iterations reached for $task_id. Manual review required."
+            return 1
+        fi
+        
+        echo "🤔 Stage 4: REVIEW for task $task_id (Iteration: $((iteration + 1))/$max_iterations)"
+        update_state_value "review_iteration" $((iteration + 1))
 
-        # Build context for Gemini including project architecture
-        local context_file=$(mktemp)
-        cat > "$context_file" <<-EOF
-You are an AI build orchestrator for Project Chimera. Generate shell commands to build the next component.
+        local status=$(cat "test_results/${task_id}_status.txt")
+        
+        # Create prompt for review
+        cat > "$AI_PROMPT_FILE" <<-EOF
+Task: $task_id
+TEST RESULTS:
+Status: $status
+Execution Log:
+$(cat "test_results/${task_id}_execution.log")
+Verification Log:
+$(cat "test_results/${task_id}_verification.log")
+IMPLEMENTATION CODE:
+$(cat "test_results/${task_id}_impl.sh")
 
-TASK ARCHITECTURE:
-$(cat ARCHITECTURE_TASKS.md)
-
-CURRENT STATE:
-$(cat "$STATE_FILE")
-
-CURRENT PROMPT:
-$(cat "$prompt_file")
-
-INSTRUCTIONS:
-1. Review completed tasks: $(jq -r '.tasks_completed | join(", ")' "$STATE_FILE" 2>/dev/null || echo "none")
-2. IMPORTANT: You can work on ANY task whose dependencies are all complete
-   - Don't just do tasks in order!
-   - Pick the highest-priority ready task
-   - Multiple tasks may be ready at once - choose the most impactful
-3. Check the dependency graph - a task is READY if:
-   - All its dependencies are in tasks_completed[]
-   - It's not already in tasks_completed[]
-4. Generate shell commands to implement ONE ready task
-5. Commands must be idempotent (safe to run multiple times)
-6. End with: jq '.tasks_completed += ["TASK-ID"] | .tasks_completed |= unique' $STATE_FILE > tmp.json && mv tmp.json $STATE_FILE
-7. If NO tasks are ready (waiting on dependencies), output: echo '⏳ Waiting for dependencies'
-8. If ALL MVP tasks complete, output: echo '✅ MVP Complete!'
-
-PRIORITY ORDER (when multiple tasks ready):
-1. Infrastructure (INFRA-*) - blocks everything
-2. Database (DB-*) - blocks backend
-3. Backend (BE-*) - blocks frontend features
-4. Frontend (FE-*) - user-facing
-5. Testing (TEST-*) - quality assurance
-
+REVIEW INSTRUCTIONS:
+1. If status is PASS:
+   - Verify implementation quality and best practices.
+   - If satisfactory, output: APPROVED
+   - If improvements needed, output: IMPROVEMENTS_NEEDED followed by shell commands to fix.
+2. If status is FAIL:
+   - Analyze error messages and identify the root cause.
+   - Output: FIX_REQUIRED followed by shell commands to fix the issue.
 OUTPUT FORMAT:
-Generate ONLY executable shell commands, one per line.
-NO explanations, NO markdown, NO comments.
-First line must be a valid command (not status text).
-
-CRITICAL COMMAND RULES:
-- For multi-line file content, use cat with heredoc:
-  cat > file.txt <<'EOF'
-  line 1
-  line 2
-  EOF
-- Avoid multi-line echo statements (they break when executed line-by-line)
-- Use single-quoted strings where possible
-- Escape special characters properly
+First line: APPROVED, IMPROVEMENTS_NEEDED, or FIX_REQUIRED
+Following lines: Shell commands (if fixes needed) OR explanation of approval.
 EOF
 
-        # Call Gemini API with progress indication
-        if command -v gemini &> /dev/null; then
-            echo ""
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "📡 GEMINI API CALL"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-            # Show the prompt being sent
-            echo "📝 Prompt Preview:"
-            echo "   ┌─ Current State ─────────────────────────"
-            cat "$STATE_FILE" | sed 's/^/   │ /'
-            echo "   └─────────────────────────────────────────"
-            echo ""
-            # Extract what we're asking for
-            local completed=$(jq -r '.tasks_completed | length' "$STATE_FILE" 2>/dev/null || echo "0")
-            echo "   Completed: $completed/30 MVP tasks"
-            echo "   Asking: Select and implement next ready task"
-            echo "   Context: $(cat $context_file | wc -c) bytes sent to Gemini"
-            echo ""
-            echo "   Full Prompt to Gemini:"
-            echo "   ┌─────────────────────────────────────────"
-            cat "$context_file" | sed 's/^/   │ /'
-            echo "   └─────────────────────────────────────────"
-            echo ""
-
-            # Call Gemini and capture output with progress spinner
-            local gemini_output=$(mktemp)
-            echo -n "   Waiting for response"
-
-            # Start spinner in background
-            (while true; do
-                for s in / - \\ \|; do
-                    printf "\r   Waiting for response $s"
-                    sleep 0.2
-                done
-            done) &
-            local spinner_pid=$!
-
-            # Call Gemini
-            gemini "$(cat $context_file)" > "$gemini_output" 2>&1
-            local exit_code=$?
-
-            # Kill spinner
-            kill $spinner_pid 2>/dev/null
-            wait $spinner_pid 2>/dev/null
-
-            if [ $exit_code -eq 0 ]; then
-                printf "\r   Response received ✓     \n"
-            else
-                printf "\r   API call failed ✗     \n"
-            fi
-
-            # Parse Gemini output - skip status messages, keep only commands
-            echo "📝 Parsing response..."
-            grep -v "^Loaded\|^Initializing\|^Connecting\|^Using model" "$gemini_output" | \
-                grep -v "^$" | \
-                grep -E "^(mkdir|echo|cp|npm|pnpm|git|jq|test|sed|podman|cat|touch)" > "$response_file" || true
-
-            # Show summary of Gemini's response
-            echo ""
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "🤖 GEMINI RESPONSE SUMMARY"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-            if [ -s "$response_file" ]; then
-                local cmd_count=$(wc -l < $response_file)
-                echo "   Commands generated: $cmd_count"
-                echo ""
-
-                # Analyze what Gemini is doing
-                local has_mkdir=$(grep -c "^mkdir" "$response_file" || echo "0")
-                local has_npm=$(grep -c "^npm\|^pnpm" "$response_file" || echo "0")
-                local has_git=$(grep -c "^git" "$response_file" || echo "0")
-                local has_jq=$(grep -c "^jq.*tasks_completed" "$response_file" || echo "0")
-
-                echo "   Summary:"
-                [ $has_mkdir -gt 0 ] && echo "   • Creating $has_mkdir directories"
-                [ $has_npm -gt 0 ] && echo "   • Installing dependencies ($has_npm npm commands)"
-                [ $has_git -gt 0 ] && echo "   • Git operations: $has_git"
-                [ $has_jq -gt 0 ] && echo "   • Marking task complete: Yes"
-
-                # Detect which task is being worked on
-                local task_id=$(grep -o 'tasks_completed.*\["[A-Z-]*[0-9]*"\]' "$response_file" | grep -o '[A-Z-]*-[0-9]*' | head -1)
-                if [ -n "$task_id" ]; then
-                    echo "   • Task: $task_id"
-                fi
-
-                echo ""
-                echo "   First 3 commands:"
-                head -3 "$response_file" | sed 's/^/   → /'
-                local remaining=$((cmd_count - 3))
-                [ $remaining -gt 0 ] && echo "   ... and $remaining more commands"
-            else
-                echo "   ⚠️  No commands generated"
-            fi
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-
-            rm -f "$gemini_output"
+        local review_response_file="test_results/${task_id}_review.txt"
+        call_gemini_api "$AI_PROMPT_FILE" "$review_response_file"
+        
+        local review_result=$(head -1 "$review_response_file")
+        
+        if [[ "$review_result" == "APPROVED" ]]; then
+            echo "✅ Task $task_id approved by AI."
+            jq ".tasks_completed += [\"$task_id\"] | .tasks_completed |= unique | .current_task_id = \"\" | .current_task_step = \"\"" "$STATE_FILE" > "${STATE_FILE}.tmp"
+            mv "${STATE_FILE}.tmp" "$STATE_FILE"
+            
+            echo "💾 Committing changes to Git..."
+            git add .
+            git commit -m "AI: Complete task $task_id"
+            return 0
+        elif [[ "$review_result" == "IMPROVEMENTS_NEEDED" || "$review_result" == "FIX_REQUIRED" ]]; then
+            echo "🔧 AI suggested fixes for $task_id. Applying fixes and re-testing."
+            local fix_commands=$(tail -n +2 "$review_response_file")
+            
+            # Update the implementation script with the fixes
+            echo -e "\n# --- Fixes from review iteration $iteration ---
+" >> "test_results/${task_id}_impl.sh"
+            echo "$fix_commands" >> "test_results/${task_id}_impl.sh"
+            
+            # Go back to the test stage
+            update_state_value "current_task_step" "test"
+            return 2 # Indicates a re-test is needed
         else
-            echo "⚠️  Gemini CLI not found. Falling back to hardcoded logic..."
-            local exit_code=1
+            echo "⚠️ Unexpected review output from AI for $task_id. Manual review required."
+            return 1
         fi
-
-        rm -f "$context_file"
-
-        # Handle API errors
-        if [ $exit_code -eq 429 ]; then
-            echo "API Error: Quota exceeded. Sleeping for 60 seconds..."
-            sleep 60
-            continue
-        elif [ $exit_code -ne 0 ]; then
-            echo "⚠️  Gemini API call failed. Using fallback logic..."
-            # Fallback to hardcoded logic
-            > "$response_file"
-            local has_supabase=$(get_state_value "supabase_setup_complete")
-            local has_backend=$(get_state_value "backend_server_initialized")
-
-        if [ "$has_supabase" != "true" ]; then
-            if [ ! -d "supabase" ]; then
-                echo "git clone --depth 1 https://github.com/supabase/supabase" >> "$response_file"
-            fi
-            # Check if docker-compose.yml needs registry prefix fixes
-            if [ -f "supabase/docker/docker-compose.yml" ]; then
-                if ! grep -q "docker.io" supabase/docker/docker-compose.yml; then
-                    # Fix image references to use explicit docker.io registry
-                    echo "sed -i.bak 's|image: supabase/studio:|image: docker.io/supabase/studio:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: kong:|image: docker.io/kong:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: supabase/gotrue:|image: docker.io/supabase/gotrue:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: postgrest/postgrest:|image: docker.io/postgrest/postgrest:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: supabase/realtime:|image: docker.io/supabase/realtime:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: supabase/storage-api:|image: docker.io/supabase/storage-api:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: darthsim/imgproxy:|image: docker.io/darthsim/imgproxy:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: supabase/postgres-meta:|image: docker.io/supabase/postgres-meta:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: supabase/edge-runtime:|image: docker.io/supabase/edge-runtime:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: supabase/logflare:|image: docker.io/supabase/logflare:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: supabase/postgres:|image: docker.io/supabase/postgres:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: timberio/vector:|image: docker.io/timberio/vector:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                    echo "sed -i.bak 's|image: supabase/supavisor:|image: docker.io/supabase/supavisor:|g' supabase/docker/docker-compose.yml" >> "$response_file"
-                fi
-            fi
-            if [ ! -f "supabase/docker/.env" ] && [ -f "supabase/docker/.env.example" ]; then
-                echo "cp supabase/docker/.env.example supabase/docker/.env" >> "$response_file"
-            fi
-            # Fix Docker socket location for rootless Podman
-            if [ -f "supabase/docker/.env" ]; then
-                if grep -q "DOCKER_SOCKET_LOCATION=/var/run/docker.sock" supabase/docker/.env; then
-                    if [ -n "$XDG_RUNTIME_DIR" ] && [ -S "$XDG_RUNTIME_DIR/podman/podman.sock" ]; then
-                        echo "sed -i 's|DOCKER_SOCKET_LOCATION=/var/run/docker.sock|DOCKER_SOCKET_LOCATION=$XDG_RUNTIME_DIR/podman/podman.sock|g' supabase/docker/.env" >> "$response_file"
-                    fi
-                fi
-            fi
-            if ! $CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml ps 2>&1 | grep -q "supabase-db"; then
-                echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml pull" >> "$response_file"
-                echo "$CONTAINER_COMPOSE_COMMAND -f supabase/docker/docker-compose.yml up -d" >> "$response_file"
-            fi
-            echo "jq '.supabase_setup_complete = true' $STATE_FILE > ${STATE_FILE}.tmp && mv ${STATE_FILE}.tmp $STATE_FILE" >> "$response_file"
-        elif [ "$has_backend" != "true" ]; then
-            echo "echo 'Initializing backend server...'" >> "$response_file"
-            echo "jq '.backend_server_initialized = true' $STATE_FILE > ${STATE_FILE}.tmp && mv ${STATE_FILE}.tmp $STATE_FILE" >> "$response_file"
-        else
-            # All tasks complete - just output status message
-            echo "echo '✅ All MVP tasks complete. Infrastructure running. Ready for development.'" >> "$response_file"
-        fi
-        fi  # Close the "elif [ $exit_code -ne 0 ]" block
-
-        if [ -s "$response_file" ]; then
-            local cmd_count=$(grep -c "^" "$response_file" || echo "0")
-            echo "🤖 Gemini generated $cmd_count commands"
-        else
-            echo "🤖 No new actions required - project is complete or waiting"
-        fi
-
-        break
     done
-}
-
-# --- GitHub Repo Creation Function (Idempotent) ---
-create_github_repo() {
-    if ! gh repo view "$GIT_USERNAME/$GIT_REPO_NAME" > /dev/null 2>&1; then
-        echo "Creating GitHub repository..."
-        gh repo create "$GIT_USERNAME/$GIT_REPO_NAME" --public --source=. --remote=origin
-        if [ $? -eq 0 ]; then
-            echo "✅ GitHub repository created successfully."
-        else
-            echo "❌ Failed to create GitHub repository."
-        fi
-    else
-        echo "✅ GitHub repository already exists."
-    fi
 }
 
 # --- Main Orchestration Logic ---
 main() {
     echo "🚀 Starting the AI-driven build orchestrator for the $PROJECT_NAME MVP..."
+
+    # Create required directories
+    mkdir -p prompts test_results task_history
 
     # Run verification before starting
     if [ -x "./verify_setup.sh" ]; then
@@ -399,231 +300,102 @@ main() {
         echo ""
     fi
 
+    # Initialize Git repo if not present
     if [ ! -d ".git" ]; then
         echo "Initializing Git repository..."
         git init
-        create_github_repo
+        # create_github_repo (optional)
         git add .
         git commit -m "Initial commit: Starting the AI-driven build of Project Chimera"
-        git push -u origin main 2>/dev/null || echo "Initial push skipped"
     fi
 
     # Initialize state file if it doesn't exist or is invalid
-    if [ ! -f "$STATE_FILE" ] || ! jq empty "$STATE_FILE" 2>/dev/null; then
-        jq -n '{
+    if [ ! -f "$STATE_FILE" ] || ! jq empty "$STATE_FILE" 2>/dev/null;
+ then
+        jq -n '{ 
           supabase_setup_complete: false,
           backend_server_initialized: false,
           tasks_completed: [],
           tasks_in_progress: [],
-          current_sprint: 1
+          current_sprint: 1,
+          current_task_id: "",
+          current_task_step: "",
+          review_iteration: 0
         }' > "$STATE_FILE"
     fi
 
-    # Migrate old state format if needed
-    if ! jq -e '.tasks_completed' "$STATE_FILE" &>/dev/null; then
-        echo "🔄 Migrating state file to new format..."
-        jq '. + {tasks_completed: [], tasks_in_progress: [], current_sprint: 1}' "$STATE_FILE" > "${STATE_FILE}.tmp"
-        mv "${STATE_FILE}.tmp" "$STATE_FILE"
-    fi
-
-    touch "$FEEDBACK_FILE" "$BUG_REPORT_FILE"
-
-    # Self-healing check
-    reset_state_if_needed
-
     while true; do
         echo "---"
-
-        echo "📋 Phase 1: Planning"
-
-        # Identify next task to work on
-        local completed_tasks=$(jq -r '.tasks_completed | join(",")' "$STATE_FILE" 2>/dev/null || echo "")
-        local next_task_info="Determine next task from ARCHITECTURE_TASKS.md based on dependencies"
-
-        # Create specific prompt
-        cat > "$AI_PROMPT_FILE" <<- EOM
-	Project: $PROJECT_NAME
-
-	COMPLETED TASKS: $completed_tasks
-
-	NEXT TASK TO IDENTIFY:
-	Review ARCHITECTURE_TASKS.md and select the next task where all dependencies are met.
-
-	Current State: $(cat "$STATE_FILE")
-	User Feedback: $(cat "$FEEDBACK_FILE")
-	Bug Reports: $(cat "$BUG_REPORT_FILE")
-
-	Generate shell commands to implement the next ready task.
-EOM
-        call_ai "$AI_PROMPT_FILE" "$AI_RESPONSE_FILE"
-        mv "$AI_RESPONSE_FILE" "$PLAN_FILE"
-
-        echo "🛠️ Phase 2: Execution"
-        if [ ! -s "$PLAN_FILE" ]; then
-            echo "⚠️  No plan to execute. The project may be complete or the AI needs more information."
-            break
-        fi
-
-        echo "📋 Executing $(wc -l < $PLAN_FILE) commands from plan..."
-        echo ""
-
-        local command_failed=false
-        local command_count=0
-        local total_commands=$(grep -v "^$" "$PLAN_FILE" | wc -l)
-
-        while read -r command; do
-            # Skip empty lines
-            [[ -z "$command" ]] && continue
-
-            command_count=$((command_count + 1))
-
-            # Check for completion message
-            if echo "$command" | grep -q "All MVP.*complete\|MVP Complete"; then
-                echo ""
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                echo "✅ MVP BUILD COMPLETE!"
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                eval "$command" 2>&1  # Execute the message
-                # Don't exit - loop will continue and do nothing since complete
+        
+        local current_task_id=$(get_state_value "current_task_id")
+        
+        if [ -z "$current_task_id" ]; then
+            echo "📋 Phase 1: Planning - Identifying next task"
+            
+            # AI prompt to select the next task
+            cat > "$AI_PROMPT_FILE" <<-EOF
+You are an AI build orchestrator. Review the task architecture and the current state to select the next task to work on.
+TASK ARCHITECTURE:
+$(cat ARCHITECTURE_TASKS.md)
+CURRENT STATE:
+$(cat "$STATE_FILE")
+INSTRUCTIONS:
+1. Identify all tasks that are not in the 'tasks_completed' array.
+2. From those, find the tasks whose dependencies are all met.
+3. From the ready tasks, select the one with the highest priority (INFRA > DB > BE > FE > ...).
+4. Output only the single ID of the selected task (e.g., "INFRA-001").
+5. If all tasks are complete, output "ALL_TASKS_COMPLETE".
+EOF
+            
+            local next_task_file="next_task.txt"
+            call_gemini_api "$AI_PROMPT_FILE" "$next_task_file"
+            
+            current_task_id=$(cat "$next_task_file")
+            
+            if [ "$current_task_id" == "ALL_TASKS_COMPLETE" ]; then
+                echo "✅ All MVP tasks are complete. Build process finished."
+                break
+            fi
+            
+            if [ -z "$current_task_id" ]; then
+                echo "⚠️ AI did not select a next task. Waiting and retrying."
+                sleep 10
                 continue
             fi
-
-            echo ""
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "▶ Command $command_count/$total_commands"
-            echo "  $command"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-            # Show progress for long-running commands
-            if echo "$command" | grep -qE "podman compose.*pull|podman compose.*up|npm install|pnpm install"; then
-                echo "   ⏳ This may take a while, streaming output..."
-                echo "   ────────────────────────────────────────"
-            fi
-
-            # Retry logic for network-related commands
-            local max_retries=3
-            local retry_count=0
-            local success=false
-
-            while [ $retry_count -lt $max_retries ]; do
-                # Stream output for long-running commands, capture for others
-                if echo "$command" | grep -qE "podman compose.*pull|podman compose.*up|npm install|pnpm install|git clone"; then
-                    # Stream output in real-time with indentation
-                    eval "$command" 2>&1 | sed 's/^/   │ /' | head -50
-                    exit_code=${PIPESTATUS[0]}
-                    output="(output streamed above)"
-                else
-                    output=$(eval "$command" 2>&1)
-                    exit_code=$?
-                fi
-
-                if [ $exit_code -eq 0 ]; then
-                    success=true
-                    break
-                elif echo "$output" | grep -iq "connection\|network\|timeout\|temporary failure"; then
-                    retry_count=$((retry_count + 1))
-                    if [ $retry_count -lt $max_retries ]; then
-                        echo "⚠️  Network error detected. Retrying ($retry_count/$max_retries)..."
-                        sleep 5
-                    fi
-                else
-                    # Non-network error, don't retry
-                    break
-                fi
-            done
-
-            echo "   ────────────────────────────────────────"
-            echo "🔍 Verification:"
-            if [ "$success" = true ] || [ $exit_code -eq 0 ]; then
-                echo "   ✅ Success"
-            else
-                echo "   ❌ Failed with exit code $exit_code (attempt $((retry_count + 1))/$max_retries)"
-                if [ "$output" != "(output streamed above)" ]; then
-                    echo "   Output:"
-                    echo "$output" | head -20 | sed 's/^/   │ /'
-                fi
-
-                # Log error
-                echo "---" >> "$BUG_REPORT_FILE"
-                echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')" >> "$BUG_REPORT_FILE"
-                echo "Command failed: $command" >> "$BUG_REPORT_FILE"
-                echo "Exit code: $exit_code" >> "$BUG_REPORT_FILE"
-                echo "Output: $output" >> "$BUG_REPORT_FILE"
-                echo "---" >> "$BUG_REPORT_FILE"
-
-                # Call Claude to fix the error
-                local fix_commands=$(call_claude_for_fix "$command" "$output" "$exit_code")
-
-                if [ -n "$fix_commands" ]; then
-                    echo "🔄 Applying Claude's fix..."
-                    echo ""
-
-                    # Execute fix commands
-                    local fix_failed=false
-                    while IFS= read -r fix_cmd; do
-                        [[ -z "$fix_cmd" ]] && continue
-                        echo "   Executing fix: $fix_cmd"
-                        local fix_output=$(eval "$fix_cmd" 2>&1)
-                        local fix_exit=$?
-
-                        if [ $fix_exit -eq 0 ]; then
-                            echo "   ✓ Fix applied"
-                        else
-                            echo "   ✗ Fix failed: $fix_output"
-                            fix_failed=true
-                            break
-                        fi
-                    done <<< "$fix_commands"
-
-                    if [ "$fix_failed" = false ]; then
-                        echo ""
-                        echo "✅ Error fixed by Claude! Continuing with plan..."
-                        continue  # Continue with next command in plan
-                    else
-                        echo "❌ Claude's fix failed. Stopping build."
-                        command_failed=true
-                        break
-                    fi
-                else
-                    echo "⚠️  No automatic fix available. Stopping build."
-                    command_failed=true
-                    break
-                fi
-            fi
-        done < "$PLAN_FILE"
-
-        # If a command failed, log and retry
-        if [ "$command_failed" = true ]; then
-            echo ""
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "⚠️  Build encountered an error that couldn't be auto-fixed."
-            echo "   Check $BUG_REPORT_FILE for details."
-            echo "   Self-healing: Will retry with fresh Gemini context..."
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-            sleep 5  # Brief pause before retry
-            continue  # Continue to next loop iteration
+            
+            update_state_value "current_task_id" "$current_task_id"
+            update_state_value "current_task_step" "define"
         fi
-
-        echo "🔄 Phase 4: Adaptation"
-        > "$FEEDBACK_FILE"
-        > "$BUG_REPORT_FILE"
-
-        echo "💾 Committing changes to Git..."
-        git add .
-        commit_message="$(head -1 $PLAN_FILE | cut -c1-72)"
-        if git commit -m "AI: $commit_message" 2>/dev/null; then
-            # Set upstream and push (with graceful failure handling)
-            echo "Pushing changes to GitHub..."
-            if git rev-parse --abbrev-ref @{upstream} &>/dev/null; then
-                git push 2>&1 | grep -q "secret\|GH013" && echo "⚠️  Push blocked by secret scanning (commits saved locally)" || true
-            else
-                git push --set-upstream origin $(git branch --show-current) 2>&1 | grep -q "secret\|GH013" && echo "⚠️  Push blocked by secret scanning (commits saved locally)" || true
-            fi
-        else
-            echo "No changes to commit"
-        fi
-
+        
+        local current_task_step=$(get_state_value "current_task_step")
+        
+        case "$current_task_step" in
+            "define")
+                run_define_stage "$current_task_id"
+                ;;
+            "implement")
+                run_implement_stage "$current_task_id"
+                ;;
+            "test")
+                run_test_stage "$current_task_id"
+                ;;
+            "review")
+                run_review_stage "$current_task_id"
+                local review_exit_code=$?
+                if [ $review_exit_code -eq 1 ]; then
+                    echo "❌ Task $current_task_id failed review and could not be fixed. Stopping build."
+                    break
+                elif [ $review_exit_code -eq 2 ]; then
+                    # Re-run the test stage after fixes
+                    continue
+                fi
+                ;;
+            *)
+                echo "Unknown task step: $current_task_step for task $current_task_id. Resetting task."
+                update_state_value "current_task_id" ""
+                ;;
+        esac
+        
     done
 
     echo "🎉 Build process has completed or stopped."

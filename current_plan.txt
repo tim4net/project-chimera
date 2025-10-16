@@ -1,3 +1,6 @@
-mkdir -p supabase/migrations
-cat > supabase/migrations/$(date +%Y%m%d%H%M%S)_db_004_journal_and_events.sql <<'EOF'
-jq '.tasks_completed += ["DB-004"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p backend/src/routes backend/src/middleware backend/src/services
+cat > backend/src/services/supabaseClient.js <<'EOF'
+cat > backend/src/middleware/auth.js <<'EOF'
+cat > backend/src/routes/auth.js <<'EOF'
+cat > backend/src/server.js <<'EOF'
+jq '.tasks_completed += ["BE-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
