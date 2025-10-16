@@ -1,9 +1,4 @@
-echo "packages:
-pnpm create vite temp-app --template react-ts
-cp -r temp-app/. frontend/
-jq '.name = "@chimera/frontend" | .version = "0.0.1"' frontend/package.json > tmp.json && mv tmp.json frontend/package.json
-pnpm install
-pnpm install -F @chimera/frontend react-router-dom @supabase/supabase-js tailwindcss postcss autoprefixer zustand
-echo "/** @type {import('tailwindcss').Config} */
-echo "VITE_SUPABASE_URL=your_supabase_url
-jq '.tasks_completed += ["INFRA-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p supabase/migrations
+cat > supabase/migrations/$(date +%Y%m%d%H%M%S)_db_002_core_characters.sql <<'EOF'
+echo "Created DB-002 migration file."
+jq '.tasks_completed += ["DB-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
