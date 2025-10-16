@@ -1,3 +1,4 @@
-mkdir -p shared
-cat > shared/dice.ts <<'EOF'
-jq '.tasks_completed += ["GM-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p backend/src/game
+cat > backend/src/game/world.js <<'EOF'
+cat > backend/src/routes/world.js <<'EOF'
+jq '.tasks_completed += ["BE-005"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
