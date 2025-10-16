@@ -182,6 +182,16 @@ OUTPUT FORMAT:
 Generate ONLY executable shell commands, one per line.
 NO explanations, NO markdown, NO comments.
 First line must be a valid command (not status text).
+
+CRITICAL COMMAND RULES:
+- For multi-line file content, use cat with heredoc:
+  cat > file.txt <<'EOF'
+  line 1
+  line 2
+  EOF
+- Avoid multi-line echo statements (they break when executed line-by-line)
+- Use single-quoted strings where possible
+- Escape special characters properly
 EOF
 
         # Call Gemini API with progress indication
