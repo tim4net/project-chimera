@@ -1,7 +1,6 @@
-npm install @google/generative-ai --prefix backend
 mkdir -p backend/src/prompts
+cat > backend/src/prompts/system.js <<'EOF'
+cat > backend/src/prompts/narrative.js <<'EOF'
+cat > backend/src/prompts/items.js <<'EOF'
 cat > backend/src/prompts/onboarding.js <<'EOF'
-mkdir -p backend/src/services
-cat > backend/src/services/geminiService.js <<'EOF'
-cat > backend/src/services/characterCreationService.js <<'EOF'
-jq '.tasks_completed += ["AI-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+jq '.tasks_completed += ["AI-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
