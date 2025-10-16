@@ -1,3 +1,8 @@
-mkdir -p backend/src/game
-cat > backend/src/game/combat.js <<'EOF'
-jq '.tasks_completed += ["GM-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p frontend/src/pages/dashboard
+cat > frontend/src/pages/dashboard/MapTile.tsx <<'EOF'
+cat > frontend/src/pages/dashboard/CharacterMarker.tsx <<'EOF'
+cat > frontend/src/pages/dashboard/FogOfWar.tsx <<'EOF'
+cat > frontend/src/pages/dashboard/GameMap.tsx <<'EOF'
+cat > frontend/src/pages/dashboard/Dashboard.tsx <<'EOF'
+cat > frontend/src/App.tsx <<'EOF'
+jq '.tasks_completed += ["FE-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
