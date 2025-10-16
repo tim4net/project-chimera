@@ -213,6 +213,11 @@ EOF
             echo "   Asking: Select and implement next ready task"
             echo "   Context: $(cat $context_file | wc -c) bytes sent to Gemini"
             echo ""
+            echo "   Full Prompt to Gemini:"
+            echo "   ┌─────────────────────────────────────────"
+            cat "$context_file" | sed 's/^/   │ /'
+            echo "   └─────────────────────────────────────────"
+            echo ""
 
             # Call Gemini and capture output with progress spinner
             local gemini_output=$(mktemp)
