@@ -1,5 +1,12 @@
-npm install express dotenv cors helmet @supabase/supabase-js
-npm install --save-dev prisma jest supertest
-cat > .env.example <<'EOF'
-cat > src/server.js <<'EOF'
-jq '.tasks_completed += ["INFRA-002"] | .tasks_completed |= unique | .backend_server_initialized = true' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p frontend/src
+pnpm add -F frontend react react-dom react-router-dom @supabase/supabase-js zustand
+pnpm add -F frontend -D typescript vite @vitejs/plugin-react tailwindcss postcss autoprefixer @types/react @types/react-dom eslint @typescript-eslint/eslint-plugin @typescript-eslint/parser eslint-plugin-react-hooks eslint-plugin-react-refresh
+cat > frontend/postcss.config.js <<'EOF'
+cat > frontend/tailwind.config.js <<'EOF'
+cat > frontend/.env.example <<'EOF'
+cat > frontend/vite.config.ts <<'EOF'
+cat > frontend/tsconfig.json <<'EOF'
+cat > frontend/src/index.css <<'EOF'
+cat > frontend/src/main.tsx <<'EOF'
+cat > frontend/src/App.tsx <<'EOF'
+jq '.tasks_completed += ["INFRA-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
