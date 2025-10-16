@@ -43,9 +43,14 @@ When starting fresh or fixing issues with the setup:
 # 2. Verify the setup
 ./verify_setup.sh
 
-# 3. Run the orchestrator (if verification passes)
+# 3. Run the orchestrator
 ./build_orchestrator.sh
+
+# OR: Run in continuous self-healing mode
+./run_continuous.sh
 ```
+
+**Continuous Mode**: The orchestrator runs in an infinite loop, automatically retrying on failures and monitoring for new tasks. This is the recommended mode for autonomous, unattended development.
 
 ### Container Management
 ```bash
@@ -67,14 +72,21 @@ podman compose -f supabase/docker/docker-compose.yml logs -f
 
 ### Infrastructure Scripts
 
-**build_orchestrator.sh** - AI-driven build automation with Gemini integration (v16)
-- **Gemini Integration**: Calls Gemini API to generate build plans based on ARCHITECTURE_TASKS.md
-- **Fallback Logic**: Uses hardcoded infrastructure setup if Gemini unavailable
+**build_orchestrator.sh** - Dual-AI build automation (Gemini + Claude) (v17)
+- **Gemini Integration**: Generates build plans from ARCHITECTURE_TASKS.md
+- **Claude Error Recovery**: Analyzes failures and generates fixes automatically
 - **4-Step TDD Workflow**: Define Tests → Implement → Test → Review (iterative)
-- **Self-Healing**: Automatically detects and fixes configuration issues
+- **Verbose Output**: Progress spinners, streaming output for long commands, detailed status
+- **Self-Healing**: Auto-retries with fresh context on failures
 - **State Tracking**: JSON-based task completion tracking with jq
-- **Error Handling**: Retry logic for network failures, graceful git push failure handling
-- **Exit Condition**: Completes successfully when all MVP tasks done
+- **Continuous Mode**: Designed to run in infinite loop without exits
+- **Smart Parsing**: Filters Gemini output to extract only executable commands
+
+**run_continuous.sh** - Wrapper for continuous autonomous build mode
+- Runs orchestrator in infinite loop
+- Monitors completion status
+- Automatic retry after failures
+- Designed for unattended operation
 
 **verify_setup.sh** - Infrastructure verification script
 - Checks project structure and required files
