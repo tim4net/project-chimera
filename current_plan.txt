@@ -1,3 +1,7 @@
-mkdir -p backend/src/game
-cat > backend/src/game/loot.js <<'EOF'
-jq '.tasks_completed += ["GM-004"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+npm install @google/generative-ai --prefix backend
+mkdir -p backend/src/prompts
+cat > backend/src/prompts/onboarding.js <<'EOF'
+mkdir -p backend/src/services
+cat > backend/src/services/geminiService.js <<'EOF'
+cat > backend/src/services/characterCreationService.js <<'EOF'
+jq '.tasks_completed += ["AI-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
