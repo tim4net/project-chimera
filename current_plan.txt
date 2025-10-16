@@ -1,3 +1,10 @@
-mkdir -p backend/src/routes
-cat > backend/src/routes/idle.js <<'EOF'
-jq '.tasks_completed += ["BE-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p frontend/src/lib frontend/src/contexts frontend/src/pages/auth frontend/src/pages/profile
+cat > frontend/.env.example <<'EOF'
+cat > frontend/src/lib/supabaseClient.ts <<'EOF'
+cat > frontend/src/contexts/AuthProvider.tsx <<'EOF'
+cat > frontend/src/pages/auth/LoginPage.tsx <<'EOF'
+cat > frontend/src/pages/auth/SignupPage.tsx <<'EOF'
+cat > frontend/src/pages/profile/ProfilePage.tsx <<'EOF'
+cat > frontend/src/main.tsx <<'EOF'
+cat > frontend/src/App.tsx <<'EOF'
+jq '.tasks_completed += ["FE-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
