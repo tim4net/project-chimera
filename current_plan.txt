@@ -1,8 +1,5 @@
-mkdir -p frontend/src/components/journal
-cat > frontend/src/components/journal/JournalFeed.tsx <<'EOF'
-cat > frontend/src/components/journal/JournalEntry.tsx <<'EOF'
-cat > frontend/src/components/journal/JournalFilters.tsx <<'EOF'
-mkdir -p frontend/src/pages
-cat > frontend/src/pages/Dashboard.tsx <<'EOF'
-cat > frontend/src/App.tsx <<'EOF'
-jq '.tasks_completed += ["FE-004"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p frontend/src/components/idle
+cat > frontend/src/components/idle/IdleTaskPanel.tsx <<'EOF'
+cat > frontend/src/components/idle/TaskButton.tsx <<'EOF'
+cat > frontend/src/components/idle/TaskStatus.tsx <<'EOF'
+jq '.tasks_completed += ["FE-005"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
