@@ -1,7 +1,6 @@
-mkdir -p backend/src/prompts backend/src/services
-cat > backend/src/prompts/travel.txt <<'EOF'
-cat > backend/src/prompts/scout.txt <<'EOF'
-cat > backend/src/prompts/encounter.txt <<'EOF'
-cat > backend/src/prompts/item.txt <<'EOF'
-cat > backend/src/services/localLlmService.js <<'EOF'
-jq '.tasks_completed += ["AI-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p frontend/src/components/active_phase
+cat > frontend/src/components/active_phase/ActivePhaseModal.tsx <<'EOF'
+cat > frontend/src/components/active_phase/EventNarrative.tsx <<'EOF'
+cat > frontend/src/components/active_phase/ChoiceMatrix.tsx <<'EOF'
+cat > frontend/src/components/active_phase/EventOutcome.tsx <<'EOF'
+jq '.tasks_completed += ["FE-006"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
