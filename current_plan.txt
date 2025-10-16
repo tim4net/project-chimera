@@ -1,6 +1,7 @@
-echo "--- DEPLOY-001: Setting up Development Environment ---"
-cat > backend/Dockerfile.dev <<'EOF'
-cat > frontend/Dockerfile.dev <<'EOF'
-cat > docker-compose.app.yml <<'EOF'
-cat > dev-env.sh <<'EOF'
-jq '.tasks_completed += ["DEPLOY-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+echo "🚀 DEPLOY-002: Preparing for Production Deployment"
+echo "Building frontend for production..."
+echo "Creating production environment configuration files..."
+cat > frontend/.env.production <<'EOF'
+cat > backend/.env.production <<'EOF'
+echo "Production build artifacts are in frontend/dist. Update .env.production files with real credentials."
+jq '.tasks_completed += ["DEPLOY-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
