@@ -1,7 +1,3 @@
-mkdir -p frontend/src/pages/CharacterCreation
-cat > frontend/src/pages/CharacterCreation/CharacterCreationWizard.tsx <<'EOF'
-cat > frontend/src/pages/CharacterCreation/RaceSelection.tsx <<'EOF'
-cat > frontend/src/pages/CharacterCreation/ClassSelection.tsx <<'EOF'
-cat > frontend/src/pages/CharacterCreation/AbilityScoreAssignment.tsx <<'EOF'
-cat > frontend/src/pages/CharacterCreation/CharacterSummary.tsx <<'EOF'
-jq '.tasks_completed += ["FE-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+mkdir -p shared
+cat > shared/dice.ts <<'EOF'
+jq '.tasks_completed += ["GM-001"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
