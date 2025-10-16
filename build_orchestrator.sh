@@ -207,8 +207,11 @@ EOF
             cat "$STATE_FILE" | sed 's/^/   │ /'
             echo "   └─────────────────────────────────────────"
             echo ""
-            echo "   Task Request: $(grep 'Primary Goal' "$prompt_file" | head -1)"
-            echo "   Context size: $(cat $context_file | wc -c) bytes"
+            # Extract what we're asking for
+            local completed=$(jq -r '.tasks_completed | length' "$STATE_FILE" 2>/dev/null || echo "0")
+            echo "   Completed: $completed/28 MVP tasks"
+            echo "   Asking: Select and implement next ready task"
+            echo "   Context: $(cat $context_file | wc -c) bytes sent to Gemini"
             echo ""
 
             # Call Gemini and capture output with progress spinner
@@ -427,13 +430,25 @@ main() {
         echo "---"
 
         echo "📋 Phase 1: Planning"
+
+        # Identify next task to work on
+        local completed_tasks=$(jq -r '.tasks_completed | join(",")' "$STATE_FILE" 2>/dev/null || echo "")
+        local next_task_info="Determine next task from ARCHITECTURE_TASKS.md based on dependencies"
+
+        # Create specific prompt
         cat > "$AI_PROMPT_FILE" <<- EOM
 	Project: $PROJECT_NAME
-	Primary Goal: $MVP_GOAL
+
+	COMPLETED TASKS: $completed_tasks
+
+	NEXT TASK TO IDENTIFY:
+	Review ARCHITECTURE_TASKS.md and select the next task where all dependencies are met.
+
 	Current State: $(cat "$STATE_FILE")
 	User Feedback: $(cat "$FEEDBACK_FILE")
 	Bug Reports: $(cat "$BUG_REPORT_FILE")
-	Based on the primary goal and the current state, please generate the next sequence of shell commands to continue building the project.
+
+	Generate shell commands to implement the next ready task.
 EOM
         call_ai "$AI_PROMPT_FILE" "$AI_RESPONSE_FILE"
         mv "$AI_RESPONSE_FILE" "$PLAN_FILE"
