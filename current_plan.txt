@@ -1,5 +1,3 @@
-echo 'Implementing BE-002: Character Management API'
 mkdir -p backend/src/routes
-cat > backend/src/routes/characters.js <<'EOF'
-cat > backend/src/server.js <<'EOF'
-jq '.tasks_completed += ["BE-002"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
+cat > backend/src/routes/idle.js <<'EOF'
+jq '.tasks_completed += ["BE-003"] | .tasks_completed |= unique' project_state.json > tmp.json && mv tmp.json project_state.json
