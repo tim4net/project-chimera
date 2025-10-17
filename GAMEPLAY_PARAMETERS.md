@@ -10,6 +10,10 @@ This document defines the concrete parameters for map size, time systems, and ga
 
 The world of Project Chimera is named **Nuaibria**.
 
+### World Description
+
+Nuaibria is a lush planet full of the wonders of nature, magic, and the touch of the gods. It is clear that Humans were not always on this planet: other races often complain about them and long for the "before times" that their elders told them about, but humans don't know why this is. As far as they are concerned, they are as much a part of this world as anyone else. Perhaps they were created by the gods as a punishment to the other races or as a result of some petty squabble? The real reasons are lost to time. Perhaps intrepid adventurers may some day piece the whole story together?
+
 ---
 
 ## MAP SYSTEM

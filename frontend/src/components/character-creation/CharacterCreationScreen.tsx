@@ -46,6 +46,50 @@ const CLASSES = [
   "Wizard"
 ];
 
+// Race Descriptions
+const raceDescriptions: { [key: string]: string } = {
+  Aasimar: "Celestial-touched humanoids, often serving as beacons of hope or justice, blessed with divine heritage and a glimmer of the heavens.",
+  Dragonborn: "Proud humanoids with draconic ancestry, capable of breathing elemental energy and wielding fierce might in battle.",
+  Dwarf: "Stout, resilient folk with a deep connection to stone, renowned for their craftsmanship, unwavering resolve, and love of mountains.",
+  Elf: "Graceful and long-lived beings, often attuned to ancient magic and the whispers of nature, dwelling in serene forests and hidden realms.",
+  Gnome: "Small, inventive folk with a mischievous streak, fascinated by illusions, tinkering, and the hidden secrets of the world.",
+  Goliath: "Towering, stone-skinned humanoids from high mountain peaks, known for their immense strength, endurance, and tribal honor.",
+  Halfling: "Small, nimble, and cheerful, valuing community, comfort, and the simple joys of life above all else, often surprisingly lucky.",
+  Human: "Adaptable and ambitious, found in every corner of the world, capable of great good or profound evil, and quick to innovate.",
+  Orc: "Fierce and strong warriors, often misunderstood, seeking honor and power through battle and the strength of their tribal bonds.",
+  Tiefling: "Bearing the unmistakable mark of infernal ancestry, often facing prejudice but possessing inner strength and innate arcane potential.",
+};
+
+// Class Descriptions
+const classDescriptions: { [key: string]: string } = {
+  Barbarian: "A primal warrior who channels inner rage to unleash devastating attacks and shrug off blows, embracing wild ferocity in combat.",
+  Bard: "A charismatic performer who weaves magic through music and words, inspiring allies, charming foes, and telling epic tales of adventure.",
+  Cleric: "A devout servant of a deity, wielding divine magic to heal wounds, protect the faithful, and smite unholy threats with sacred power.",
+  Druid: "A protector of nature, able to shapeshift into powerful animals and command the raw forces of the wild and primal spirits.",
+  Fighter: "A master of weapons and combat, capable of adapting to any battlefield with unmatched skill, discipline, and martial prowess.",
+  Monk: "A disciplined warrior who uses ki energy for swift, unarmed strikes, mystical abilities, and unparalleled physical feats through inner focus.",
+  Paladin: "A holy warrior bound by sacred oaths, combining formidable martial skill with divine magic to protect the innocent and smite evil.",
+  Ranger: "A skilled hunter and tracker, at home in the wilderness, striking foes with precision and utilizing nature's aid in combat and exploration.",
+  Rogue: "A master of stealth, deception, and precision, striking from the shadows, disarming traps, picking locks, and finding hidden paths.",
+  Sorcerer: "Born with innate magical power, they cast spells through sheer force of will and raw talent, their magic flowing from within their very being.",
+  Warlock: "A spellcaster who gains power through a pact with a mysterious, otherworldly entity, wielding forbidden and potent magic at a cost.",
+  Wizard: "A scholar of arcane lore, mastering complex spells through rigorous study of ancient texts and the fundamental forces of magic.",
+};
+
+// Ability Score Descriptions
+const abilityScoreDescriptions: { [key: string]: string } = {
+  STR: "Strength measures physical power, how hard you can hit in melee, and your capacity to lift or carry heavy objects.",
+  DEX: "Dexterity governs agility, reflexes, balance, and precision in movement, ranged attacks, and stealth.",
+  CON: "Constitution represents your health, stamina, and ability to endure hardship, resist poisons, or withstand magical effects.",
+  INT: "Intelligence reflects your knowledge, reasoning, memory, and ability to solve puzzles or cast complex arcane spells.",
+  WIS: "Wisdom determines your perception, intuition, common sense, and connection to the world around you, often used for divine magic.",
+  CHA: "Charisma represents your force of personality, leadership, charm, and ability to influence others through words or presence.",
+};
+
+// Point Buy System Description
+const pointBuySystemDescription: string =
+  "The Point Buy system allows you to customize your character's core abilities by spending a limited pool of points. Higher scores cost more points, encouraging strategic choices for your hero's strengths.";
+
 const POINT_BUY_CONFIG = {
   initialPoints: 27,
   minScore: 8,
@@ -79,6 +123,14 @@ const ChevronDownIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="6 9 12 15 18 9"></polyline>
     </svg>
+);
+
+const InfoIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="16" x2="12" y2="12"></line>
+    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+  </svg>
 );
 
 const CharacterPlaceholderIcon = () => (
@@ -126,9 +178,10 @@ interface StyledSelectProps {
     options: readonly string[];
     value: string;
     onChange: (value: string) => void;
+    descriptions?: { [key: string]: string };
 }
 
-const StyledSelect: React.FC<StyledSelectProps> = ({ label, options, value, onChange }) => {
+const StyledSelect: React.FC<StyledSelectProps> = ({ label, options, value, onChange, descriptions }) => {
     const [isOpen, setIsOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -160,17 +213,24 @@ const StyledSelect: React.FC<StyledSelectProps> = ({ label, options, value, onCh
                 <ChevronDownIcon />
             </button>
             {isOpen && (
-                <ul className="absolute z-10 w-full mt-2 bg-chimera-elevated border-2 border-chimera-gold/50 rounded-lg shadow-glow-lg max-h-60 overflow-auto custom-scrollbar">
+                <div className="absolute z-10 w-full mt-2 bg-chimera-elevated border-2 border-chimera-gold/50 rounded-lg shadow-glow-lg max-h-96 overflow-auto custom-scrollbar">
                     {options.map((option) => (
-                        <li
+                        <div
                             key={option}
                             onClick={() => handleSelect(option)}
-                            className="px-4 py-3 text-chimera-text-primary hover:bg-chimera-gold/10 hover:text-chimera-gold cursor-pointer transition-all first:rounded-t-lg last:rounded-b-lg"
+                            className="px-4 py-3 hover:bg-chimera-gold/10 cursor-pointer transition-all first:rounded-t-lg last:rounded-b-lg border-b border-chimera-border last:border-b-0"
                         >
-                            {option}
-                        </li>
+                            <div className="text-chimera-text-primary font-semibold hover:text-chimera-gold transition-colors">
+                                {option}
+                            </div>
+                            {descriptions && descriptions[option] && (
+                                <p className="text-chimera-text-muted text-xs mt-1 leading-relaxed">
+                                    {descriptions[option]}
+                                </p>
+                            )}
+                        </div>
                     ))}
-                </ul>
+                </div>
             )}
         </div>
     );
@@ -184,9 +244,31 @@ interface AbilityScoreRowProps {
     canDecrease: boolean;
 }
 
-const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({ ability, score, onScoreChange, canIncrease, canDecrease }) => (
-    <div className="flex items-center justify-between bg-chimera-elevated/50 rounded-lg p-4 border border-chimera-border hover:border-chimera-gold/30 transition-all">
-        <span className="font-body text-lg text-chimera-text-secondary font-semibold w-16">{ability}</span>
+const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({ ability, score, onScoreChange, canIncrease, canDecrease }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+
+    return (
+    <div className="flex items-center justify-between bg-chimera-elevated/50 rounded-lg p-4 border border-chimera-border hover:border-chimera-gold/30 transition-all group">
+        <div className="flex items-center gap-2 flex-1">
+            <span className="font-body text-lg text-chimera-text-secondary font-semibold w-16">{ability}</span>
+            <div className="relative">
+                <button
+                    type="button"
+                    onMouseEnter={() => setShowTooltip(true)}
+                    onMouseLeave={() => setShowTooltip(false)}
+                    className="text-chimera-gold/50 hover:text-chimera-gold transition-colors"
+                >
+                    <InfoIcon />
+                </button>
+                {showTooltip && (
+                    <div className="absolute left-0 bottom-full mb-2 w-72 bg-chimera-bg border-2 border-chimera-gold/30 rounded-lg p-3 shadow-glow-lg z-20 animate-fade-in">
+                        <p className="text-chimera-text-primary text-xs leading-relaxed">
+                            {abilityScoreDescriptions[ability]}
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
         <div className="flex items-center gap-4">
             <button
                 type="button"
@@ -211,7 +293,8 @@ const AbilityScoreRow: React.FC<AbilityScoreRowProps> = ({ ability, score, onSco
             </button>
         </div>
     </div>
-);
+)};
+
 
 
 // --- MAIN COMPONENT ---
@@ -270,14 +353,19 @@ export const CharacterCreationScreen: React.FC = () => {
                         <Panel title="Identity">
                             <StyledInput label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your character's name" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <StyledSelect label="Race" options={RACES} value={race} onChange={setRace} />
-                                <StyledSelect label="Class" options={CLASSES} value={characterClass} onChange={setCharacterClass} />
+                                <StyledSelect label="Race" options={RACES} value={race} onChange={setRace} descriptions={raceDescriptions} />
+                                <StyledSelect label="Class" options={CLASSES} value={characterClass} onChange={setCharacterClass} descriptions={classDescriptions} />
                             </div>
                         </Panel>
 
                         <Panel title="Ability Scores">
+                            <div className="bg-chimera-bg/50 border border-chimera-gold/20 rounded-lg p-4 mb-6">
+                                <p className="text-chimera-text-secondary text-sm leading-relaxed">
+                                    {pointBuySystemDescription}
+                                </p>
+                            </div>
                             <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-chimera-gold/20">
-                                <h3 className="font-body text-lg text-chimera-text-secondary font-semibold">Point Buy System</h3>
+                                <h3 className="font-body text-lg text-chimera-text-secondary font-semibold">Allocate Your Points</h3>
                                 <div className="text-right">
                                     <span className="font-mono text-4xl text-chimera-gold font-bold">{pointsRemaining}</span>
                                     <p className="text-sm text-chimera-text-accent">Points Remaining</p>
