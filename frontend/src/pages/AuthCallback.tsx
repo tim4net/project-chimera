@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -9,8 +9,13 @@ import { supabase } from '../lib/supabase';
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const hasRun = useRef(false);
 
   useEffect(() => {
+    // Prevent double execution in React StrictMode
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     const handleCallback = async () => {
       console.log('[AuthCallback] Processing OAuth callback');
       console.log('[AuthCallback] Current URL:', window.location.href);
@@ -30,10 +35,28 @@ const AuthCallback = () => {
         });
 
         if (accessToken) {
-          // Set the session using the tokens from the URL
-          const { data, error: sessionError } = await supabase.auth.setSession({
+          console.log('[AuthCallback] Calling setSession...');
+
+          // Set the session using the tokens from the URL with timeout
+          const sessionPromise = supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken || ''
+          });
+
+          // Add 5 second timeout
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('setSession timeout')), 5000)
+          );
+
+          const { data, error: sessionError } = await Promise.race([
+            sessionPromise,
+            timeoutPromise
+          ]) as any;
+
+          console.log('[AuthCallback] setSession response:', {
+            hasData: !!data,
+            hasUser: !!data?.user,
+            error: sessionError
           });
 
           if (sessionError) {
@@ -43,10 +66,18 @@ const AuthCallback = () => {
             return;
           }
 
-          console.log('[AuthCallback] Session established for:', data.user?.email);
+          if (!data?.user) {
+            console.error('[AuthCallback] No user in session data');
+            setError('Failed to establish user session');
+            setTimeout(() => navigate('/login?error=no_user'), 2000);
+            return;
+          }
+
+          console.log('[AuthCallback] ✓ Session established for:', data.user.email);
 
           // Give AuthProvider time to update
           setTimeout(() => {
+            console.log('[AuthCallback] Redirecting to dashboard');
             navigate('/', { replace: true });
           }, 500);
         } else {
