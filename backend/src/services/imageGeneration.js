@@ -154,27 +154,54 @@ async function generateWithLocalLLM(prompt, dimensions) {
 }
 
 /**
- * Generate with Gemini Imagen (placeholder - to be implemented with actual API)
+ * Generate with Gemini/Imagen using Pollinations.ai (free, no API key needed)
  */
 async function generateWithGemini(prompt, dimensions, tier) {
-  // TODO: Implement Gemini Imagen generation
-  // For now, return a placeholder
-  console.log(`[ImageGen] Using Gemini ${tier} for generation (placeholder)`);
+  console.log(`[ImageGen] Generating with Pollinations.ai...`);
 
-  // Return placeholder image buffer
-  return createPlaceholderImage(dimensions);
+  try {
+    // Pollinations.ai provides free AI image generation
+    // URL format: https://image.pollinations.ai/prompt/{prompt}?width={w}&height={h}
+    const encodedPrompt = encodeURIComponent(prompt);
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&nologo=true&enhance=true`;
+
+    console.log(`[ImageGen] Fetching from Pollinations: ${url.substring(0, 100)}...`);
+
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Pollinations API returned ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    console.log(`[ImageGen] ✓ Generated image: ${buffer.length} bytes`);
+    return buffer;
+  } catch (error) {
+    console.error(`[ImageGen] Pollinations failed:`, error.message);
+    throw error;
+  }
 }
 
 /**
- * Create a placeholder image buffer
+ * Create a simple colored placeholder (last resort fallback)
  */
 function createPlaceholderImage(dimensions) {
-  // Simple SVG placeholder
+  // Simple gradient PNG placeholder
   const svg = `
     <svg width="${dimensions.width}" height="${dimensions.height}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="100%" height="100%" fill="#1a1f2e"/>
-      <text x="50%" y="50%" text-anchor="middle" fill="#d4af37" font-family="Arial" font-size="20">
-        ${dimensions.width}x${dimensions.height}
+      <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#0a0e1a;stop-opacity:1" />
+          <stop offset="50%" style="stop-color:#1a1f2e;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#252b3d;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grad)"/>
+      <text x="50%" y="50%" text-anchor="middle" fill="#d4af37" font-family="Arial" font-size="16" opacity="0.5">
+        Generating...
       </text>
     </svg>
   `;
