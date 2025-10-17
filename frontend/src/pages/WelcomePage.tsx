@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useImageGeneration } from '../hooks/useAssetGeneration';
+// import { useImageGeneration } from '../hooks/useAssetGeneration';
 
 /**
  * Landing page that introduces players to Nuaibria
@@ -9,21 +9,11 @@ import { useImageGeneration } from '../hooks/useAssetGeneration';
 const WelcomePage: React.FC = () => {
   const navigate = useNavigate();
 
-  // Generate hero banner image
-  const heroBanner = useImageGeneration({
-    prompt: 'Epic dark fantasy landscape, ancient ruins silhouetted against a twilight sky, mystical energy glowing from cracks in reality, broken empire architecture, atmospheric fog',
-    dimensions: { width: 1920, height: 600 },
-    contextType: 'location_banner',
-    context: { location: 'nuaibria_overview' }
-  });
-
-  // Generate Chronicler portrait
-  const chroniclerPortrait = useImageGeneration({
-    prompt: 'Mysterious ethereal figure made of swirling pages and magical energy, hooded silhouette, glowing golden eyes, ancient tome floating nearby, keeper of knowledge',
-    dimensions: { width: 512, height: 512 },
-    contextType: 'character_portrait',
-    context: { character: 'the_chronicler' }
-  });
+  // TODO: Re-enable when hooks file is properly mounted
+  // const heroBanner = useImageGeneration({...});
+  // const chroniclerPortrait = useImageGeneration({...});
+  const heroBanner = { imageUrl: null, loading: false };
+  const chroniclerPortrait = { imageUrl: null, loading: false };
 
   return (
     <div className="min-h-screen bg-chimera-bg text-chimera-text-primary font-body overflow-x-hidden">
