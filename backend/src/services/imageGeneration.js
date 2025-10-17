@@ -36,12 +36,14 @@ async function generateImage({ prompt, dimensions, contextType, context = {} }) 
   }
 
   // Step 2: Check if already being generated
-  const requestHash = generateHash(`image|${prompt}|${dimensions.width}x${dimensions.height}|${contextType}`);
+  const cacheKey = `${prompt}|${dimensions.width}x${dimensions.height}|${contextType}`;
+  const promptHash = generateHash(cacheKey);
+  const requestHash = `image|${promptHash}`;
   const pending = await checkPendingRequest(requestHash);
 
   if (pending) {
     console.log(`[ImageGen] Request already pending, waiting...`);
-    return await pollForCompletion(pending.id, requestHash, 'image');
+    return await pollForCompletion(pending.id, promptHash, 'image');
   }
 
   // Step 3: Create request lock
@@ -252,7 +254,7 @@ async function uploadToStorage(imageBuffer, fileName, contentType = 'image/png')
 /**
  * Poll for completion of a pending request
  */
-async function pollForCompletion(requestId, requestHash, requestType) {
+async function pollForCompletion(requestId, promptHash, requestType) {
   const maxAttempts = 30; // 30 seconds total
   const interval = 1000; // 1 second
 
@@ -272,7 +274,7 @@ async function pollForCompletion(requestId, requestHash, requestType) {
         const { data: cachedData } = await supabase
           .from('generated_images')
           .select('*')
-          .eq('prompt_hash', requestHash.split('|')[1]) // Extract prompt hash
+          .eq('prompt_hash', promptHash)
           .single();
 
         if (cachedData) {
