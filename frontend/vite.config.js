@@ -24,8 +24,8 @@ export default defineConfig({
     },
     hmr: {
       protocol: 'ws',
-      host: 'localhost',
-      port: 3000
+      clientPort: 3000,
+      // Don't specify host - let browser use current hostname
     }
   },
   preview: {
