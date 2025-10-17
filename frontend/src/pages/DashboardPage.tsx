@@ -133,7 +133,7 @@ const DashboardPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h1 className="text-3xl font-display font-bold text-chimera-gold drop-shadow-lg">
-                Project Chimera
+                Nuaibria
               </h1>
               <span className="text-chimera-border">|</span>
               <span className="text-chimera-text-primary font-semibold">{character.name}</span>

@@ -56,7 +56,7 @@ const LoginPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-chimera-bg via-chimera-surface to-chimera-bg flex items-center justify-center px-4">
       <div className="bg-chimera-surface border-2 border-chimera-gold/30 p-10 rounded-xl shadow-card-hover w-full max-w-md">
         <h1 className="text-4xl font-display font-bold mb-8 text-center text-chimera-gold drop-shadow-lg">
-          Project Chimera
+          Nuaibria
         </h1>
 
         {error && (
