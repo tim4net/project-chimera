@@ -16,9 +16,9 @@ const DashboardPage = () => {
   // Fetch character data
   useEffect(() => {
     const fetchCharacter = async () => {
-      // Check if user is authenticated
+      // ProtectedRoute already handles auth redirect, just wait for user
       if (!user) {
-        navigate('/login');
+        setLoading(true);
         return;
       }
 
@@ -32,9 +32,9 @@ const DashboardPage = () => {
 
         if (error) {
           if (error.code === 'PGRST116') {
-            // No character found
-            setError('No character found. Please create a character.');
-            setLoading(false);
+            // No character found - redirect to character creation
+            console.log('No character found for user, redirecting to creation');
+            navigate('/create-character');
             return;
           }
           throw error;
