@@ -6,7 +6,7 @@ import LoginPage from './pages/LoginPage.tsx';
 import SignupPage from './pages/SignupPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
-import CharacterCreationWizard from './pages/CharacterCreationWizard.tsx';
+import CharacterCreationScreen from './components/character-creation/CharacterCreationScreen.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 
 // Public route wrapper (redirects to dashboard if already logged in)
@@ -68,7 +68,7 @@ const AppRoutes = () => {
         path="/create-character"
         element={
           <ProtectedRoute>
-            <CharacterCreationWizard />
+            <CharacterCreationScreen />
           </ProtectedRoute>
         }
       />
