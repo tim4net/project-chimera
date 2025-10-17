@@ -37,18 +37,22 @@ export function useImageGeneration(params: ImageGenerationParams | null): ImageR
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(params)
+          body: JSON.stringify(params),
+          signal: AbortSignal.timeout(180000) // 3 minute timeout
         });
 
         if (!response.ok) {
-          throw new Error('Image generation failed');
+          console.warn(`[useImageGeneration] Failed with ${response.status}, using fallback`);
+          // Don't throw - just fail gracefully
+          setLoading(false);
+          return;
         }
 
         const data = await response.json();
         setImageUrl(data.imageUrl);
         setCached(data.cached);
       } catch (err: any) {
-        console.error('[useImageGeneration] Error:', err);
+        console.warn('[useImageGeneration] Error (will use fallback):', err.message);
         setError(err.message);
       } finally {
         setLoading(false);
