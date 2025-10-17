@@ -8,12 +8,22 @@ export default defineConfig({
     host: '0.0.0.0', // Listen on all network interfaces
     port: 3000,
     strictPort: true,
+    allowedHosts: [
+      'localhost',
+      'nuaibria.tfour.net',
+      '.tfour.net' // Allow all tfour.net subdomains
+    ],
     hmr: {
       host: 'localhost'
     }
   },
   preview: {
     host: '0.0.0.0',
-    port: 3000
+    port: 3000,
+    allowedHosts: [
+      'localhost',
+      'nuaibria.tfour.net',
+      '.tfour.net'
+    ]
   }
 })
