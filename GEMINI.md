@@ -6,6 +6,17 @@ Project Chimera is a semi-idle RPG powered by an AI Dungeon Master. It features 
 
 The project is built on a flexible architecture that supports both solo and multiplayer gameplay within a persistent, procedurally generated world. The database is powered by **Supabase**, a self-hosted, open-source Firebase alternative that provides a PostgreSQL database with restful APIs. Key features include a lore-driven portal system, a dual-model D&D 5e mechanics system, tiered NPC management, multi-vector character progression, and a layered quest generation system. The world is designed to evolve over time through an "Epoch System" that reflects the long-term impact of player actions.
 
+## Development
+
+This section provides links to important development-related documents.
+
+- [TODO List](./TODO.md): The main TODO list for developers.
+- [Coding Standards](./CODING_STANDARDS.md): Our coding standards and best practices.
+- [Dependency Guidelines](./DEPENDENCY_GUIDELINES.md): Guidelines for managing dependencies.
+- [Architecture Tasks](./ARCHITECTURE_TASKS.md): A detailed breakdown of all architecture and development tasks.
+- [Task Workflow](./TASK_WORKFLOW.md): The AI-driven task workflow for completing tasks.
+
+
 ## Building and Running
 
 The project is in its early stages, and there are no explicit build or run commands defined in the `package.json` file.

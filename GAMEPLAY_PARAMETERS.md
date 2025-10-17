@@ -4,6 +4,14 @@ This document defines the concrete parameters for map size, time systems, and ga
 
 ---
 
+## WORLD
+
+### World Name
+
+The world of Project Chimera is named **Nuaibria**.
+
+---
+
 ## MAP SYSTEM
 
 ### World Scale & Size

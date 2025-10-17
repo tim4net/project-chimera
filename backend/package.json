@@ -1,10 +1,38 @@
 {
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1"
-  },
+  "name": "nuaibria-backend",
+  "version": "1.0.0",
+  "description": "Backend for Nuaibria",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
     "dev": "node src/server.js",
-    "test": "jest"
+    "start": "node src/server.js",
+    "test": "cross-env SUPABASE_URL=$SUPABASE_URL SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "overrides": {
+    "glob": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/supertest": "^6.0.3",
+    "cross-env": "^10.1.0",
+    "dotenv-cli": "^10.0.0",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.10",
+    "prisma": "^6.17.1",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.5"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.75.0",
+    "axios": "^1.12.2",
+    "axios-mock-adapter": "^2.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0"
   }
 }

@@ -12,17 +12,17 @@ The game features dual interfaces (web application and Discord bot) and supports
 
 ## Architecture
 
-### Database: Self-Hosted Supabase
-- The project uses a **containerized, self-hosted version of Supabase** (open-source Firebase alternative)
+### Database: Supabase Cloud
+- The project uses **Supabase Cloud** (hosted PostgreSQL with RESTful APIs)
 - Provides PostgreSQL database with built-in RESTful APIs and real-time capabilities
-- All data remains within the project's local environment
-- Supabase stack runs via Podman containers managed through `docker-compose`
-- Located in: `supabase/docker/docker-compose.yml`
+- Project URL: https://muhlitkerrjparpcuwmc.supabase.co
+- Connection details stored in `.env` files (not committed to git)
+- See `SUPABASE_CLOUD_CREDENTIALS.md` for full configuration details
 
 ### Key Components
 1. **Backend Server**: Manages game logic, rules adjudication (5e mechanics), game state, and AI communication
-2. **Database (Supabase)**: PostgreSQL with RESTful APIs, allowing direct interaction from web/Discord frontends
-3. **Web Frontend**: Primary UI displaying procedurally generated map, character sheets, and game logs (planned React app)
+2. **Database (Supabase Cloud)**: PostgreSQL with RESTful APIs, allowing direct interaction from web/Discord frontends
+3. **Web Frontend**: Primary UI displaying procedurally generated map, character sheets, and game logs (React/Vite app)
 4. **Discord Bot**: Secondary interface for notifications, narrative updates, and quick actions (planned)
 
 ### Hybrid AI System
@@ -54,20 +54,20 @@ When starting fresh or fixing issues with the setup:
 
 ### Container Management
 ```bash
-# Start Supabase containers
-podman compose -f supabase/docker/docker-compose.yml up -d
+# Start frontend and backend containers
+podman compose up -d
 
-# Stop Supabase containers
-podman compose -f supabase/docker/docker-compose.yml down
+# Stop containers
+podman compose down
 
 # Check container status
-podman compose -f supabase/docker/docker-compose.yml ps
+podman compose ps
 
 # View logs
-podman compose -f supabase/docker/docker-compose.yml logs -f
+podman compose logs -f
 
-# Reset Supabase environment
-./supabase/docker/reset.sh
+# Rebuild containers
+podman compose build
 ```
 
 ### Infrastructure Scripts
@@ -97,7 +97,7 @@ podman compose -f supabase/docker/docker-compose.yml logs -f
 - Checks Supabase container health
 
 **clean_start.sh** - Cleanup script for fresh starts
-- Stops all Supabase containers
+- Stops all containers
 - Removes backup files created by sed
 - Resets state files (project_state.json, logs, etc.)
 - Restores original docker-compose.yml from backup or git
@@ -169,8 +169,10 @@ The current development focuses on the **Minimum Viable Product** with these con
 - `test_results/`: Test specifications, implementations, and verification logs
 
 ### Configuration
-- `supabase/docker/docker-compose.yml`: Supabase container configuration (modified by orchestrator)
-- `supabase/docker/.env`: Supabase environment configuration (⚠️ not tracked in git - contains secrets)
+- `docker-compose.yml`: Container configuration for frontend and backend services
+- `.env`: Root environment variables (Supabase Cloud credentials, Gemini API key)
+- `frontend/.env`: Frontend-specific environment variables (Vite prefixed)
+- `SUPABASE_CLOUD_CREDENTIALS.md`: Supabase Cloud project details and credentials (⚠️ contains secrets, should not be committed publicly)
 
 ## Git Workflow
 
@@ -188,8 +190,9 @@ The current development focuses on the **Minimum Viable Product** with these con
 
 ## Development Notes
 
-- All Supabase-related work uses the cloned supabase repository in `/srv/project-chimera/supabase`
+- Supabase Cloud instance is located at: https://muhlitkerrjparpcuwmc.supabase.co
 - The project is containerized and portable via Docker/Podman
 - Cost optimization is a key concern: minimize expensive Gemini Pro API calls
 - Supabase provides direct database access from frontends, reducing backend API complexity
-- The project prioritizes self-contained, self-hosted infrastructure over cloud services
+- Database migrations are managed through Supabase's SQL Editor or CLI
+- Use 'podman compose' not 'podman-compose'

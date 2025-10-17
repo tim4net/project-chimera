@@ -1,0 +1,29 @@
+
+# Environment variables with secrets
+.env*
+!.env.example
+
+# Supabase credentials and secrets
+SUPABASE_CLOUD_CREDENTIALS.md
+
+# Node modules
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test results
+test_results/
