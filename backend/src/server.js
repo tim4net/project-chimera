@@ -25,6 +25,9 @@ app.use('/api/characters', characterRoutes);
 const worldRoutes = require('./routes/world');
 app.use('/api/world', worldRoutes);
 
+const assetRoutes = require('./routes/assets');
+app.use('/api/assets', assetRoutes);
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
