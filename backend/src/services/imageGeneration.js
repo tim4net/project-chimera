@@ -211,11 +211,11 @@ function createPlaceholderImage(dimensions) {
 /**
  * Upload image to Supabase Storage
  */
-async function uploadToStorage(imageBuffer, fileName) {
+async function uploadToStorage(imageBuffer, fileName, contentType = 'image/png') {
   const { data, error } = await supabase.storage
     .from('generated-assets')
     .upload(fileName, imageBuffer, {
-      contentType: 'image/png',
+      contentType: contentType,
       cacheControl: '31536000', // 1 year
       upsert: false
     });
