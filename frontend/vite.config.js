@@ -10,11 +10,14 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: [
       'localhost',
+      '127.0.0.1',
       'nuaibria.tfour.net',
       '.tfour.net' // Allow all tfour.net subdomains
     ],
     hmr: {
-      host: 'localhost'
+      protocol: 'ws',
+      host: 'localhost',
+      port: 3000
     }
   },
   preview: {
