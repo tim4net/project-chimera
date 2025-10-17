@@ -9,6 +9,9 @@ const { getActiveStyleConfig, getAllStyleVersions, setActiveStyle } = require('.
  * Generate or retrieve cached image
  */
 router.post('/image', async (req, res) => {
+  // Increase timeout for image generation (can take 2+ minutes)
+  req.setTimeout(180000); // 3 minutes
+
   try {
     const { prompt, dimensions, contextType, context } = req.body;
 

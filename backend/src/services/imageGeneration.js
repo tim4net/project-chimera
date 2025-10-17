@@ -159,30 +159,46 @@ async function generateWithLocalLLM(prompt, dimensions) {
 async function generateWithGemini(prompt, dimensions, tier) {
   console.log(`[ImageGen] Generating with Pollinations.ai...`);
 
-  try {
-    // Pollinations.ai provides free AI image generation
-    // URL format: https://image.pollinations.ai/prompt/{prompt}?width={w}&height={h}
-    const encodedPrompt = encodeURIComponent(prompt);
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&nologo=true&enhance=true`;
+  const maxRetries = 3;
+  let lastError;
 
-    console.log(`[ImageGen] Fetching from Pollinations: ${url.substring(0, 100)}...`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Pollinations.ai provides free AI image generation
+      // URL format: https://image.pollinations.ai/prompt/{prompt}?width={w}&height={h}
+      const encodedPrompt = encodeURIComponent(prompt);
+      const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&nologo=true&enhance=true`;
 
-    const fetch = (await import('node-fetch')).default;
-    const response = await fetch(url);
+      console.log(`[ImageGen] Attempt ${attempt}/${maxRetries}: Fetching from Pollinations...`);
 
-    if (!response.ok) {
-      throw new Error(`Pollinations API returned ${response.status}`);
+      const fetch = (await import('node-fetch')).default;
+      const response = await fetch(url, {
+        timeout: 120000 // 2 minute timeout per attempt
+      });
+
+      if (!response.ok) {
+        throw new Error(`Pollinations API returned ${response.status}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      console.log(`[ImageGen] ✓ Generated image: ${buffer.length} bytes`);
+      return buffer;
+    } catch (error) {
+      lastError = error;
+      console.error(`[ImageGen] Attempt ${attempt} failed:`, error.message);
+
+      if (attempt < maxRetries) {
+        const delay = attempt * 2000; // Exponential backoff
+        console.log(`[ImageGen] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    console.log(`[ImageGen] ✓ Generated image: ${buffer.length} bytes`);
-    return buffer;
-  } catch (error) {
-    console.error(`[ImageGen] Pollinations failed:`, error.message);
-    throw error;
   }
+
+  console.error(`[ImageGen] All ${maxRetries} attempts failed`);
+  throw lastError;
 }
 
 /**
