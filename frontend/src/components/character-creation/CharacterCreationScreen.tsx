@@ -16,8 +16,35 @@ type AbilityScores = Record<Ability, number>;
 
 // --- GAME RULES & CONSTANTS ---
 
-const RACES = ["Human", "Elf", "Dwarf", "Halfling", "Dragonborn", "Tiefling"];
-const CLASSES = ["Fighter", "Wizard", "Rogue", "Cleric", "Ranger", "Barbarian"];
+// 2024 D&D 5e Races (Player's Handbook 2024)
+const RACES = [
+  "Aasimar",
+  "Dragonborn",
+  "Dwarf",
+  "Elf",
+  "Gnome",
+  "Goliath",
+  "Halfling",
+  "Human",
+  "Orc",
+  "Tiefling"
+];
+
+// 2024 D&D 5e Classes (Player's Handbook 2024)
+const CLASSES = [
+  "Barbarian",
+  "Bard",
+  "Cleric",
+  "Druid",
+  "Fighter",
+  "Monk",
+  "Paladin",
+  "Ranger",
+  "Rogue",
+  "Sorcerer",
+  "Warlock",
+  "Wizard"
+];
 
 const POINT_BUY_CONFIG = {
   initialPoints: 27,
