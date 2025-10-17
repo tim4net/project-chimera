@@ -10,6 +10,12 @@
           "--access-token",
           "sbp_f9581598addda227e03f078cdabb83035b3d4fa3"
         ]
+      },
+      "nuaibria-world": {
+        "command": "node",
+        "args": [
+          "/srv/project-chimera/mcp-server-nuaibria/dist/index.js"
+        ]
       }
   }
 }

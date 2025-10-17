@@ -1,0 +1,28 @@
+{
+  "name": "@nuaibria/world-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Nuaibria world-building: lore, deities, NPCs, factions, and locations",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "nuaibria-world-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "prepare": "npm run build"
+  },
+  "keywords": ["mcp", "nuaibria", "world-building", "rpg", "dnd"],
+  "author": "Nuaibria Team",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@supabase/supabase-js": "^2.75.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.3"
+  }
+}
