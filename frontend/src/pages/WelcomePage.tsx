@@ -25,11 +25,31 @@ const WelcomePage: React.FC = () => {
     context: { character: 'the_chronicler' }
   });
 
+  // Generate bird's-eye view background
+  const birdsEyeBackground = useImageGeneration({
+    prompt: 'aerial view of fantasy wilderness on a peaceful sunny day, lush green forests, winding rivers, distant mountains, medieval villages, birds eye perspective, top-down view, warm golden sunlight, idyllic fantasy realm, Baldurs Gate 3 style map',
+    dimensions: { width: 2560, height: 1440 },
+    contextType: 'location_banner',
+    context: { location: 'nuaibria_aerial_peaceful' }
+  });
+
   return (
     <div className="min-h-screen bg-chimera-bg text-chimera-text-primary font-body overflow-x-hidden">
-      {/* Animated background with magical particles */}
+      {/* Bird's-eye view background with overlay */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-chimera-bg via-chimera-surface to-chimera-elevated"></div>
+        {/* AI-generated aerial view background */}
+        {birdsEyeBackground.imageUrl ? (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-fixed opacity-20"
+              style={{ backgroundImage: `url(${birdsEyeBackground.imageUrl})` }}
+            ></div>
+            {/* Dark overlay to ensure text readability */}
+            <div className="absolute inset-0 bg-gradient-to-br from-chimera-bg/80 via-chimera-surface/70 to-chimera-elevated/80"></div>
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-chimera-bg via-chimera-surface to-chimera-elevated"></div>
+        )}
 
         {/* Magical glow orbs */}
         <div className="absolute top-20 left-10 w-64 h-64 bg-chimera-gold/5 rounded-full blur-3xl animate-glow-pulse"></div>
