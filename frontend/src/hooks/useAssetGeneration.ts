@@ -49,6 +49,7 @@ export function useImageGeneration(params: ImageGenerationParams | null): ImageR
         }
 
         const data = await response.json();
+        console.log('[useImageGeneration] Received:', data);
         setImageUrl(data.imageUrl);
         setCached(data.cached);
       } catch (err: any) {
