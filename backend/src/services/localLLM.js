@@ -1,10 +1,11 @@
 /**
  * Local LLM service (stub - to be implemented)
+ * Falls back to Gemini when called
  */
 
 async function generateText(prompt, options = {}) {
-  console.log('[LocalLLM] Not implemented, throwing error to fall back to Gemini');
-  throw new Error('Local LLM not yet implemented - will fall back to Gemini');
+  console.log('[LocalLLM] Not yet implemented, throwing error to trigger Gemini fallback');
+  throw new Error('Local LLM not configured - using Gemini fallback');
 }
 
 module.exports = {
