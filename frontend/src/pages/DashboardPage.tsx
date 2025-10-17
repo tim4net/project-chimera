@@ -62,9 +62,9 @@ const DashboardPage = () => {
 
   const fetchMapData = async (x: number, y: number, seed: string) => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      // Use relative URL - Vite proxy will forward to backend
       const response = await fetch(
-        `${backendUrl}/api/world/${seed}/map?x=${x}&y=${y}&radius=5`
+        `/api/world/${seed}/map?x=${x}&y=${y}&radius=5`
       );
       const data = await response.json();
       setMapData(data);

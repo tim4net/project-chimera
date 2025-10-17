@@ -14,6 +14,13 @@ export default defineConfig({
       'nuaibria.tfour.net',
       '.tfour.net' // Allow all tfour.net subdomains
     ],
+    proxy: {
+      '/api': {
+        target: 'http://backend:3001',
+        changeOrigin: true,
+        secure: false
+      }
+    },
     hmr: {
       protocol: 'ws',
       host: 'localhost',

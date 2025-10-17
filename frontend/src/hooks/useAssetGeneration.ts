@@ -31,8 +31,8 @@ export function useImageGeneration(params: ImageGenerationParams | null): ImageR
       setError(null);
 
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-        const response = await fetch(`${backendUrl}/api/assets/image`, {
+        // Use relative URL - Vite proxy will forward to backend
+        const response = await fetch('/api/assets/image', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -95,8 +95,8 @@ export function useTextGeneration(params: TextGenerationParams | null): TextResu
       setError(null);
 
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-        const response = await fetch(`${backendUrl}/api/assets/text`, {
+        // Use relative URL - Vite proxy will forward to backend
+        const response = await fetch('/api/assets/text', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
