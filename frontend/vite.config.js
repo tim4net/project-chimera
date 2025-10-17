@@ -23,9 +23,8 @@ export default defineConfig({
       }
     },
     hmr: {
-      protocol: 'ws',
+      // Auto-detect: use wss for HTTPS, ws for HTTP
       clientPort: 3000,
-      // Don't specify host - let browser use current hostname
     }
   },
   preview: {
