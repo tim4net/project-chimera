@@ -126,24 +126,26 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-chimera-bg via-chimera-surface to-chimera-bg">
       {/* Header/Navigation */}
-      <header className="bg-gray-900 border-b-2 border-amber-600 shadow-lg">
-        <div className="container mx-auto px-4 py-3">
+      <header className="bg-chimera-surface/80 backdrop-blur-sm border-b-2 border-chimera-gold/30 shadow-glow">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-3xl font-bold text-amber-500">Project Chimera</h1>
-              <span className="text-gray-400">|</span>
-              <span className="text-amber-100 font-semibold">{character.name}</span>
+              <h1 className="text-3xl font-display font-bold text-chimera-gold drop-shadow-lg">
+                Project Chimera
+              </h1>
+              <span className="text-chimera-border">|</span>
+              <span className="text-chimera-text-primary font-semibold">{character.name}</span>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm text-gray-400">Level {character.level}</p>
-                <p className="text-xs text-gray-500">{character.class}</p>
+                <p className="text-sm text-chimera-text-accent font-semibold">Level {character.level}</p>
+                <p className="text-xs text-chimera-text-muted">{character.class}</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="bg-red-700 hover:bg-red-800 text-white font-semibold py-2 px-4 rounded transition"
+                className="bg-chimera-danger hover:bg-chimera-danger/80 text-white font-semibold py-2 px-4 rounded-lg transition-all hover:shadow-glow"
               >
                 Logout
               </button>
@@ -159,32 +161,32 @@ const DashboardPage = () => {
           {/* Left Column - Character Info */}
           <div className="lg:col-span-1 space-y-6">
             {/* Character Stats Card */}
-            <div className="bg-gray-800 border-2 border-amber-700 rounded-lg shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-700 to-amber-600 px-4 py-3">
-                <h2 className="text-xl font-bold text-white">Character</h2>
+            <div className="bg-chimera-surface border-2 border-chimera-gold/20 rounded-lg shadow-card-hover overflow-hidden hover:border-chimera-gold/40 transition-all">
+              <div className="bg-gradient-to-r from-chimera-gold/20 via-chimera-ember/10 to-chimera-gold/20 px-6 py-4 border-b border-chimera-border">
+                <h2 className="text-xl font-display font-bold text-chimera-gold">Character</h2>
               </div>
-              <div className="p-4 space-y-3">
+              <div className="p-6 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">HP</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-32 bg-gray-700 rounded-full h-4">
+                  <span className="text-chimera-text-secondary font-semibold">HP</span>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-32 bg-chimera-bg rounded-full h-4 shadow-inner-dark border border-chimera-border">
                       <div
-                        className="bg-red-600 h-4 rounded-full transition-all"
+                        className="bg-gradient-to-r from-chimera-health to-chimera-ember h-4 rounded-full transition-all shadow-glow"
                         style={{ width: `${(character.hp_current / character.hp_max) * 100}%` }}
                       ></div>
                     </div>
-                    <span className="text-amber-100 font-semibold text-sm">
+                    <span className="text-chimera-text-primary font-mono font-bold text-sm min-w-[60px]">
                       {character.hp_current}/{character.hp_max}
                     </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">XP</span>
-                  <span className="text-amber-100 font-semibold">{character.xp}</span>
+                  <span className="text-chimera-text-secondary font-semibold">XP</span>
+                  <span className="text-chimera-text-accent font-bold font-mono">{character.xp}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Position</span>
-                  <span className="text-amber-100 font-mono text-sm">
+                  <span className="text-chimera-text-secondary font-semibold">Position</span>
+                  <span className="text-chimera-arcane font-mono text-sm font-semibold">
                     ({character.position_x}, {character.position_y})
                   </span>
                 </div>
@@ -192,28 +194,28 @@ const DashboardPage = () => {
             </div>
 
             {/* Idle Tasks Card */}
-            <div className="bg-gray-800 border-2 border-amber-700 rounded-lg shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-700 to-amber-600 px-4 py-3">
-                <h2 className="text-xl font-bold text-white">Actions</h2>
+            <div className="bg-chimera-surface border-2 border-chimera-arcane/20 rounded-lg shadow-card-hover overflow-hidden hover:border-chimera-arcane/40 transition-all">
+              <div className="bg-gradient-to-r from-chimera-arcane/20 via-chimera-poison/10 to-chimera-arcane/20 px-6 py-4 border-b border-chimera-border">
+                <h2 className="text-xl font-display font-bold text-chimera-arcane">Actions</h2>
               </div>
-              <div className="p-4 space-y-2">
+              <div className="p-6 space-y-3">
                 {character.idle_task ? (
-                  <div className="bg-gray-700 rounded p-3">
-                    <p className="text-amber-100 font-semibold mb-1">Current Task</p>
-                    <p className="text-gray-300 text-sm">{character.idle_task}</p>
-                    <p className="text-gray-500 text-xs mt-2">
+                  <div className="bg-chimera-elevated rounded-lg p-4 border border-chimera-gold/20 shadow-inner-dark">
+                    <p className="text-chimera-gold font-semibold mb-2 font-display">Current Task</p>
+                    <p className="text-chimera-text-primary text-sm leading-relaxed">{character.idle_task}</p>
+                    <p className="text-chimera-text-muted text-xs mt-3 font-mono">
                       Started: {new Date(character.idle_task_started_at).toLocaleTimeString()}
                     </p>
                   </div>
                 ) : (
                   <>
-                    <button className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-3 px-4 rounded transition">
+                    <button className="w-full bg-gradient-to-r from-chimera-poison to-chimera-poison/80 hover:from-chimera-poison/90 hover:to-chimera-poison/70 text-white font-semibold py-3 px-4 rounded-lg transition-all hover:shadow-glow hover:-translate-y-0.5">
                       Travel
                     </button>
-                    <button className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-3 px-4 rounded transition">
+                    <button className="w-full bg-gradient-to-r from-chimera-mana to-chimera-ice hover:from-chimera-mana/90 hover:to-chimera-ice/90 text-white font-semibold py-3 px-4 rounded-lg transition-all hover:shadow-glow hover:-translate-y-0.5">
                       Scout Area
                     </button>
-                    <button className="w-full bg-purple-700 hover:bg-purple-800 text-white font-semibold py-3 px-4 rounded transition">
+                    <button className="w-full bg-gradient-to-r from-chimera-arcane to-chimera-arcane/80 hover:from-chimera-arcane/90 hover:to-chimera-arcane/70 text-white font-semibold py-3 px-4 rounded-lg transition-all hover:shadow-glow hover:-translate-y-0.5">
                       Rest
                     </button>
                   </>
@@ -224,9 +226,9 @@ const DashboardPage = () => {
 
           {/* Center Column - Map */}
           <div className="lg:col-span-1">
-            <div className="bg-gray-800 border-2 border-amber-700 rounded-lg shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-700 to-amber-600 px-4 py-3">
-                <h2 className="text-xl font-bold text-white">World Map</h2>
+            <div className="bg-chimera-surface border-2 border-chimera-ember/20 rounded-lg shadow-card-hover overflow-hidden hover:border-chimera-ember/40 transition-all">
+              <div className="bg-gradient-to-r from-chimera-ember/20 via-chimera-gold/10 to-chimera-ember/20 px-6 py-4 border-b border-chimera-border">
+                <h2 className="text-xl font-display font-bold text-chimera-ember">World Map</h2>
               </div>
               <div className="p-4">
                 {mapData ? (
@@ -292,28 +294,28 @@ const DashboardPage = () => {
 
           {/* Right Column - Journal */}
           <div className="lg:col-span-1">
-            <div className="bg-gray-800 border-2 border-amber-700 rounded-lg shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-700 to-amber-600 px-4 py-3">
-                <h2 className="text-xl font-bold text-white">Journal</h2>
+            <div className="bg-chimera-surface border-2 border-chimera-gold/20 rounded-lg shadow-card-hover overflow-hidden hover:border-chimera-gold/40 transition-all">
+              <div className="bg-gradient-to-r from-chimera-gold/20 via-chimera-ember/10 to-chimera-gold/20 px-6 py-4 border-b border-chimera-border">
+                <h2 className="text-xl font-display font-bold text-chimera-gold">Journal</h2>
               </div>
-              <div className="p-4">
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="p-6">
+                <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
                   {journalEntries.length > 0 ? (
                     journalEntries.map((entry: any) => (
-                      <div key={entry.id} className="bg-gray-700 rounded p-3 border-l-4 border-amber-600">
-                        <p className="text-amber-100 text-sm font-semibold mb-1">
+                      <div key={entry.id} className="bg-chimera-elevated rounded-lg p-4 border-l-4 border-chimera-gold shadow-inner-dark hover:bg-chimera-elevated/80 transition-all animate-fade-in">
+                        <p className="text-chimera-text-accent text-sm font-display font-semibold mb-2">
                           {entry.entry_type}
                         </p>
-                        <p className="text-gray-300 text-sm">{entry.content}</p>
-                        <p className="text-gray-500 text-xs mt-2">
+                        <p className="text-chimera-text-primary text-sm leading-relaxed">{entry.content}</p>
+                        <p className="text-chimera-text-muted text-xs mt-3 font-mono">
                           {new Date(entry.created_at).toLocaleString()}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <div className="bg-gray-700 rounded p-4 text-center">
-                      <p className="text-gray-400 italic">Your adventure begins...</p>
-                      <p className="text-gray-500 text-sm mt-2">
+                    <div className="bg-chimera-elevated rounded-lg p-8 text-center border border-chimera-border shadow-inner-dark">
+                      <p className="text-chimera-text-secondary italic font-display text-lg mb-3">Your adventure begins...</p>
+                      <p className="text-chimera-text-muted text-sm leading-relaxed">
                         Start by choosing an action to create your first journal entry.
                       </p>
                     </div>
