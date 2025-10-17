@@ -7,12 +7,16 @@ import SignupPage from './pages/SignupPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
 import CharacterCreationWizard from './pages/CharacterCreationWizard.tsx';
+import AuthCallback from './pages/AuthCallback.tsx';
 
 // Public route wrapper (redirects to dashboard if already logged in)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
 
+  console.log('[PublicRoute] User state:', user?.email || 'No user');
+
   if (user) {
+    console.log('[PublicRoute] User authenticated, redirecting to /');
     return <Navigate to="/" replace />;
   }
 
@@ -22,6 +26,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const AppRoutes = () => {
   return (
     <Routes>
+      {/* OAuth callback route - no protection needed */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
+
       {/* Public routes */}
       <Route
         path="/login"

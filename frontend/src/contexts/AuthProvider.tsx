@@ -16,12 +16,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('[AuthProvider] Initial user fetch:', user?.email || 'No user');
       setUser(user);
     };
     fetchUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[AuthProvider] Auth state changed:', event, 'User:', session?.user?.email || 'No user');
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
       }
@@ -37,10 +39,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn: (data) => {
       // Check if it's OAuth or password sign-in
       if (data.provider) {
+        console.log('[AuthProvider] Starting OAuth flow with provider:', data.provider);
         return supabase.auth.signInWithOAuth({
           provider: data.provider,
           options: {
-            redirectTo: `${window.location.origin}/`
+            redirectTo: `${window.location.origin}/auth/callback`
           }
         });
       }
