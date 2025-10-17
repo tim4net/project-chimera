@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage.tsx';
 import SignupPage from './pages/SignupPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
+import WelcomePage from './pages/WelcomePage.tsx';
 import CharacterCreationScreen from './components/character-creation/CharacterCreationScreen.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 
@@ -50,6 +51,14 @@ const AppRoutes = () => {
       {/* Protected routes */}
       <Route
         path="/"
+        element={
+          <ProtectedRoute>
+            <WelcomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
         element={
           <ProtectedRoute>
             <DashboardPage />
