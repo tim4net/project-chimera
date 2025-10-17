@@ -168,7 +168,8 @@ export const CharacterCreationScreen: React.FC = () => {
     const [selectedPortrait, setSelectedPortrait] = useState<string | null>(null);
     const [imageGenParams, setImageGenParams] = useState<Parameters<typeof useImageGeneration>[0]>(null);
 
-    const { imageUrls: generatedPortraits, loading: portraitsLoading } = useImageGeneration(imageGenParams);
+    const { imageUrl: generatedPortrait, loading: portraitsLoading } = useImageGeneration(imageGenParams);
+    const generatedPortraits = generatedPortrait ? [generatedPortrait] : null;
 
     const totalCost = useMemo(() => ABILITIES.reduce((cost, ability) => cost + POINT_BUY_CONFIG.scoreCost[abilityScores[ability]], 0), [abilityScores]);
     const pointsRemaining = POINT_BUY_CONFIG.initialPoints - totalCost;
