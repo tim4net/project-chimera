@@ -7,22 +7,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
     port: 3000,
-    strictPort: true,
-    hmr: {
-      clientPort: 3000
-    },
-    cors: {
-      origin: ['http://localhost:3000', 'https://nuaibria.tfour.net'],
-      credentials: true
-    }
-  },
-  preview: {
-    host: '0.0.0.0',
-    port: 3000,
-    strictPort: true,
-    cors: {
-      origin: ['http://localhost:3000', 'https://nuaibria.tfour.net'],
-      credentials: true
-    }
+    strictPort: true
   }
 })

@@ -26,10 +26,10 @@ const AuthCallback = () => {
       <div className="text-center">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-chimera-gold mx-auto mb-4 shadow-glow"></div>
         <p className="text-chimera-text-primary font-display text-xl">
-          {error ? 'Authentication failed' : 'Completing sign in...'}
+          Completing sign in...
         </p>
         <p className="text-chimera-text-muted text-sm mt-2">
-          {error || 'Please wait'}
+          Please wait
         </p>
       </div>
     </div>
