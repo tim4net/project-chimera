@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useImageGeneration } from '../hooks/useAssetGeneration';
 
 /**
  * Landing page that introduces players to Nuaibria
@@ -7,6 +8,22 @@ import { useNavigate } from 'react-router-dom';
  */
 const WelcomePage: React.FC = () => {
   const navigate = useNavigate();
+
+  // Generate hero banner image
+  const heroBanner = useImageGeneration({
+    prompt: 'Epic dark fantasy landscape, ancient ruins silhouetted against a twilight sky, mystical energy glowing from cracks in reality, broken empire architecture, atmospheric fog',
+    dimensions: { width: 1920, height: 600 },
+    contextType: 'location_banner',
+    context: { location: 'nuaibria_overview' }
+  });
+
+  // Generate Chronicler portrait
+  const chroniclerPortrait = useImageGeneration({
+    prompt: 'Mysterious ethereal figure made of swirling pages and magical energy, hooded silhouette, glowing golden eyes, ancient tome floating nearby, keeper of knowledge',
+    dimensions: { width: 512, height: 512 },
+    contextType: 'character_portrait',
+    context: { character: 'the_chronicler' }
+  });
 
   return (
     <div className="min-h-screen bg-chimera-bg text-chimera-text-primary font-body overflow-x-hidden">
@@ -28,6 +45,18 @@ const WelcomePage: React.FC = () => {
 
       {/* Content */}
       <div className="relative z-10 max-w-5xl mx-auto px-6 py-16 space-y-16">
+
+        {/* Hero Banner Image */}
+        {heroBanner.imageUrl && (
+          <div className="relative w-full h-64 md:h-96 rounded-xl overflow-hidden border-2 border-chimera-gold/20 shadow-glow-lg animate-fade-in">
+            <img
+              src={heroBanner.imageUrl}
+              alt="Nuaibria landscape"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-chimera-bg via-transparent to-transparent"></div>
+          </div>
+        )}
 
         {/* Hero Section */}
         <section className="text-center space-y-8 animate-fade-in pt-12 pb-8">
@@ -74,13 +103,23 @@ const WelcomePage: React.FC = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-chimera-arcane/5 rounded-full blur-3xl -z-0"></div>
 
           <div className="flex items-start gap-6 relative z-10">
-            {/* Enhanced Icon/Avatar */}
-            <div className="flex-shrink-0 w-24 h-24 rounded-full bg-gradient-to-br from-chimera-gold/30 via-chimera-arcane/20 to-chimera-gold/30 border-2 border-chimera-gold/40 flex items-center justify-center shadow-glow-lg relative">
-              {/* Inner glow */}
-              <div className="absolute inset-2 rounded-full bg-chimera-bg/50 border border-chimera-gold/20"></div>
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-chimera-gold relative z-10">
-                <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-              </svg>
+            {/* Enhanced Icon/Avatar with optional AI image */}
+            <div className="flex-shrink-0 w-24 h-24 rounded-full bg-gradient-to-br from-chimera-gold/30 via-chimera-arcane/20 to-chimera-gold/30 border-2 border-chimera-gold/40 shadow-glow-lg relative overflow-hidden">
+              {chroniclerPortrait.loading ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-chimera-gold border-t-transparent"></div>
+                </div>
+              ) : chroniclerPortrait.imageUrl ? (
+                <img src={chroniclerPortrait.imageUrl} alt="The Chronicler" className="w-full h-full object-cover" />
+              ) : (
+                <>
+                  {/* Fallback icon */}
+                  <div className="absolute inset-2 rounded-full bg-chimera-bg/50 border border-chimera-gold/20"></div>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-chimera-gold relative z-10 m-auto mt-6">
+                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                  </svg>
+                </>
+              )}
             </div>
 
             <div className="flex-1">
