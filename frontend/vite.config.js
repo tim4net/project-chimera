@@ -7,6 +7,13 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
     port: 3000,
-    strictPort: true
+    strictPort: true,
+    hmr: {
+      host: 'localhost'
+    }
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 3000
   }
 })
