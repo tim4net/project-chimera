@@ -16,83 +16,62 @@ const AuthCallback = () => {
     if (hasRun.current) return;
     hasRun.current = true;
 
-    const handleCallback = async () => {
-      console.log('[AuthCallback] Processing OAuth callback');
-      console.log('[AuthCallback] Current URL:', window.location.href);
+    console.log('[AuthCallback] Mounted - waiting for Supabase to process OAuth hash');
 
-      try {
-        // The auth tokens are in the URL hash fragment
-        // Supabase's onAuthStateChange listener should pick this up automatically
-        // But we need to explicitly parse the hash for implicit flow
+    // For implicit flow (hash-based OAuth), Supabase automatically
+    // processes the hash and fires onAuthStateChange. We just need to
+    // listen for that event and redirect when ready.
 
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
+    let redirectTimer: NodeJS.Timeout;
+    let timeoutTimer: NodeJS.Timeout;
 
-        console.log('[AuthCallback] Tokens found:', {
-          hasAccessToken: !!accessToken,
-          hasRefreshToken: !!refreshToken
-        });
+    const checkAndRedirect = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
 
-        if (accessToken) {
-          console.log('[AuthCallback] Calling setSession...');
-
-          // Set the session using the tokens from the URL with timeout
-          const sessionPromise = supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || ''
-          });
-
-          // Add 5 second timeout
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('setSession timeout')), 5000)
-          );
-
-          const { data, error: sessionError } = await Promise.race([
-            sessionPromise,
-            timeoutPromise
-          ]) as any;
-
-          console.log('[AuthCallback] setSession response:', {
-            hasData: !!data,
-            hasUser: !!data?.user,
-            error: sessionError
-          });
-
-          if (sessionError) {
-            console.error('[AuthCallback] Error setting session:', sessionError);
-            setError(sessionError.message);
-            setTimeout(() => navigate('/login?error=session_failed'), 2000);
-            return;
-          }
-
-          if (!data?.user) {
-            console.error('[AuthCallback] No user in session data');
-            setError('Failed to establish user session');
-            setTimeout(() => navigate('/login?error=no_user'), 2000);
-            return;
-          }
-
-          console.log('[AuthCallback] ✓ Session established for:', data.user.email);
-
-          // Give AuthProvider time to update
-          setTimeout(() => {
-            console.log('[AuthCallback] Redirecting to dashboard');
-            navigate('/', { replace: true });
-          }, 500);
-        } else {
-          console.error('[AuthCallback] No access token in URL');
-          setError('No authentication token received');
-          setTimeout(() => navigate('/login?error=no_token'), 2000);
-        }
-      } catch (err: any) {
-        console.error('[AuthCallback] Unexpected error:', err);
-        setError(err.message);
-        setTimeout(() => navigate('/login?error=unexpected'), 2000);
+      if (session?.user) {
+        console.log('[AuthCallback] ✓ Session found for:', session.user.email);
+        console.log('[AuthCallback] Redirecting to dashboard...');
+        navigate('/', { replace: true });
+      } else {
+        console.log('[AuthCallback] No session yet, waiting for auth state change...');
       }
     };
 
-    handleCallback();
+    // Check immediately
+    checkAndRedirect();
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[AuthCallback] Auth state change:', event);
+
+        if (event === 'SIGNED_IN' && session) {
+          console.log('[AuthCallback] ✓ SIGNED_IN event received for:', session.user.email);
+
+          // Clear timeout
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+
+          // Redirect after brief delay
+          redirectTimer = setTimeout(() => {
+            console.log('[AuthCallback] Redirecting to dashboard');
+            navigate('/', { replace: true });
+          }, 500);
+        }
+      }
+    );
+
+    // Timeout after 10 seconds
+    timeoutTimer = setTimeout(() => {
+      console.error('[AuthCallback] Timeout - no SIGNED_IN event received');
+      setError('Authentication timed out');
+      navigate('/login?error=timeout');
+    }, 10000);
+
+    return () => {
+      subscription.unsubscribe();
+      if (redirectTimer) clearTimeout(redirectTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+    };
   }, [navigate]);
 
   return (
