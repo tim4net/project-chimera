@@ -1,77 +1,24 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 
 /**
  * OAuth callback handler
- * Parse OAuth tokens from URL hash and establish session
+ * Just redirect to dashboard - Supabase handles session automatically
  */
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const hasRun = useRef(false);
 
   useEffect(() => {
-    // Prevent double execution in React StrictMode
-    if (hasRun.current) return;
-    hasRun.current = true;
+    console.log('[AuthCallback] OAuth callback received, redirecting to dashboard');
 
-    console.log('[AuthCallback] Mounted - waiting for Supabase to process OAuth hash');
+    // Supabase automatically processes the OAuth hash and sets up the session
+    // The AuthProvider's onAuthStateChange will pick it up
+    // Just redirect to dashboard immediately
+    const timer = setTimeout(() => {
+      navigate('/', { replace: true });
+    }, 100);
 
-    // For implicit flow (hash-based OAuth), Supabase automatically
-    // processes the hash and fires onAuthStateChange. We just need to
-    // listen for that event and redirect when ready.
-
-    let redirectTimer: NodeJS.Timeout;
-    let timeoutTimer: NodeJS.Timeout;
-
-    const checkAndRedirect = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session?.user) {
-        console.log('[AuthCallback] ✓ Session found for:', session.user.email);
-        console.log('[AuthCallback] Redirecting to dashboard...');
-        navigate('/', { replace: true });
-      } else {
-        console.log('[AuthCallback] No session yet, waiting for auth state change...');
-      }
-    };
-
-    // Check immediately
-    checkAndRedirect();
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('[AuthCallback] Auth state change:', event);
-
-        if (event === 'SIGNED_IN' && session) {
-          console.log('[AuthCallback] ✓ SIGNED_IN event received for:', session.user.email);
-
-          // Clear timeout
-          if (timeoutTimer) clearTimeout(timeoutTimer);
-
-          // Redirect after brief delay
-          redirectTimer = setTimeout(() => {
-            console.log('[AuthCallback] Redirecting to dashboard');
-            navigate('/', { replace: true });
-          }, 500);
-        }
-      }
-    );
-
-    // Timeout after 10 seconds
-    timeoutTimer = setTimeout(() => {
-      console.error('[AuthCallback] Timeout - no SIGNED_IN event received');
-      setError('Authentication timed out');
-      navigate('/login?error=timeout');
-    }, 10000);
-
-    return () => {
-      subscription.unsubscribe();
-      if (redirectTimer) clearTimeout(redirectTimer);
-      if (timeoutTimer) clearTimeout(timeoutTimer);
-    };
+    return () => clearTimeout(timer);
   }, [navigate]);
 
   return (
