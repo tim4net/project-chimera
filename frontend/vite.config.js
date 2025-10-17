@@ -16,9 +16,10 @@ export default defineConfig({
     ],
     proxy: {
       '/api': {
-        target: 'http://backend:3001',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        ws: true
       }
     },
     hmr: {

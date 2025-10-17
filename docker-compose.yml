@@ -11,8 +11,12 @@ services:
     ports:
       - "3000:3000"
       - "9222:9222"
+    environment:
+      - VITE_BACKEND_URL=http://${DOCKER_HOST:-localhost}:3001
     env_file:
       - ./frontend/.env
+    depends_on:
+      - backend
 
   backend:
     build:
