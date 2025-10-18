@@ -130,13 +130,28 @@ router.post('/', async (req: Request, res: Response) => {
     const startingPosition = { x: 500, y: 500 } as const;
     const armorClass = 10 + dexMod;
 
+    // Map full alignment names to database abbreviations
+    const alignmentMap: Record<string, string> = {
+      'Lawful Good': 'LG',
+      'Neutral Good': 'NG',
+      'Chaotic Good': 'CG',
+      'Lawful Neutral': 'LN',
+      'True Neutral': 'N',
+      'Neutral': 'N',
+      'Chaotic Neutral': 'CN',
+      'Lawful Evil': 'LE',
+      'Neutral Evil': 'NE',
+      'Chaotic Evil': 'CE'
+    };
+    const alignmentCode = alignmentMap[alignment] ?? alignment;
+
     const characterPayload: NewCharacterRecord = {
       user_id: user.id,
       name,
       race,
       class: characterClass,
       background,
-      alignment,
+      alignment: alignmentCode,
       level: 1,
       xp: 0,
       ability_scores: scores,
