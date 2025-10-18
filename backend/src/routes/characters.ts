@@ -129,6 +129,7 @@ router.post('/', async (req: Request, res: Response) => {
     const campaignSeed = `${user.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const startingPosition = { x: 500, y: 500 } as const;
     const armorClass = 10 + dexMod;
+    const startingEquipment = getStartingEquipment(characterClass);
 
     // Map full alignment names to database abbreviations
     const alignmentMap: Record<string, string> = {
@@ -167,7 +168,8 @@ router.post('/', async (req: Request, res: Response) => {
       backstory: backstory ? JSON.stringify(backstory) : null,
       skills: skills ? JSON.stringify(skills) : null,
       portrait_url: portraitUrl ?? null,
-      proficiency_bonus: 2
+      proficiency_bonus: 2,
+      equipment: startingEquipment
     };
 
     const { data: characterData, error } = await supabaseServiceClient
@@ -184,8 +186,7 @@ router.post('/', async (req: Request, res: Response) => {
     const createdCharacter = characterData as CharacterRecord;
     console.info(`[Characters] Created ${createdCharacter.name} (${createdCharacter.id})`);
 
-    // Placeholder hooks for future onboarding features
-    void getStartingEquipment(characterClass);
+    // Placeholder hook for future onboarding features
     void generateOnboardingScene({
       name: createdCharacter.name,
       race: createdCharacter.race,

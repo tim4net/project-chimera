@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import LogoutButton from '../components/LogoutButton';
 
 const ProfilePage = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -18,16 +19,6 @@ const ProfilePage = () => {
     fetchUser();
   }, []);
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      alert(error.message);
-    } else {
-      setUser(null);
-      alert('Logged out successfully!');
-    }
-  };
-
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -44,12 +35,7 @@ const ProfilePage = () => {
         <h1 className="text-2xl font-bold mb-6 text-center">Profile</h1>
         <p className="text-center mb-6">Email: {user.email}</p>
         <div className="flex items-center justify-center">
-          <button
-            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
+          <LogoutButton />
         </div>
       </div>
     </div>

@@ -1,7 +1,4 @@
-export interface EquipmentItem {
-  name: string;
-  quantity?: number;
-}
+import type { EquipmentItem } from '../types';
 
 const startingEquipment: Record<string, EquipmentItem[]> = {
   Fighter: [{ name: 'Longsword' }, { name: 'Chain Mail' }],

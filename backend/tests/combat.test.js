@@ -11,9 +11,14 @@ describe('simulateCombat', () => {
       stats: { health: 30, damage: '1d4', armorClass: 12 },
     };
 
-    const { winner, combatLog } = simulateCombat(character1, character2);
+    const { winner, combatLog, outcome } = simulateCombat(character1, character2);
 
-    expect(winner).toBeDefined();
+    expect(['win', 'draw', 'error']).toContain(outcome);
+    if (outcome === 'win') {
+      expect(winner).toBeDefined();
+    } else {
+      expect(winner).toBeNull();
+    }
     expect(combatLog).toBeInstanceOf(Array);
     expect(combatLog.length).toBeGreaterThan(0);
   });

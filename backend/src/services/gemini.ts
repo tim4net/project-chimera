@@ -63,6 +63,7 @@ export const generateImage = async (
   prompt: string,
   dimensions: { width: number; height: number } = { width: 512, height: 512 }
 ): Promise<null> => {
+  // TODO: Replace placeholder once Gemini image generation is implemented; currently returns null.
   console.info('[Gemini] Image generation requested:', prompt, dimensions);
   console.info('[Gemini] Placeholder implementation. Configure Imagen or Stable Diffusion for real images.');
   return null;

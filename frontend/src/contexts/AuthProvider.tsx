@@ -34,23 +34,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     let isMounted = true;
 
+    // Aggressive fallback: if still loading after 5 seconds, assume no user and continue
+    const emergencyTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[AuthProvider] Emergency timeout - forcing loading to complete');
+        setLoading(false);
+        setUser(null);
+      }
+    }, 5000);
+
     const fetchUser = async () => {
       try {
-        const { data, error } = await supabase.auth.getUser();
+        console.log('[AuthProvider] Starting session check...');
+
+        // Use getSession instead of getUser - it's faster and doesn't make network call
+        const { data, error } = await supabase.auth.getSession();
+
+        clearTimeout(emergencyTimeout);
+
         if (!isMounted) return;
         if (error) {
-          console.error('[AuthProvider] Initial user fetch failed:', error);
+          console.error('[AuthProvider] Initial session check failed:', error);
           setUser(null);
         } else {
-          console.log('[AuthProvider] Initial user fetch:', data.user?.email ?? 'No user');
-          setUser(data.user ?? null);
+          console.log('[AuthProvider] Initial session check success:', data.session?.user?.email ?? 'No user');
+          setUser(data.session?.user ?? null);
         }
       } catch (error) {
         if (!isMounted) return;
-        console.error('[AuthProvider] Initial user fetch threw:', error);
+        console.error('[AuthProvider] Initial session check threw:', error);
         setUser(null);
       } finally {
         if (isMounted) {
+          clearTimeout(emergencyTimeout);
+          console.log('[AuthProvider] Setting loading to false');
           setLoading(false);
         }
       }
@@ -58,22 +75,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     fetchUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event: AuthChangeEvent, session: Session | null) => {
+      (event: AuthChangeEvent, session: Session | null) => {
         console.log('[AuthProvider] Auth state changed:', event, 'User:', session?.user?.email ?? 'No user');
-        try {
-          const { data, error } = await supabase.auth.getUser();
-          if (error) {
-            console.error('[AuthProvider] Auth state refresh failed:', error);
-            setUser(null);
-            return;
-          }
-          setUser(data.user ?? null);
-        } catch (error) {
-          console.error('[AuthProvider] Auth state handler threw:', error);
-          setUser(null);
-        } finally {
-          setLoading(false);
-        }
+        // Directly use the session user from the event instead of fetching again
+        setUser(session?.user ?? null);
+        setLoading(false);
       }
     );
 

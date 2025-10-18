@@ -7,6 +7,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useImageGeneration } from '../../hooks/useAssetGeneration';
 import { supabase } from '../../lib/supabase';
+import { User, UserRound } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
 
@@ -21,6 +22,7 @@ const ABILITIES: readonly Ability[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 const RACES = ["Aasimar", "Dragonborn", "Dwarf", "Elf", "Gnome", "Goliath", "Halfling", "Human", "Orc", "Tiefling"] as const;
 const CLASSES = ["Barbarian", "Bard", "Cleric", "Druid", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Sorcerer", "Warlock", "Wizard"] as const;
 const ALIGNMENTS = ["Lawful Good", "Neutral Good", "Chaotic Good", "Lawful Neutral", "True Neutral", "Chaotic Neutral", "Lawful Evil", "Neutral Evil", "Chaotic Evil"] as const;
+const GENDERS = ["Male", "Female", "Non-binary", "Other"] as const;
 
 const SKILLS = ['Acrobatics', 'Animal Handling', 'Arcana', 'Athletics', 'Deception', 'History', 'Insight', 'Intimidation', 'Investigation', 'Medicine', 'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion', 'Sleight of Hand', 'Stealth', 'Survival'] as const;
 type Skill = typeof SKILLS[number];
@@ -165,6 +167,7 @@ const AbilityScoreRow: React.FC<{ ability: Ability; score: number; onScoreChange
 
 export const CharacterCreationScreen: React.FC = () => {
     const [name, setName] = useState('');
+    const [gender, setGender] = useState<typeof GENDERS[number]>(GENDERS[0]);
     const [race, setRace] = useState<typeof RACES[number]>(RACES[0]);
     const [characterClass, setCharacterClass] = useState<typeof CLASSES[number]>(CLASSES[0]);
     const [background, setBackground] = useState<Background>(Object.keys(BACKGROUNDS)[0] as Background);
@@ -210,7 +213,6 @@ export const CharacterCreationScreen: React.FC = () => {
         if (!race || !characterClass) return;
 
         // Build comprehensive character description
-        const abilityDesc = ABILITIES.map(a => `${a}: ${abilityScores[a]}`).join(', ');
         const skillsList = Array.from(totalProficiencies).join(', ');
 
         // Include all character context for AI generation
@@ -226,7 +228,8 @@ export const CharacterCreationScreen: React.FC = () => {
         };
 
         // Build rich prompt with character details
-        const fullPrompt = `Portrait of ${characterContext.name}, a ${race} ${characterClass} (${background} background, ${alignment} alignment). Stats: ${abilityDesc}. ${portraitPrompt}. Dark fantasy portrait, cinematic lighting, highly detailed, professional character art.`;
+        const genderDesc = gender ? `${gender.toLowerCase()} ` : '';
+        const fullPrompt = `${genderDesc}${race} ${characterClass} character portrait. Name: ${characterContext.name}. Background: ${background}, Alignment: ${alignment}. Physical appearance: ${portraitPrompt || 'typical for race and class'}. Dark fantasy style, dramatic lighting, detailed facial features, professional D&D character art, 4K quality.`;
 
         setImageGenParams({
             prompt: fullPrompt,
@@ -255,10 +258,10 @@ export const CharacterCreationScreen: React.FC = () => {
                 class: characterClass,
                 background,
                 alignment,
-                abilityScores,
+                ability_scores: abilityScores,
                 skills: Array.from(totalProficiencies),
                 backstory,
-                portraitUrl: selectedPortrait
+                portrait_url: selectedPortrait
             };
 
             const response = await fetch('/api/characters', {
@@ -317,7 +320,39 @@ export const CharacterCreationScreen: React.FC = () => {
                     </header>
 
                     <Panel title="Identity">
-                        <StyledInput label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your character's name" />
+                        {/* Name and Gender in one row */}
+                        <div className="flex gap-3 items-end">
+                            <div className="flex-1">
+                                <StyledInput label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your character's name" />
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setGender('Male')}
+                                    className={`p-3 rounded-lg border-2 transition-all ${
+                                        gender === 'Male'
+                                            ? 'border-chimera-gold bg-chimera-gold/10 text-chimera-gold'
+                                            : 'border-chimera-border text-chimera-text-muted hover:border-chimera-gold/50 hover:text-chimera-gold'
+                                    }`}
+                                    title="Male"
+                                >
+                                    <User className="w-5 h-5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setGender('Female')}
+                                    className={`p-3 rounded-lg border-2 transition-all ${
+                                        gender === 'Female'
+                                            ? 'border-chimera-gold bg-chimera-gold/10 text-chimera-gold'
+                                            : 'border-chimera-border text-chimera-text-muted hover:border-chimera-gold/50 hover:text-chimera-gold'
+                                    }`}
+                                    title="Female"
+                                >
+                                    <UserRound className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <StyledSelect label="Race" options={RACES} value={race} onChange={(val) => setRace(val as typeof RACES[number])} descriptions={raceDescriptions} />
                             <StyledSelect label="Class" options={CLASSES} value={characterClass} onChange={(val) => setCharacterClass(val as typeof CLASSES[number])} descriptions={classDescriptions} />

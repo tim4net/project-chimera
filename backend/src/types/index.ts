@@ -14,6 +14,11 @@ export interface CharacterPosition {
 
 export type HitDicePool = Record<string, number>;
 
+export interface EquipmentItem {
+  name: string;
+  quantity?: number;
+}
+
 export interface CharacterRecord {
   id: string;
   user_id: string;
@@ -38,6 +43,7 @@ export interface CharacterRecord {
   skills: string | null;
   portrait_url: string | null;
   proficiency_bonus: number;
+  equipment: EquipmentItem[];
   created_at?: string;
   updated_at?: string;
 }
@@ -55,9 +61,12 @@ export interface Combatant {
   stats: CombatStats;
 }
 
+export type CombatOutcome = 'win' | 'draw' | 'error';
+
 export interface CombatResult {
-  winner: Combatant;
+  winner: Combatant | null;
   combatLog: string[];
+  outcome: CombatOutcome;
 }
 
 export interface MapTile {

@@ -34,11 +34,18 @@ const buildImagePrompt = (
   styleConfig: StyleConfig
 ): string => {
   const imageStyle = styleConfig.imageStyle;
+
+  // For character portraits, prioritize user prompt (contains character details)
+  if (contextType === 'character_portrait') {
+    const styleHint = imageStyle.characterStyle || imageStyle.basePrompt;
+    const negativePrompt = imageStyle.negativePrompt ? `. Negative: ${imageStyle.negativePrompt}` : '';
+    return `${userPrompt}. Style: ${styleHint}${negativePrompt}`;
+  }
+
+  // For other types, prepend style as before
   let stylePrompt = imageStyle.basePrompt;
 
-  if (contextType === 'character_portrait' && imageStyle.characterStyle) {
-    stylePrompt += `, ${imageStyle.characterStyle}`;
-  } else if (contextType === 'location_banner' && imageStyle.environmentStyle) {
+  if (contextType === 'location_banner' && imageStyle.environmentStyle) {
     stylePrompt += `, ${imageStyle.environmentStyle}`;
   } else if (contextType === 'item_icon' && imageStyle.itemStyle) {
     stylePrompt += `, ${imageStyle.itemStyle}`;
@@ -56,7 +63,8 @@ const buildImagePrompt = (
 const tryGenerationPipeline = async (
   prompt: string,
   dimensions: ImageDimensions,
-  styleConfig: StyleConfig
+  styleConfig: StyleConfig,
+  contextType?: string
 ): Promise<Buffer> => {
   const priority = (process.env.IMAGE_GENERATION_PRIORITY ?? 'LOCAL,GOOGLE_FREE,GOOGLE_PAID')
     .split(',')
@@ -68,9 +76,9 @@ const tryGenerationPipeline = async (
         case 'LOCAL':
           return await generateWithLocalLLM(prompt, dimensions);
         case 'GOOGLE_FREE':
-          return await generateWithGemini(prompt, dimensions, 'free');
+          return await generateWithGemini(prompt, dimensions, 'free', contextType);
         case 'GOOGLE_PAID':
-          return await generateWithGemini(prompt, dimensions, 'paid');
+          return await generateWithGemini(prompt, dimensions, 'paid', contextType);
         default:
           console.warn(`[ImageGen] Unknown provider: ${provider}`);
       }
@@ -180,9 +188,21 @@ const generateWithLocalLLM = async (prompt: string, dimensions: ImageDimensions)
 const generateWithGemini = async (
   prompt: string,
   dimensions: ImageDimensions,
-  tier: 'free' | 'paid'
+  tier: 'free' | 'paid',
+  contextType?: string
 ): Promise<Buffer> => {
   console.info(`[ImageGen] Generating with Pollinations.ai (optimized for speed)...`);
+
+  // Select best model based on task:
+  // - flux: Best for character portraits (detailed, photorealistic)
+  // - turbo: Fast for UI elements and icons
+  // - Default: Good balance for landscapes/banners
+  let model = 'flux'; // Default to best quality
+  if (contextType === 'item_icon' || contextType === 'biome_tile') {
+    model = 'turbo'; // Faster for simple graphics
+  } else if (contextType === 'character_portrait') {
+    model = 'flux'; // Best for detailed portraits
+  } // location_banner uses default flux
 
   const maxRetries = 2; // Reduced from 3 for faster failure
   let lastError: unknown;
@@ -191,9 +211,9 @@ const generateWithGemini = async (
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
       const encodedPrompt = encodeURIComponent(prompt);
-      // Use FLUX model with seed for better results and cache busting
-      const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&nologo=true&enhance=true&model=flux&seed=${Date.now()}`;
-      console.info(`[ImageGen] Attempt ${attempt}/${maxRetries}: Fetching (FLUX)...`);
+      // Use selected model with seed for cache busting
+      const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&nologo=true&enhance=true&model=${model}&seed=${Date.now()}`;
+      console.info(`[ImageGen] Attempt ${attempt}/${maxRetries}: Fetching (${model.toUpperCase()})...`);
 
       // Reduced timeout from 120s to 45s for faster response
       const response = await fetchFn(url, {
@@ -378,7 +398,7 @@ export const generateImage = async ({
     let imageBuffer: Buffer;
 
     try {
-      imageBuffer = await tryGenerationPipeline(fullPrompt, dimensions, styleConfig);
+      imageBuffer = await tryGenerationPipeline(fullPrompt, dimensions, styleConfig, contextType);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[ImageGen] Generation pipeline failed, using placeholder:', message);

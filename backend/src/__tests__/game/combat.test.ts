@@ -15,7 +15,7 @@ describe('simulateCombat', () => {
   let character2: Combatant;
 
   beforeEach(() => {
-    mockRollDice.mockClear();
+    mockRollDice.mockReset();
 
     character1 = {
       name: 'Hero',
@@ -29,16 +29,18 @@ describe('simulateCombat', () => {
   });
 
   test('should simulate combat where character1 wins', () => {
-    mockRollDice
-      .mockReturnValueOnce(15).mockReturnValueOnce(4)
-      .mockReturnValueOnce(5)
-      .mockReturnValueOnce(15).mockReturnValueOnce(4)
-      .mockReturnValueOnce(5)
-      .mockReturnValueOnce(15).mockReturnValueOnce(4);
+    mockRollDice.mockImplementation((dice: string) => {
+      if (dice === '1d20') {
+        return 17;
+      }
+      return 5;
+    });
 
     const result = simulateCombat(character1, character2);
 
-    expect(result.winner.name).toBe('Hero');
+    expect(result.outcome).toBe('win');
+    expect(result.winner).not.toBeNull();
+    expect(result.winner?.name).toBe('Hero');
     expect(result.combatLog).toContain('Hero wins!');
     expect(mockRollDice).toHaveBeenCalled();
   });
@@ -47,7 +49,9 @@ describe('simulateCombat', () => {
     character1.stats.health = 0;
     const result = simulateCombat(character1, character2);
 
-    expect(result.winner.name).toBe('Goblin');
+    expect(result.outcome).toBe('win');
+    expect(result.winner).not.toBeNull();
+    expect(result.winner?.name).toBe('Goblin');
     expect(result.combatLog).toEqual(['Goblin wins!']);
     expect(mockRollDice).not.toHaveBeenCalled();
   });
@@ -59,5 +63,30 @@ describe('simulateCombat', () => {
     simulateCombat(character1, character2);
 
     expect(character1.stats.health).toBe(initialHealth);
+  });
+
+  test('should end in a draw after reaching the maximum number of turns', () => {
+    character2.stats.health = character1.stats.health;
+    mockRollDice.mockReturnValue(1);
+
+    const result = simulateCombat(character1, character2);
+
+    expect(result.outcome).toBe('draw');
+    expect(result.winner).toBeNull();
+    expect(result.combatLog).toContain('Stalemate reached after 100 turns.');
+    expect(result.combatLog).toContain('Combat ends in a draw.');
+    expect(mockRollDice).toHaveBeenCalledTimes(100);
+  });
+
+  test('should report an error outcome when dice rolling fails', () => {
+    mockRollDice.mockImplementation(() => {
+      throw new Error('dice jam');
+    });
+
+    const result = simulateCombat(character1, character2);
+
+    expect(result.outcome).toBe('error');
+    expect(result.winner).toBeNull();
+    expect(result.combatLog[0]).toContain('dice jam');
   });
 });
