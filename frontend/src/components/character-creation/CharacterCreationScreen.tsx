@@ -6,6 +6,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useImageGeneration } from '../../hooks/useAssetGeneration';
+import { supabase } from '../../lib/supabase';
 
 // --- TYPE DEFINITIONS ---
 
@@ -81,6 +82,14 @@ const ChevronDownIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" f
 const InfoIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>);
 const CharacterPlaceholderIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-chimera-gold/20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
 const CheckCircleIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-2.99"/></svg>);
+
+// Animated loading spinner
+const LoadingSpinner: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
 
 // --- UI COMPONENTS ---
 const Panel: React.FC<{ title: string; children: React.ReactNode; className?: string; }> = ({ title, children, className = '' }) => (
@@ -199,17 +208,82 @@ export const CharacterCreationScreen: React.FC = () => {
 
     const handleGeneratePortraits = () => {
         if (!race || !characterClass) return;
-        const fullPrompt = `${name || 'heroic adventurer'}, ${race}, ${characterClass}, ${portraitPrompt}. Dark fantasy portrait, cinematic lighting, detailed.`;
-        setImageGenParams({ prompt: fullPrompt, dimensions: { width: 512, height: 512 }, contextType: 'character_portrait', count: 4 });
+
+        // Build comprehensive character description
+        const abilityDesc = ABILITIES.map(a => `${a}: ${abilityScores[a]}`).join(', ');
+        const skillsList = Array.from(totalProficiencies).join(', ');
+
+        // Include all character context for AI generation
+        const characterContext = {
+            name: name || 'heroic adventurer',
+            race,
+            class: characterClass,
+            background,
+            alignment,
+            abilityScores,
+            skills: skillsList,
+            backstory
+        };
+
+        // Build rich prompt with character details
+        const fullPrompt = `Portrait of ${characterContext.name}, a ${race} ${characterClass} (${background} background, ${alignment} alignment). Stats: ${abilityDesc}. ${portraitPrompt}. Dark fantasy portrait, cinematic lighting, highly detailed, professional character art.`;
+
+        setImageGenParams({
+            prompt: fullPrompt,
+            dimensions: { width: 512, height: 512 },
+            contextType: 'character_portrait',
+            context: characterContext
+        });
     };
 
     const isFormValid = name.trim() !== '' && selectedClassSkills.size === classSkillInfo.choices;
 
-    const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         if (!isFormValid) { alert("Please complete all sections."); return; }
-        const characterData = { name, race, characterClass, background, alignment, abilityScores, backstory, proficiencies: Array.from(totalProficiencies), equipment: EQUIPMENT_CHOICES[characterClass]?.[equipmentChoice], portraitUrl: selectedPortrait };
-        console.log("CHARACTER CREATED:", characterData);
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                alert("You must be logged in to create a character");
+                return;
+            }
+
+            const characterData = {
+                name,
+                race,
+                class: characterClass,
+                background,
+                alignment,
+                abilityScores,
+                skills: Array.from(totalProficiencies),
+                backstory,
+                portraitUrl: selectedPortrait
+            };
+
+            const response = await fetch('/api/characters', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify(characterData)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to create character');
+            }
+
+            const newCharacter = await response.json();
+            console.log("CHARACTER CREATED:", newCharacter);
+
+            // Redirect to dashboard
+            window.location.href = '/dashboard';
+        } catch (error) {
+            console.error("Failed to create character:", error);
+            alert(`Failed to create character: ${error.message}`);
+        }
     };
 
     return (
@@ -217,8 +291,17 @@ export const CharacterCreationScreen: React.FC = () => {
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1 lg:sticky lg:top-8 self-start">
                     <div className="bg-chimera-surface/50 border-2 border-chimera-gold/20 rounded-lg p-6 shadow-card-hover min-h-[400px] flex flex-col items-center justify-center">
-                        <div className="w-64 h-64 rounded-lg bg-chimera-bg border-2 border-chimera-border flex items-center justify-center overflow-hidden mb-6">
-                            {selectedPortrait ? <img src={selectedPortrait} alt="Portrait" className="w-full h-full object-cover" /> : <CharacterPlaceholderIcon />}
+                        <div className="w-64 h-64 rounded-lg bg-chimera-bg border-2 border-chimera-border flex items-center justify-center overflow-hidden mb-6 relative">
+                            {portraitsLoading ? (
+                                <div className="flex flex-col items-center gap-4">
+                                    <LoadingSpinner className="w-16 h-16 text-chimera-gold" />
+                                    <p className="text-chimera-text-secondary text-sm animate-pulse">Generating portrait...</p>
+                                </div>
+                            ) : selectedPortrait ? (
+                                <img src={selectedPortrait} alt="Portrait" className="w-full h-full object-cover" />
+                            ) : (
+                                <CharacterPlaceholderIcon />
+                            )}
                         </div>
                         <h3 className="font-display text-3xl text-chimera-gold tracking-wider text-center">{name || "Nameless Hero"}</h3>
                         <p className="text-chimera-text-accent font-semibold mt-2">{race} {characterClass}</p>
@@ -306,11 +389,20 @@ export const CharacterCreationScreen: React.FC = () => {
                             {portraitsLoading ? 'Generating...' : 'Generate Portrait'}
                         </button>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-                            {generatedPortraits?.map((url, i) => (
-                                <div key={i} onClick={() => setSelectedPortrait(url)} className={`rounded-lg overflow-hidden border-4 cursor-pointer transition-all ${selectedPortrait === url ? 'border-chimera-gold shadow-glow' : 'border-transparent hover:border-chimera-gold/50'}`}>
-                                    <img src={url} alt={`Option ${i+1}`} className="aspect-square object-cover" />
-                                </div>
-                            ))}
+                            {portraitsLoading ? (
+                                // Show loading placeholders while generating
+                                Array.from({ length: 1 }).map((_, i) => (
+                                    <div key={i} className="aspect-square rounded-lg bg-chimera-bg border-2 border-chimera-gold/20 flex items-center justify-center">
+                                        <LoadingSpinner className="w-12 h-12 text-chimera-gold" />
+                                    </div>
+                                ))
+                            ) : (
+                                generatedPortraits?.map((url, i) => (
+                                    <div key={i} onClick={() => setSelectedPortrait(url)} className={`rounded-lg overflow-hidden border-4 cursor-pointer transition-all ${selectedPortrait === url ? 'border-chimera-gold shadow-glow' : 'border-transparent hover:border-chimera-gold/50'}`}>
+                                        <img src={url} alt={`Option ${i+1}`} className="aspect-square object-cover" />
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </Panel>
 

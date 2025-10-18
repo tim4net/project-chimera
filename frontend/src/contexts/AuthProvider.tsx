@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
   user: any;
+  loading: boolean;
   signUp: (data: any) => Promise<any>;
   signIn: (data: any) => Promise<any>;
   signOut: () => Promise<any>;
@@ -12,12 +13,20 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('[AuthProvider] Initial user fetch:', user?.email || 'No user');
-      setUser(user);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('[AuthProvider] Initial user fetch:', user?.email || 'No user');
+        setUser(user);
+      } catch (error) {
+        console.error('[AuthProvider] Initial user fetch failed:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchUser();
 
@@ -51,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
     signOut: () => supabase.auth.signOut(),
     user,
+    loading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

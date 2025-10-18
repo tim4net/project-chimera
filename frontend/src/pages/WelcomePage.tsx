@@ -2,261 +2,266 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useImageGeneration } from '../hooks/useAssetGeneration';
 
-/**
- * Landing page that introduces players to Nuaibria
- * Sets the tone before character creation
- */
 const WelcomePage: React.FC = () => {
   const navigate = useNavigate();
 
-  // Generate hero banner image
   const heroBanner = useImageGeneration({
-    prompt: 'Epic dark fantasy landscape, ancient ruins silhouetted against a twilight sky, mystical energy glowing from cracks in reality, broken empire architecture, atmospheric fog',
-    dimensions: { width: 1920, height: 600 },
+    prompt:
+      'Dark fantasy vista of Nuaibria, shattered citadel atop cliffs, ember-lit storm clouds, arcane fissures bleeding gold light, Baldurs Gate 3 style, moody and mysterious',
+    dimensions: { width: 1920, height: 1080 },
     contextType: 'location_banner',
-    context: { location: 'nuaibria_overview' }
+    context: { location: 'nuaibria_twilight_citadel' }
   });
 
-  // Generate Chronicler portrait
   const chroniclerPortrait = useImageGeneration({
-    prompt: 'Mysterious ethereal figure made of swirling pages and magical energy, hooded silhouette, glowing golden eyes, ancient tome floating nearby, keeper of knowledge',
+    prompt:
+      'The Chronicler, ethereal archivist cloaked in midnight vellum, floating runes and golden quill, eyes like molten amber, half-shadowed face, dark fantasy portrait',
     dimensions: { width: 512, height: 512 },
     contextType: 'character_portrait',
     context: { character: 'the_chronicler' }
   });
 
-  // Generate bird's-eye view background
   const birdsEyeBackground = useImageGeneration({
-    prompt: 'aerial view of fantasy wilderness on a peaceful sunny day, lush green forests, winding rivers, distant mountains, medieval villages, birds eye perspective, top-down view, warm golden sunlight, idyllic fantasy realm, Baldurs Gate 3 style map',
+    prompt:
+      'Aerial view of Nuaibria at dusk, river of starlight winding through ruined spires, creeping mist, ember camps, ominous forests, painterly, atmospheric',
     dimensions: { width: 2560, height: 1440 },
     contextType: 'location_banner',
-    context: { location: 'nuaibria_aerial_peaceful' }
+    context: { location: 'nuaibria_omen_map' }
   });
 
   return (
-    <div className="min-h-screen bg-chimera-bg text-chimera-text-primary font-body overflow-x-hidden">
-      {/* Bird's-eye view background with overlay */}
-      <div className="fixed inset-0 -z-10">
-        {/* AI-generated aerial view background */}
+    <main className="relative min-h-screen overflow-hidden bg-chimera-bg font-body text-chimera-text-primary">
+      <div className="pointer-events-none absolute inset-0 -z-10">
         {birdsEyeBackground.imageUrl ? (
-          <>
-            <div
-              className="absolute inset-0 bg-cover bg-center bg-fixed opacity-20"
-              style={{ backgroundImage: `url(${birdsEyeBackground.imageUrl})` }}
-            ></div>
-            {/* Dark overlay to ensure text readability */}
-            <div className="absolute inset-0 bg-gradient-to-br from-chimera-bg/80 via-chimera-surface/70 to-chimera-elevated/80"></div>
-          </>
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-25"
+            style={{ backgroundImage: `url(${birdsEyeBackground.imageUrl})` }}
+          />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-chimera-bg via-chimera-surface to-chimera-elevated"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-chimera-bg via-chimera-surface to-chimera-elevated" />
         )}
 
-        {/* Magical glow orbs */}
-        <div className="absolute top-20 left-10 w-64 h-64 bg-chimera-gold/5 rounded-full blur-3xl animate-glow-pulse"></div>
-        <div className="absolute bottom-40 right-20 w-96 h-96 bg-chimera-arcane/5 rounded-full blur-3xl animate-glow-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-chimera-ember/5 rounded-full blur-3xl animate-glow-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(212,175,55,0.12),_transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(16,185,129,0.07),_transparent_60%)]" />
 
-        {/* Subtle grid pattern overlay */}
-        <div className="absolute inset-0 opacity-5" style={{
-          backgroundImage: 'linear-gradient(rgba(212, 175, 55, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 175, 55, 0.1) 1px, transparent 1px)',
-          backgroundSize: '50px 50px'
-        }}></div>
+        <div className="absolute -left-32 top-10 h-80 w-80 rounded-full bg-chimera-ember/15 blur-3xl" />
+        <div className="absolute -right-20 top-1/3 h-96 w-96 rounded-full bg-chimera-arcane/20 blur-3xl" />
+        <div className="absolute left-1/3 bottom-10 h-64 w-64 rounded-full bg-chimera-gold/10 blur-2xl" />
+
+        <div
+          className="absolute inset-0 mix-blend-screen opacity-5"
+          style={{ backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 45%)' }}
+        />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-16 space-y-16">
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <section className="px-6 pb-16 pt-24 md:px-10 lg:px-16">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-16 lg:flex-row lg:items-center">
+            <div className="flex-1 space-y-6">
+              <div className="inline-flex items-center gap-3 rounded-full border border-chimera-border/40 bg-chimera-surface/50 px-4 py-1 text-sm uppercase tracking-[0.3em] text-chimera-text-muted">
+                Realm Briefing
+                <span className="h-1 w-1 rounded-full bg-chimera-gold" />
+                Act I
+              </div>
 
-        {/* Hero Banner Image */}
-        {heroBanner.imageUrl && (
-          <div className="relative w-full h-64 md:h-96 rounded-xl overflow-hidden border-2 border-chimera-gold/20 shadow-glow-lg animate-fade-in">
-            <img
-              src={heroBanner.imageUrl}
-              alt="Nuaibria landscape"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-chimera-bg via-transparent to-transparent"></div>
-          </div>
-        )}
+              <div className="space-y-4">
+                <h1 className="font-display text-5xl leading-tight text-chimera-gold drop-shadow-[0_0_20px_rgba(212,175,55,0.35)] md:text-6xl lg:text-7xl">
+                  Nuaibria
+                </h1>
+                <p className="max-w-xl text-lg text-chimera-text-secondary md:text-xl">
+                  A realm scarred by forgotten magic, where the ruins of a fallen empire smolder beneath encroaching dusk. Every whispered legend points toward the darkness yet to wake.
+                </p>
+              </div>
 
-        {/* Hero Section */}
-        <section className="text-center space-y-8 animate-fade-in pt-12 pb-8">
-          {/* Decorative top border */}
-          <div className="flex items-center justify-center gap-4 mb-8">
-            <div className="h-px w-32 bg-gradient-to-r from-transparent to-chimera-gold/50"></div>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-chimera-gold">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-            </svg>
-            <div className="h-px w-32 bg-gradient-to-l from-transparent to-chimera-gold/50"></div>
-          </div>
-
-          <h1 className="font-display text-7xl md:text-9xl text-transparent bg-clip-text bg-gradient-to-br from-chimera-gold via-chimera-ember to-chimera-gold tracking-widest drop-shadow-lg animate-glow-pulse" style={{
-            textShadow: '0 0 40px rgba(212, 175, 55, 0.5), 0 0 80px rgba(255, 107, 53, 0.3)'
-          }}>
-            Nuaibria
-          </h1>
-
-          <p className="text-chimera-text-accent text-xl md:text-2xl italic max-w-3xl mx-auto leading-relaxed">
-            In a world scarred by forgotten magic, your legend is waiting to be written in blood and shadow.
-          </p>
-
-          {/* Decorative bottom flourish */}
-          <div className="flex justify-center gap-2 pt-4">
-            <div className="w-2 h-2 rounded-full bg-chimera-gold/60"></div>
-            <div className="w-2 h-2 rounded-full bg-chimera-ember/60"></div>
-            <div className="w-2 h-2 rounded-full bg-chimera-arcane/60"></div>
-          </div>
-        </section>
-
-        {/* World Introduction */}
-        <section className="bg-chimera-surface/80 border-2 border-chimera-gold/20 rounded-lg p-8 shadow-card-hover backdrop-blur-sm animate-slide-up">
-          <h2 className="font-display text-3xl text-chimera-ember mb-6 tracking-wider border-b-2 border-chimera-ember/30 pb-4">
-            The World Awaits
-          </h2>
-          <p className="text-chimera-text-primary text-lg leading-relaxed">
-            Welcome, traveler, to <span className="text-chimera-gold font-semibold">Nuaibria</span>—a realm of fractured beauty where the embers of a fallen empire glow amidst encroaching darkness. Ancient ruins hold forgotten secrets, rival houses scheme for a crumbling throne, and deep within the shadows, something ancient stirs. The land calls for heroes... or perhaps, it calls for you.
-          </p>
-        </section>
-
-        {/* The Chronicler */}
-        <section className="bg-chimera-surface/80 border-2 border-chimera-arcane/20 rounded-lg p-8 shadow-card-hover backdrop-blur-sm relative overflow-hidden">
-          {/* Subtle background decoration */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-chimera-arcane/5 rounded-full blur-3xl -z-0"></div>
-
-          <div className="flex items-start gap-6 relative z-10">
-            {/* Enhanced Icon/Avatar with optional AI image */}
-            <div className="flex-shrink-0 w-24 h-24 rounded-full bg-gradient-to-br from-chimera-gold/30 via-chimera-arcane/20 to-chimera-gold/30 border-2 border-chimera-gold/40 shadow-glow-lg relative overflow-hidden">
-              {chroniclerPortrait.loading ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-chimera-gold border-t-transparent"></div>
+              <div className="grid gap-4 text-sm uppercase tracking-[0.2em] text-chimera-text-muted sm:grid-cols-2">
+                <div className="rounded-xl border border-chimera-border/30 bg-chimera-surface/60 p-4 backdrop-blur-sm">
+                  <p className="text-chimera-text-accent font-medium tracking-normal">Forgotten Frontiers</p>
+                  <p className="pt-1 text-xs normal-case text-chimera-text-secondary">
+                    Chart fractured wilds, delve into rune-choked vaults, and listen as the land remembers.
+                  </p>
                 </div>
-              ) : chroniclerPortrait.imageUrl ? (
-                <img src={chroniclerPortrait.imageUrl} alt="The Chronicler" className="w-full h-full object-cover" />
-              ) : (
-                <>
-                  {/* Fallback icon */}
-                  <div className="absolute inset-2 rounded-full bg-chimera-bg/50 border border-chimera-gold/20"></div>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-chimera-gold relative z-10 m-auto mt-6">
-                    <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                  </svg>
-                </>
-              )}
+                <div className="rounded-xl border border-chimera-border/30 bg-chimera-surface/60 p-4 backdrop-blur-sm">
+                  <p className="text-chimera-ember font-medium tracking-normal">Encroaching Night</p>
+                  <p className="pt-1 text-xs normal-case text-chimera-text-secondary">
+                    Face horrors reborn from empire ash and bargain with the shadows that hunger.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => navigate('/create-character')}
+                  className="group inline-flex items-center justify-center rounded-full border border-chimera-gold/40 bg-gradient-to-r from-chimera-ember via-chimera-gold to-chimera-ember px-10 py-3 font-display text-lg tracking-[0.25em] text-chimera-bg shadow-glow transition-transform duration-300 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-chimera-gold/70"
+                >
+                  Begin Your Adventure
+                </button>
+                <p className="text-sm text-chimera-text-muted">
+                  Guided by the Chronicler. Forged by your choices.
+                </p>
+              </div>
             </div>
 
             <div className="flex-1">
-              <h2 className="font-display text-3xl text-chimera-arcane mb-4 tracking-wider">
-                Your Guide: The Chronicler
-              </h2>
-              <p className="text-chimera-text-primary text-lg leading-relaxed mb-4">
-                I am <span className="text-chimera-gold font-semibold">the Chronicler</span>, keeper of tales lost to time. Your choices will carve a new path through this broken land, and I will be your guide through its darkest trials and most desperate triumphs.
-              </p>
-              <p className="text-chimera-text-secondary italic">
-                Your story awaits, adventurer. Let us see what fate has in store for you.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* What to Expect */}
-        <section className="bg-chimera-surface/80 border-2 border-chimera-poison/20 rounded-lg p-8 shadow-card-hover backdrop-blur-sm">
-          <h2 className="font-display text-3xl text-chimera-poison mb-6 tracking-wider border-b-2 border-chimera-poison/30 pb-4">
-            What Awaits You
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 mt-2 rounded-full bg-chimera-gold"></div>
-                <p className="text-chimera-text-primary">
-                  <span className="text-chimera-gold font-semibold">Explore</span> a procedurally generated world filled with ancient ruins, dangerous wilds, and hidden mysteries
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 mt-2 rounded-full bg-chimera-ember"></div>
-                <p className="text-chimera-text-primary">
-                  <span className="text-chimera-ember font-semibold">Battle</span> in tactical turn-based combat against monsters, bandits, and darker things
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 mt-2 rounded-full bg-chimera-arcane"></div>
-                <p className="text-chimera-text-primary">
-                  <span className="text-chimera-arcane font-semibold">Decide</span> your fate through meaningful choices that shape the world around you
-                </p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 mt-2 rounded-full bg-chimera-poison"></div>
-                <p className="text-chimera-text-primary">
-                  <span className="text-chimera-poison font-semibold">Adventure</span> at your own pace with idle progression and active encounters
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 mt-2 rounded-full bg-chimera-mana"></div>
-                <p className="text-chimera-text-primary">
-                  <span className="text-chimera-mana font-semibold">Discover</span> unique loot, legendary artifacts, and secrets of the fallen empire
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 mt-2 rounded-full bg-chimera-stamina"></div>
-                <p className="text-chimera-text-primary">
-                  <span className="text-chimera-stamina font-semibold">Grow</span> in power and reputation as your legend spreads across the land
-                </p>
+              <div className="relative rounded-3xl border border-chimera-border/30 bg-chimera-surface/80 shadow-card backdrop-blur">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                {heroBanner.imageUrl ? (
+                  <img
+                    src={heroBanner.imageUrl}
+                    alt="Shattered citadel of Nuaibria"
+                    className="h-full w-full rounded-3xl object-cover"
+                  />
+                ) : (
+                  <div className="flex h-64 items-center justify-center rounded-3xl bg-gradient-to-br from-chimera-elevated via-chimera-surface to-chimera-border">
+                    <span className="text-sm uppercase tracking-[0.3em] text-chimera-text-muted">Summoning Visions...</span>
+                  </div>
+                )}
+                <div className="pointer-events-none absolute inset-x-6 bottom-6 flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/40 px-5 py-3 text-xs uppercase tracking-[0.2em] text-chimera-text-secondary">
+                  <span>Arcane Weather: Unstable</span>
+                  <span>Visibility: Veiled</span>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Call to Action */}
-        <section className="text-center py-12 relative">
-          {/* Decorative elements */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-10">
-            <div className="w-full h-px bg-gradient-to-r from-transparent via-chimera-gold to-transparent"></div>
-          </div>
-
-          <div className="relative z-10 space-y-6">
-            {/* Ornamental top border */}
-            <div className="flex items-center justify-center gap-4 mb-8">
-              <div className="w-12 h-px bg-gradient-to-r from-transparent to-chimera-gold"></div>
-              <div className="flex gap-1">
-                <div className="w-1 h-1 rounded-full bg-chimera-gold"></div>
-                <div className="w-1 h-1 rounded-full bg-chimera-ember"></div>
-                <div className="w-1 h-1 rounded-full bg-chimera-arcane"></div>
+        <section className="relative z-10 px-6 pb-20 md:px-10 lg:px-16">
+          <div className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-[2fr_3fr]">
+            <div className="relative overflow-hidden rounded-3xl border border-chimera-arcane/40 bg-chimera-surface/80 p-8 shadow-card backdrop-blur">
+              <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-chimera-arcane/20 blur-3xl" />
+              <div className="relative flex flex-col gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="relative h-20 w-20 overflow-hidden rounded-full border border-chimera-gold/40 bg-chimera-elevated shadow-glow">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-chimera-gold/20 via-transparent to-transparent" />
+                    {chroniclerPortrait.imageUrl ? (
+                      <img
+                        src={chroniclerPortrait.imageUrl}
+                        alt="The Chronicler"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs uppercase tracking-[0.2em] text-chimera-text-muted">
+                        Studying Fate...
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.35em] text-chimera-text-muted">Guiding Presence</p>
+                    <h2 className="font-display text-2xl text-chimera-arcane">The Chronicler</h2>
+                  </div>
+                </div>
+                <p className="text-chimera-text-secondary">
+                  I bear witness to every whispered prophecy and broken oath. Your steps rewrite the annals of Nuaibria, and I shall chart each fracture, each triumph. Ask, and I will translate the murmurs of the dark.
+                </p>
+                <p className="text-sm italic text-chimera-text-muted">
+                  "Ink the tale in gold or shadow--only choose before the dusk consumes the page."
+                </p>
               </div>
-              <div className="w-12 h-px bg-gradient-to-l from-transparent to-chimera-gold"></div>
             </div>
 
-            <button
-              onClick={() => navigate('/create-character')}
-              className="group relative font-display text-2xl bg-gradient-to-r from-chimera-gold via-chimera-ember to-chimera-gold
-                         text-white px-16 py-5 rounded-lg tracking-widest shadow-glow-lg
-                         hover:shadow-glow hover:scale-105 transition-all duration-300
-                         border-2 border-chimera-gold/30 hover:border-chimera-gold/60"
-              style={{
-                backgroundSize: '200% auto',
-                backgroundPosition: 'left center'
-              }}
-            >
-              <span className="relative z-10">Begin Your Adventure</span>
-              {/* Inner glow effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"></div>
-            </button>
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-chimera-border/40 bg-chimera-surface/70 p-8 shadow-card backdrop-blur">
+                <h2 className="font-display text-3xl text-chimera-gold">What Awaits Beyond The Veil</h2>
+                <p className="mt-4 text-chimera-text-secondary">
+                  Nuaibria breathes in cycles of ruin and rebirth. Venture forth to unravel the sigils left by a doomed empire, barter with spirits forged from ember and ice, and bend the turmoil to your design.
+                </p>
+              </div>
 
-            <p className="text-chimera-text-muted text-sm italic">
-              Your destiny awaits in the shadows of Nuaibria
-            </p>
-
-            {/* Decorative bottom flourish */}
-            <div className="flex justify-center gap-2 pt-4">
-              <div className="w-16 h-px bg-gradient-to-r from-transparent via-chimera-gold/50 to-transparent"></div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  {
+                    title: 'Explore',
+                    accent: 'text-chimera-gold',
+                    body:
+                      'Traverse haunted skylines, collapsing archives, and living forests that change with each vigil.'
+                  },
+                  {
+                    title: 'Battle',
+                    accent: 'text-chimera-ember',
+                    body:
+                      'Command tactical encounters where every sigil spent shifts the balance between hope and oblivion.'
+                  },
+                  {
+                    title: 'Decide',
+                    accent: 'text-chimera-arcane',
+                    body:
+                      "Shape alliances, invoke forgotten pacts, and steer the Chronicler's record toward salvation or dominion."
+                  },
+                  {
+                    title: 'Endure',
+                    accent: 'text-chimera-poison',
+                    body:
+                      'Harness idle progression while you plan, letting your stronghold gather power even in silence.'
+                  }
+                ].map(({ title, accent, body }) => (
+                  <div
+                    key={title}
+                    className="rounded-2xl border border-chimera-border/30 bg-chimera-elevated/70 p-5 shadow-inner-dark transition-transform duration-300 hover:-translate-y-1"
+                  >
+                    <p className={`font-display text-xl ${accent}`}>{title}</p>
+                    <p className="mt-2 text-sm text-chimera-text-secondary">{body}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="text-center text-chimera-text-muted text-sm pb-8">
-          <p>Enter a world where every choice matters and legends are forged in darkness</p>
+        <section className="relative z-10 px-6 pb-24 md:px-10 lg:px-16">
+          <div className="mx-auto w-full max-w-5xl rounded-3xl border border-chimera-border/30 bg-gradient-to-br from-chimera-surface/80 via-chimera-elevated/70 to-chimera-surface/80 p-10 shadow-card backdrop-blur">
+            <div className="grid gap-8 lg:grid-cols-[5fr_4fr] lg:items-center">
+              <div className="space-y-5">
+                <h2 className="font-display text-3xl text-chimera-text-accent">Idle Does Not Mean Still</h2>
+                <p className="text-chimera-text-secondary">
+                  While you commune with the Chronicler, your stronghold hums. Send envoys into the mist, refine relics, and watch fate inch toward dawn as you prepare the next decisive strike.
+                </p>
+                <ul className="space-y-3 text-sm text-chimera-text-muted">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-chimera-gold" />
+                    <span>Establish sanctums that harvest arcane echoes even when you rest.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-chimera-ember" />
+                    <span>Return to fortify gear, decipher chronicles, and plot the next descent.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1 h-2 w-2 rounded-full bg-chimera-poison" />
+                    <span>Let the world evolve--alliances shift, threats grow, opportunities bloom.</span>
+                  </li>
+                </ul>
+                <div className="pt-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/create-character')}
+                    className="inline-flex items-center justify-center rounded-full border border-chimera-border/60 px-8 py-3 text-sm uppercase tracking-[0.25em] text-chimera-text-accent transition-colors duration-300 hover:border-chimera-gold/70 hover:text-chimera-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-chimera-arcane/70"
+                  >
+                    Chronicle My Origin
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative overflow-hidden rounded-3xl border border-chimera-border/40 bg-chimera-surface/80 p-6 text-sm text-chimera-text-secondary">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(139,92,246,0.15),_transparent_65%)]" />
+                <div className="relative space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-chimera-text-muted">Chronicler's Log</p>
+                  <p>"Fourth bell. The sky split--just a breath. Residual gold fire drifting across the Mire. Adventurer remained steady; the land took notice."</p>
+                  <p>"Idle wards hum at threshold capacity. Recommend release of gathered arcane before the next breach."</p>
+                  <p className="text-chimera-text-muted">- Recorded in the Codex Noctis</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <footer className="px-6 pb-10 md:px-10 lg:px-16">
+          <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 rounded-3xl border border-chimera-border/30 bg-chimera-elevated/60 px-6 py-6 text-center text-xs uppercase tracking-[0.3em] text-chimera-text-muted">
+            <span>In Nuaibria, every silence hides a choice.</span>
+            <span className="text-chimera-text-accent">Will you brave the encroaching dark?</span>
+          </div>
         </footer>
       </div>
-    </div>
+    </main>
   );
 };
 

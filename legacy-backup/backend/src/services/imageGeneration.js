@@ -147,12 +147,105 @@ async function tryGenerationPipeline(prompt, dimensions, styleConfig) {
 }
 
 /**
- * Generate with local LLM (placeholder - to be implemented with actual local model)
+ * Generate with local image model (Stable Diffusion via Windows GPU server)
  */
 async function generateWithLocalLLM(prompt, dimensions) {
-  // TODO: Implement local LLM image generation
-  // For now, throw error to fall through to next provider
-  throw new Error('Local LLM not yet implemented');
+  const localEndpoint = process.env.LOCAL_IMAGE_MODEL_ENDPOINT;
+  const localModel = process.env.LOCAL_IMAGE_MODEL_NAME || 'stable-diffusion';
+  const apiType = process.env.LOCAL_IMAGE_API_TYPE || 'automatic1111'; // automatic1111, comfyui, or openai
+
+  if (!localEndpoint) {
+    throw new Error('LOCAL_IMAGE_MODEL_ENDPOINT not configured');
+  }
+
+  console.log(`[ImageGen] Attempting local generation with ${localModel} (${apiType} API)...`);
+
+  try {
+    const fetch = (await import('node-fetch')).default;
+
+    if (apiType === 'automatic1111') {
+      // Automatic1111 WebUI API format
+      const response = await fetch(`${localEndpoint}/sdapi/v1/txt2img`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt,
+          negative_prompt: 'blurry, low quality, distorted, ugly, bad anatomy',
+          width: dimensions.width,
+          height: dimensions.height,
+          steps: 20,
+          cfg_scale: 7,
+          sampler_name: 'DPM++ 2M Karras',
+          batch_size: 1,
+          n_iter: 1
+        }),
+        timeout: 120000 // 2 minute timeout for local generation
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Automatic1111 API returned ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      // Response contains array of base64 images
+      if (data.images && data.images[0]) {
+        const buffer = Buffer.from(data.images[0], 'base64');
+        console.log(`[ImageGen] ✓ Local generation successful (A1111): ${buffer.length} bytes`);
+        return buffer;
+      }
+
+      throw new Error('Automatic1111 response missing image data');
+
+    } else if (apiType === 'comfyui') {
+      // ComfyUI workflow API (simplified)
+      throw new Error('ComfyUI API integration not yet implemented. Use Automatic1111 or OpenAI format.');
+
+    } else {
+      // OpenAI-compatible API format (for LM Studio, Ollama with image plugins)
+      const response = await fetch(`${localEndpoint}/images/generations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: localModel,
+          prompt: prompt,
+          n: 1,
+          size: `${dimensions.width}x${dimensions.height}`
+        }),
+        timeout: 60000 // 1 minute timeout
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI API returned ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      // Handle both base64 and URL responses
+      if (data.data && data.data[0]) {
+        if (data.data[0].b64_json) {
+          const buffer = Buffer.from(data.data[0].b64_json, 'base64');
+          console.log(`[ImageGen] ✓ Local generation successful (OpenAI): ${buffer.length} bytes`);
+          return buffer;
+        } else if (data.data[0].url) {
+          const imageResponse = await fetch(data.data[0].url);
+          const arrayBuffer = await imageResponse.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          console.log(`[ImageGen] ✓ Local generation successful (OpenAI): ${buffer.length} bytes`);
+          return buffer;
+        }
+      }
+
+      throw new Error('OpenAI API response missing image data');
+    }
+  } catch (error) {
+    console.error(`[ImageGen] ⚠ Local image generation failed, falling back to cloud:`, error.message);
+    // Log to server for monitoring local model issues
+    await logImageGenerationFallback('local', 'cloud', error.message, prompt);
+    throw error;
+  }
 }
 
 /**
@@ -304,6 +397,28 @@ async function getStyleVersionId() {
     .single();
 
   return data?.id || null;
+}
+
+/**
+ * Log image generation fallback events for monitoring
+ */
+async function logImageGenerationFallback(fromProvider, toProvider, reason, prompt) {
+  try {
+    await supabase
+      .from('image_generation_logs')
+      .insert({
+        from_provider: fromProvider,
+        to_provider: toProvider,
+        fallback_reason: reason,
+        prompt_preview: prompt.substring(0, 200),
+        occurred_at: new Date().toISOString()
+      });
+
+    console.log(`[ImageGen] 📊 Logged fallback: ${fromProvider} → ${toProvider}`);
+  } catch (error) {
+    // Don't fail the image generation if logging fails
+    console.error('[ImageGen] Failed to log fallback:', error.message);
+  }
 }
 
 module.exports = {
