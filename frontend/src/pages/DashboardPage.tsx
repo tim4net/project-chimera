@@ -1,21 +1,120 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthProvider.tsx';
 import { supabase } from '../lib/supabase';
+
+type CharacterRecord = {
+  id: string;
+  user_id: string;
+  name: string;
+  class: string;
+  level: number;
+  hp_current: number;
+  hp_max: number;
+  xp: number;
+  position_x: number;
+  position_y: number;
+  campaign_seed: string | null;
+  idle_task: string | null;
+  idle_task_started_at: string | null;
+};
+
+type MapTile = {
+  x: number;
+  y: number;
+  biome: string;
+};
+
+type MapData = {
+  tiles: MapTile[];
+};
+
+type JournalEntry = {
+  id: string;
+  entry_type: string;
+  content: string;
+  created_at: string;
+};
+
+const toCharacterRecord = (value: unknown): CharacterRecord | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === 'string' ? record.id : null;
+  const userId = typeof record.user_id === 'string' ? record.user_id : null;
+  const name = typeof record.name === 'string' ? record.name : null;
+  const klass = typeof record.class === 'string' ? record.class : null;
+  const level = typeof record.level === 'number' ? record.level : null;
+  const hpCurrent = typeof record.hp_current === 'number' ? record.hp_current : null;
+  const hpMax = typeof record.hp_max === 'number' ? record.hp_max : null;
+  const xp = typeof record.xp === 'number' ? record.xp : null;
+  const posX = typeof record.position_x === 'number' ? record.position_x : null;
+  const posY = typeof record.position_y === 'number' ? record.position_y : null;
+  if (
+    !id ||
+    !userId ||
+    name === null ||
+    klass === null ||
+    level === null ||
+    hpCurrent === null ||
+    hpMax === null ||
+    xp === null ||
+    posX === null ||
+    posY === null
+  ) {
+    return null;
+  }
+  return {
+    id,
+    user_id: userId,
+    name,
+    class: klass,
+    level,
+    hp_current: hpCurrent,
+    hp_max: hpMax,
+    xp,
+    position_x: posX,
+    position_y: posY,
+    campaign_seed: typeof record.campaign_seed === 'string' ? record.campaign_seed : null,
+    idle_task: typeof record.idle_task === 'string' ? record.idle_task : null,
+    idle_task_started_at: typeof record.idle_task_started_at === 'string' ? record.idle_task_started_at : null,
+  };
+};
+
+const normalizeJournalEntry = (value: unknown): JournalEntry | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === 'string' ? record.id : null;
+  const content = typeof record.content === 'string' ? record.content : null;
+  const createdAt = typeof record.created_at === 'string' ? record.created_at : null;
+  const entryType = typeof record.entry_type === 'string' ? record.entry_type : 'Update';
+  if (!id || !content || !createdAt) {
+    return null;
+  }
+  return {
+    id,
+    content,
+    created_at: createdAt,
+    entry_type: entryType,
+  };
+};
 
 const DashboardPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const [character, setCharacter] = useState<any>(null);
+  const [character, setCharacter] = useState<CharacterRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [mapData, setMapData] = useState<any>(null);
-  const [journalEntries, setJournalEntries] = useState<any[]>([]);
+  const [mapData, setMapData] = useState<MapData | null>(null);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
 
   // Fetch character data
   useEffect(() => {
-    const fetchCharacter = async () => {
+    const fetchCharacter = async (): Promise<void> => {
       // ProtectedRoute already handles auth redirect, just wait for user
       if (!user) {
         setLoading(true);
@@ -23,35 +122,40 @@ const DashboardPage = () => {
       }
 
       try {
-        const { data, error } = await supabase
+        const { data, error: characterError } = await supabase
           .from('characters')
           .select('*')
           .eq('user_id', user.id)
           .limit(1)
           .single();
 
-        if (error) {
-          if (error.code === 'PGRST116') {
+        if (characterError) {
+          if (characterError.code === 'PGRST116') {
             // No character found - redirect to character creation
             console.log('No character found for user, redirecting to creation');
             navigate('/create-character');
             return;
           }
-          throw error;
+          throw characterError;
         }
 
-        setCharacter(data);
+        const typedCharacter = toCharacterRecord(data);
+        if (!typedCharacter) {
+          throw new Error('Received character data in an unexpected format');
+        }
+        setCharacter(typedCharacter);
 
         // Fetch map data around character position
-        if (data.campaign_seed) {
-          fetchMapData(data.position_x, data.position_y, data.campaign_seed);
+        if (typedCharacter.campaign_seed) {
+          void fetchMapData(typedCharacter.position_x, typedCharacter.position_y, typedCharacter.campaign_seed);
         }
 
         // Fetch journal entries
-        fetchJournalEntries(data.id);
-      } catch (err: any) {
+        void fetchJournalEntries(typedCharacter.id);
+      } catch (err) {
         console.error('Error fetching character:', err);
-        setError(err.message);
+        const message = err instanceof Error ? err.message : 'Failed to load character';
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -60,37 +164,47 @@ const DashboardPage = () => {
     fetchCharacter();
   }, [user, navigate]);
 
-  const fetchMapData = async (x: number, y: number, seed: string) => {
+  const fetchMapData = async (x: number, y: number, seed: string): Promise<void> => {
     try {
       // Use relative URL - Vite proxy will forward to backend
       const response = await fetch(
         `/api/world/${seed}/map?x=${x}&y=${y}&radius=5`
       );
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`Map request failed with status ${response.status}`);
+      }
+      const data = (await response.json()) as MapData;
       setMapData(data);
     } catch (err) {
       console.error('Error fetching map:', err);
     }
   };
 
-  const fetchJournalEntries = async (characterId: string) => {
+  const fetchJournalEntries = async (characterId: string): Promise<void> => {
     try {
-      const { data, error } = await supabase
+      const { data, error: journalError } = await supabase
         .from('journal_entries')
         .select('*')
         .eq('character_id', characterId)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
-      setJournalEntries(data || []);
+      if (journalError) throw journalError;
+      const normalizedEntries = (data ?? [])
+        .map((entry) => normalizeJournalEntry(entry))
+        .filter((entry): entry is JournalEntry => entry !== null);
+      setJournalEntries(normalizedEntries);
     } catch (err) {
       console.error('Error fetching journal:', err);
     }
   };
 
   const handleLogout = async () => {
-    await signOut();
+    const { error: signOutError } = await signOut();
+    if (signOutError) {
+      console.error('Error during sign out:', signOutError);
+      return;
+    }
     navigate('/login');
   };
 
@@ -205,7 +319,10 @@ const DashboardPage = () => {
                     <p className="text-chimera-gold font-semibold mb-2 font-display">Current Task</p>
                     <p className="text-chimera-text-primary text-sm leading-relaxed">{character.idle_task}</p>
                     <p className="text-chimera-text-muted text-xs mt-3 font-mono">
-                      Started: {new Date(character.idle_task_started_at).toLocaleTimeString()}
+                      Started:{' '}
+                      {character.idle_task_started_at
+                        ? new Date(character.idle_task_started_at).toLocaleTimeString()
+                        : 'Unknown'}
                     </p>
                   </div>
                 ) : (
@@ -235,9 +352,9 @@ const DashboardPage = () => {
                 {mapData ? (
                   <div className="bg-gray-900 rounded p-4">
                     <div className="grid grid-cols-11 gap-1">
-                      {mapData.tiles.map((tile: any, index: number) => {
+                      {mapData.tiles.map((tile, index) => {
                         const isPlayerTile = tile.x === character.position_x && tile.y === character.position_y;
-                        const biomeColors: any = {
+                        const biomeColors: Record<string, string> = {
                           water: 'bg-blue-600',
                           plains: 'bg-green-600',
                           forest: 'bg-green-800',
@@ -302,7 +419,7 @@ const DashboardPage = () => {
               <div className="p-6">
                 <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
                   {journalEntries.length > 0 ? (
-                    journalEntries.map((entry: any) => (
+                    journalEntries.map((entry) => (
                       <div key={entry.id} className="bg-chimera-elevated rounded-lg p-4 border-l-4 border-chimera-gold shadow-inner-dark hover:bg-chimera-elevated/80 transition-all animate-fade-in">
                         <p className="text-chimera-text-accent text-sm font-display font-semibold mb-2">
                           {entry.entry_type}

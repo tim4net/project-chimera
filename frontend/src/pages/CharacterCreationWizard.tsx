@@ -1,8 +1,25 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import type { ChangeEvent, MouseEvent } from 'react';
+
+type CharacterFormState = {
+  name: string;
+  race: string;
+  class: string;
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+};
+
+const numericFields = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
+type NumericField = typeof numericFields[number];
+const isNumericField = (field: string): field is NumericField => (numericFields as readonly string[]).includes(field);
 
 const CharacterCreationWizard = () => {
-  const [step, setStep] = useState(1);
-  const [character, setCharacter] = useState({
+  const [step, setStep] = useState<number>(1);
+  const [character, setCharacter] = useState<CharacterFormState>({
     name: '',
     race: '',
     class: '',
@@ -14,15 +31,21 @@ const CharacterCreationWizard = () => {
     charisma: 10,
   });
 
-  const nextStep = () => setStep(step + 1);
-  const prevStep = () => setStep(step - 1);
+  const nextStep = () => setStep((current) => current + 1);
+  const prevStep = () => setStep((current) => current - 1);
 
-  const handleChange = (e) => {
-    setCharacter({ ...character, [e.target.name]: e.target.value });
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setCharacter((prev) => {
+      if (isNumericField(name)) {
+        return { ...prev, [name]: Number(value) } as CharacterFormState;
+      }
+      return { ...prev, [name]: value } as CharacterFormState;
+    });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleCreate = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
     try {
       const response = await fetch('/api/characters', {
         method: 'POST',
@@ -34,11 +57,12 @@ const CharacterCreationWizard = () => {
       if (response.ok) {
         alert('Character created successfully!');
       } else {
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
+        const errorPayload = (await response.json()) as { error?: string };
+        alert(`Error: ${errorPayload.error ?? 'Unknown error'}`);
       }
     } catch (error) {
-      alert(`Error: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unexpected error';
+      alert(`Error: ${message}`);
     }
   };
 
@@ -129,7 +153,7 @@ const CharacterCreationWizard = () => {
               </button>
               <button
                 className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                onClick={handleSubmit}
+                onClick={handleCreate}
               >
                 Create Character
               </button>

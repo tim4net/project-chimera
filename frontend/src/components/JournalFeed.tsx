@@ -1,8 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
-const JournalFeed = ({ characterId }) => {
-  const [entries, setEntries] = useState([]);
+type JournalEntry = {
+  id: string;
+  content: string;
+  created_at: string;
+  entry_type?: string;
+};
+
+type JournalFeedProps = {
+  characterId: string;
+};
+
+const normalizeEntry = (value: unknown): JournalEntry | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === 'string' ? record.id : null;
+  const content = typeof record.content === 'string' ? record.content : null;
+  const createdAt = typeof record.created_at === 'string' ? record.created_at : null;
+  if (!id || !content || !createdAt) {
+    return null;
+  }
+  return {
+    id,
+    content,
+    created_at: createdAt,
+    entry_type: typeof record.entry_type === 'string' ? record.entry_type : undefined,
+  };
+};
+
+const JournalFeed = ({ characterId }: JournalFeedProps) => {
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
 
   useEffect(() => {
     const fetchEntries = async () => {
@@ -12,22 +43,32 @@ const JournalFeed = ({ characterId }) => {
         .eq('character_id', characterId)
         .order('created_at', { ascending: false });
       if (error) {
-        console.error(error);
+        console.error('Failed to load journal entries:', error);
       } else {
-        setEntries(data);
+        const normalized = (data ?? [])
+          .map((entry) => normalizeEntry(entry))
+          .filter((entry): entry is JournalEntry => entry !== null);
+        setEntries(normalized);
       }
     };
     fetchEntries();
 
     const subscription = supabase
       .channel('public:journal_entries')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_entries', filter: `character_id=eq.${characterId}` }, (payload) => {
-        setEntries((prevEntries) => [payload.new, ...prevEntries]);
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'journal_entries', filter: `character_id=eq.${characterId}` },
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+          const entry = normalizeEntry(payload.new);
+          if (entry) {
+            setEntries((prevEntries) => [entry, ...prevEntries]);
+          }
+        }
+      )
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      void subscription.unsubscribe();
     };
   }, [characterId]);
 

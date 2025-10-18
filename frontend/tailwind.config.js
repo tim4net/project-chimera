@@ -54,6 +54,9 @@ export default {
         'fade-in': 'fadeIn 200ms ease-in',
         'slide-up': 'slideUp 300ms ease-out',
         'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+        // Text-specific glow animation without opacity/filter changes to avoid flicker
+        'text-glow': 'textGlow 2500ms ease-in-out infinite',
+        'golden-glow': 'goldenGlow 3000ms ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -65,8 +68,31 @@ export default {
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
         glowPulse: {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(212, 175, 55, 0.3)' },
-          '50%': { boxShadow: '0 0 40px rgba(212, 175, 55, 0.6)' },
+          '0%, 100%': {
+            opacity: '0.9',
+            filter: 'brightness(1)'
+          },
+          '50%': {
+            opacity: '1',
+            filter: 'brightness(1.15)'
+          },
+        },
+        // Avoid animating opacity on gradient-clipped text (causes flicker on some GPUs)
+        textGlow: {
+          '0%, 100%': {
+            textShadow: '0 0 6px rgba(212, 175, 55, 0.25), 0 0 12px rgba(212, 175, 55, 0.15)'
+          },
+          '50%': {
+            textShadow: '0 0 10px rgba(212, 175, 55, 0.45), 0 0 20px rgba(212, 175, 55, 0.25)'
+          },
+        },
+        goldenGlow: {
+          '0%, 100%': {
+            filter: 'drop-shadow(0 0 2px rgba(212, 175, 55, 0.35)) drop-shadow(0 0 6px rgba(212, 175, 55, 0.2))'
+          },
+          '50%': {
+            filter: 'drop-shadow(0 0 4px rgba(212, 175, 55, 0.45)) drop-shadow(0 0 10px rgba(212, 175, 55, 0.25))'
+          },
         },
       },
     },

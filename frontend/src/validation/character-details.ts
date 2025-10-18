@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const jsonRecord = z.record(z.any()).passthrough();
+export const jsonRecord = z.object({}).catchall(z.unknown());
 
 export const characterDetailsSchema = z.object({
   description: z.string().trim().min(0).nullable().optional(),

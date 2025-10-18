@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CharacterDetails } from "../types/character-details";
 import { getCharacterDetails, updateCharacterDetails } from "../data/characters";
@@ -50,7 +51,7 @@ export function CharacterDetailsForm({ supabase, characterId, initial }: Props) 
     }
   };
 
-  const fetchIfNeeded = React.useCallback(async () => {
+  const fetchIfNeeded = useCallback(async () => {
     if (initial) return;
     setLoading(true);
     const details = await getCharacterDetails(supabase, characterId);
@@ -62,12 +63,12 @@ export function CharacterDetailsForm({ supabase, characterId, initial }: Props) 
     setLoading(false);
   }, [initial, supabase, characterId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     void fetchIfNeeded();
   }, [fetchIfNeeded]);
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setError(null);
     setLoading(true);
 

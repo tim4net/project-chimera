@@ -165,10 +165,10 @@ const AbilityScoreRow: React.FC<{ ability: Ability; score: number; onScoreChange
 
 export const CharacterCreationScreen: React.FC = () => {
     const [name, setName] = useState('');
-    const [race, setRace] = useState(RACES[0]);
-    const [characterClass, setCharacterClass] = useState(CLASSES[0]);
+    const [race, setRace] = useState<typeof RACES[number]>(RACES[0]);
+    const [characterClass, setCharacterClass] = useState<typeof CLASSES[number]>(CLASSES[0]);
     const [background, setBackground] = useState<Background>(Object.keys(BACKGROUNDS)[0] as Background);
-    const [alignment, setAlignment] = useState(ALIGNMENTS[4]);
+    const [alignment, setAlignment] = useState<typeof ALIGNMENTS[number]>(ALIGNMENTS[4]);
     const [abilityScores, setAbilityScores] = useState<AbilityScores>(INITIAL_SCORES);
     const [backstory, setBackstory] = useState<Backstory>({ ideal: '', bond: '', flaw: '' });
     const [selectedClassSkills, setSelectedClassSkills] = useState<Set<Skill>>(new Set());
@@ -271,8 +271,8 @@ export const CharacterCreationScreen: React.FC = () => {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to create character');
+                const errorResponse = await response.json() as { error?: string };
+                throw new Error(errorResponse.error || 'Failed to create character');
             }
 
             const newCharacter = await response.json();
@@ -282,7 +282,8 @@ export const CharacterCreationScreen: React.FC = () => {
             window.location.href = '/dashboard';
         } catch (error) {
             console.error("Failed to create character:", error);
-            alert(`Failed to create character: ${error.message}`);
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Failed to create character: ${message}`);
         }
     };
 

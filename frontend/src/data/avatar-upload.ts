@@ -12,8 +12,10 @@ export async function uploadCharacterAvatar(
   });
   if (upErr) return { ok: false, error: upErr.message };
 
-  const { data: pub, error: pubErr } = await supabase.storage.from("avatars").getPublicUrl(path);
-  if (pubErr) return { ok: false, error: pubErr.message };
+  const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+  if (!pub?.publicUrl) {
+    return { ok: false, error: "Public URL not available" };
+  }
 
   return { ok: true, url: pub.publicUrl };
 }

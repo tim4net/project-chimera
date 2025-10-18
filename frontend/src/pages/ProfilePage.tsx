@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 const ProfilePage = () => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+    const fetchUser = async (): Promise<void> => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('Failed to fetch user:', error);
+        setUser(null);
+        return;
+      }
+      setUser(data.user ?? null);
     };
     fetchUser();
   }, []);

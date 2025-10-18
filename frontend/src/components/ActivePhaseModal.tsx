@@ -1,6 +1,22 @@
-import React from 'react';
+import type { FC } from 'react';
 
-const ActivePhaseModal = ({ event, onChoose }) => {
+type ActivePhaseChoice = {
+  id: string;
+  text: string;
+};
+
+type ActivePhaseEvent = {
+  title: string;
+  narrative: string;
+  choices: ActivePhaseChoice[];
+};
+
+type ActivePhaseModalProps = {
+  event: ActivePhaseEvent | null;
+  onChoose: (choiceId: string) => void;
+};
+
+const ActivePhaseModal: FC<ActivePhaseModalProps> = ({ event, onChoose }) => {
   if (!event) {
     return null;
   }
