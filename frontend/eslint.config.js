@@ -19,5 +19,18 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['./*.js', './**/*.js', '../*.js', '../**/*.js'],
+              message: 'Use TypeScript sources (.ts/.tsx) instead of JavaScript files.',
+            },
+          ],
+        },
+      ],
+    },
   },
 ])

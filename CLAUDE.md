@@ -185,8 +185,26 @@ The current development focuses on the **Minimum Viable Product** with these con
 - **Container Runtime**: Podman (Docker alternative)
 - **Database**: PostgreSQL via Supabase
 - **AI Models**: Gemini Pro (cloud) + Local LLM (planned)
-- **Frontend**: React (planned, not yet implemented)
-- **Backend**: To be determined (Python/Flask or Node.js/Express per ADRs)
+- **Frontend**: React + TypeScript (Vite build system)
+- **Backend**: Node.js/Express + TypeScript
+
+## Coding Standards
+
+### TypeScript-Only Policy
+**⚠️ CRITICAL: This codebase is TypeScript-only ⚠️**
+
+- **NO JavaScript files** (`.js`/`.jsx`) allowed in `frontend/src/` or `backend/src/`
+- All source code must be TypeScript (`.ts`/`.tsx`)
+- Legacy JavaScript files were migrated on 2025-10-18 and backed up to `/legacy-backup`
+
+**For AI Agents:**
+- ❌ **NEVER** reference or edit files in `/legacy-backup/`
+- ❌ **NEVER** suggest importing from `.js` files
+- ❌ **NEVER** create new `.js` files
+- ✅ **ALWAYS** use TypeScript files from `frontend/src/` or `backend/src/`
+- ✅ **ALWAYS** add proper TypeScript types to new code
+
+See `/legacy-backup/README.md` for migration history.
 
 ## Development Notes
 

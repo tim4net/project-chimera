@@ -29,3 +29,8 @@ Thumbs.db
 test_results/
 mcp-config-shared.json
 docs/
+
+# Legacy backup - DO NOT USE THESE FILES
+# All legacy JavaScript files have been migrated to TypeScript
+# This directory is for reference only - DO NOT EDIT OR IMPORT FROM HERE
+legacy-backup/
