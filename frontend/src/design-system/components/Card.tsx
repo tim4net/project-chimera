@@ -19,13 +19,13 @@ export const Card: React.FC<CardProps> = ({
   const baseStyles = 'rounded-lg transition-all duration-200';
 
   const variantStyles = {
-    default: 'bg-chimera-surface border border-chimera-border shadow-card',
-    elevated: 'bg-chimera-elevated border border-chimera-border shadow-card-hover',
-    bordered: 'bg-chimera-surface border-2 border-chimera-gold/20 shadow-glow'
+    default: 'bg-nuaibria-surface border border-nuaibria-border shadow-card',
+    elevated: 'bg-nuaibria-elevated border border-nuaibria-border shadow-card-hover',
+    bordered: 'bg-nuaibria-surface border-2 border-nuaibria-gold/20 shadow-glow'
   };
 
   const hoverStyles = hover
-    ? 'hover:shadow-card-hover hover:border-chimera-gold/30 hover:-translate-y-0.5 cursor-pointer'
+    ? 'hover:shadow-card-hover hover:border-nuaibria-gold/30 hover:-translate-y-0.5 cursor-pointer'
     : '';
 
   return (
@@ -47,8 +47,8 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   gradient = true
 }) => {
   const gradientStyle = gradient
-    ? 'bg-gradient-to-r from-chimera-gold/20 to-chimera-ember/20 border-b border-chimera-border'
-    : 'border-b border-chimera-border';
+    ? 'bg-gradient-to-r from-nuaibria-gold/20 to-nuaibria-ember/20 border-b border-nuaibria-border'
+    : 'border-b border-nuaibria-border';
 
   return (
     <div className={`px-6 py-4 ${gradientStyle} ${className}`}>
@@ -83,7 +83,7 @@ export const CardFooter: React.FC<CardFooterProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`px-6 py-4 border-t border-chimera-border bg-chimera-bg/50 ${className}`}>
+    <div className={`px-6 py-4 border-t border-nuaibria-border bg-nuaibria-bg/50 ${className}`}>
       {children}
     </div>
   );

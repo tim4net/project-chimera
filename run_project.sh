@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# run_project.sh - Script to build and run Project Chimera components
+# run_project.sh - Script to build and run Nuaibria components
 
 # Function to display usage
 usage() {

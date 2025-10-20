@@ -1,0 +1,18 @@
+/**
+ * D&D 5e SRD Level 6 Spells
+ * Imported from https://www.dnd5eapi.co/api/spells
+ * Total: 31 spells
+ */
+
+import type { Spell } from './spellTypes';
+import { LEVEL_6_SPELLS_PART_1 } from './level6SpellsPart1';
+import { LEVEL_6_SPELLS_PART_2 } from './level6SpellsPart2';
+import { LEVEL_6_SPELLS_PART_3 } from './level6SpellsPart3';
+import { LEVEL_6_SPELLS_PART_4 } from './level6SpellsPart4';
+
+export const LEVEL_6_SPELLS: Spell[] = [
+  ...LEVEL_6_SPELLS_PART_1,
+  ...LEVEL_6_SPELLS_PART_2,
+  ...LEVEL_6_SPELLS_PART_3,
+  ...LEVEL_6_SPELLS_PART_4
+];

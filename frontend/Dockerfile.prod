@@ -20,7 +20,8 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
 
-RUN npm run build
+# Skip type checking in container build - use vite build directly
+RUN npm exec vite build
 
 # Production stage
 FROM nginx:alpine

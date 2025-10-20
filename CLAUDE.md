@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Project Chimera is a semi-idle RPG powered by an AI Dungeon Master. The project uses a hybrid AI architecture combining:
+Nuaibria is a semi-idle RPG powered by an AI Dungeon Master. The project uses a hybrid AI architecture combining:
 - **Gemini Pro**: A powerful cloud-based LLM for high-stakes creative tasks (major plot points, world generation)
 - **Local LLM**: Running on project infrastructure for high-frequency routine tasks (minor descriptions, NPC chatter)
 
@@ -126,25 +126,44 @@ podman compose build
 - World state changes permanently (new POIs, faction shifts, NPC changes)
 - Creates dynamic, evolving narrative rather than static content
 
-### 5. UI/UX Philosophy: Text-First, Map-Centric
+### 5. UI/UX Philosophy: Text-First, Map-Centric, Conversational
+- **PRIMARY INTERFACE: Chat with The Chronicler (AI DM)**
+  - The main dashboard MUST feature a conversational chat interface
+  - Players interact with The Chronicler through natural language
+  - Players describe what they want to do (e.g., "I travel north", "I search for quests", "I attack the goblin")
+  - The Chronicler narrates outcomes and asks for clarifications
+  - This is NOT a button-based action system - it's conversational AI gameplay
 - Minimalist design prioritizing AI-generated narrative
-- Central dashboard with interactive map and journal feed
-- Dedicated screens: Character, Journal, Social, Active Phase overlay
-- Inspired by classic MUDs (Multi-User Dungeons)
+- Central dashboard layout:
+  - **Left:** Character stats panel (HP, XP, position, abilities)
+  - **Center:** Interactive map showing biomes and player position
+  - **Right:** Chat interface with The Chronicler (scrolling conversation history)
+- Journal entries are created FROM the conversation (auto-logged narrative moments)
+- Dedicated screens: Character Sheet, Journal Archive, Social (multiplayer), Active Phase overlay
+- Inspired by classic MUDs (Multi-User Dungeons) and AI Dungeon
 
 ## MVP Scope
 
 The current development focuses on the **Minimum Viable Product** with these constraints:
 - **Solo player experience only** (multiplayer postponed)
-- Core gameplay loop: Idle Phase → Active Phase → Resolution
+- **CRITICAL: Conversational AI DM interface** - Players chat with The Chronicler to play
+- Core gameplay loop: Chat with DM → AI narration → Player response → State updates
 - Only Travel and Scout idle tasks implemented
 - Template-based radiant quests only (Layer 1)
-- Web UI with map, fog of war, and journal feed
+- Web UI with 3-column layout: Character panel, Map, Chat with The Chronicler
 - Single Gemini Pro call for personalized onboarding
-- Local LLM for all other narration
+- Local LLM for all other narration and DM responses
 - Basic XP and non-magical loot
 
 **Explicitly excluded from MVP**: Multiplayer/party systems, portal system, faction/reputation, major NPCs, Discord bot, world epochs, advanced crafting.
+
+### CRITICAL MISSING FEATURE (Must Build):
+**The Dashboard currently lacks the chat interface with The Chronicler.** The main gameplay happens through natural language conversation with the AI DM, not through action buttons. The current DashboardPage.tsx has placeholder action buttons but is missing:
+1. Chat message input field
+2. Conversation history display
+3. Integration with backend LLM endpoints for DM responses
+4. Real-time message streaming
+5. Auto-generation of journal entries from significant conversation moments
 
 ## Important Files
 
@@ -176,7 +195,7 @@ The current development focuses on the **Minimum Viable Product** with these con
 
 ## Git Workflow
 
-- Repository: `project-chimera` (user: tim4net)
+- Repository: `nuaibria` (user: tim4net)
 - The build orchestrator automatically commits and pushes changes
 - Uses conventional commit messages describing executed plans
 
@@ -214,3 +233,5 @@ See `/legacy-backup/README.md` for migration history.
 - Supabase provides direct database access from frontends, reducing backend API complexity
 - Database migrations are managed through Supabase's SQL Editor or CLI
 - Use 'podman compose' not 'podman-compose'
+- source code files should not exceed 300 lines. If they are approaching that size, split them into smaller modular files. If you work on existing files that are larger than 400 lines, break them into smaller files as you edit them
+- make sure to restart containers using the restart containers skill when it's necessary to use a fix or feature that you are implementing

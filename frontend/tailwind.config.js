@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        chimera: {
+        nuaibria: {
           // Primary backgrounds (deep midnight blue)
           bg: '#0a0e1a',
           surface: '#1a1f2e',

@@ -53,14 +53,14 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-chimera-bg via-chimera-surface to-chimera-bg flex items-center justify-center px-4">
-      <div className="bg-chimera-surface border-2 border-chimera-gold/30 p-10 rounded-xl shadow-card-hover w-full max-w-md">
-        <h1 className="text-4xl font-display font-bold mb-8 text-center text-chimera-gold drop-shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-nuaibria-bg via-nuaibria-surface to-nuaibria-bg flex items-center justify-center px-4">
+      <div className="bg-nuaibria-surface border-2 border-nuaibria-gold/30 p-10 rounded-xl shadow-card-hover w-full max-w-md">
+        <h1 className="text-4xl font-display font-bold mb-8 text-center text-nuaibria-gold drop-shadow-lg">
           Nuaibria
         </h1>
 
         {error && (
-          <div className="mb-6 p-4 bg-chimera-danger/20 border-2 border-chimera-danger rounded-lg text-chimera-text-primary shadow-inner-dark">
+          <div className="mb-6 p-4 bg-nuaibria-danger/20 border-2 border-nuaibria-danger rounded-lg text-nuaibria-text-primary shadow-inner-dark">
             {error}
           </div>
         )}
@@ -68,7 +68,7 @@ const LoginPage = () => {
         <button
           onClick={handleGitHubLogin}
           disabled={loading}
-          className="w-full mb-6 bg-gradient-to-r from-chimera-elevated to-chimera-border hover:from-chimera-border hover:to-chimera-elevated text-white font-bold py-4 px-6 rounded-lg transition-all hover:shadow-glow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 border border-chimera-gold/20 hover:border-chimera-gold/40"
+          className="w-full mb-6 bg-gradient-to-r from-nuaibria-elevated to-nuaibria-border hover:from-nuaibria-border hover:to-nuaibria-elevated text-white font-bold py-4 px-6 rounded-lg transition-all hover:shadow-glow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 border border-nuaibria-gold/20 hover:border-nuaibria-gold/40"
           type="button"
         >
           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -79,23 +79,23 @@ const LoginPage = () => {
 
         <div className="relative mb-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-chimera-border"></div>
+            <div className="w-full border-t border-nuaibria-border"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-chimera-surface text-chimera-text-muted font-semibold">Or continue with email</span>
+            <span className="px-4 bg-nuaibria-surface text-nuaibria-text-muted font-semibold">Or continue with email</span>
           </div>
         </div>
 
         <form onSubmit={handleLogin}>
           <div className="mb-5">
             <label
-              className="block text-chimera-text-secondary text-sm font-semibold mb-2"
+              className="block text-nuaibria-text-secondary text-sm font-semibold mb-2"
               htmlFor="email"
             >
               Email
             </label>
             <input
-              className="w-full py-3 px-4 bg-chimera-bg border-2 border-chimera-border rounded-lg text-chimera-text-primary focus:outline-none focus:border-chimera-gold/50 focus:shadow-glow transition-all shadow-inner-dark"
+              className="w-full py-3 px-4 bg-nuaibria-bg border-2 border-nuaibria-border rounded-lg text-nuaibria-text-primary focus:outline-none focus:border-nuaibria-gold/50 focus:shadow-glow transition-all shadow-inner-dark"
               id="email"
               type="email"
               value={email}
@@ -108,13 +108,13 @@ const LoginPage = () => {
 
           <div className="mb-6">
             <label
-              className="block text-chimera-text-secondary text-sm font-semibold mb-2"
+              className="block text-nuaibria-text-secondary text-sm font-semibold mb-2"
               htmlFor="password"
             >
               Password
             </label>
             <input
-              className="w-full py-3 px-4 bg-chimera-bg border-2 border-chimera-border rounded-lg text-chimera-text-primary focus:outline-none focus:border-chimera-gold/50 focus:shadow-glow transition-all shadow-inner-dark"
+              className="w-full py-3 px-4 bg-nuaibria-bg border-2 border-nuaibria-border rounded-lg text-nuaibria-text-primary focus:outline-none focus:border-nuaibria-gold/50 focus:shadow-glow transition-all shadow-inner-dark"
               id="password"
               type="password"
               value={password}
@@ -127,7 +127,7 @@ const LoginPage = () => {
 
           <div className="flex items-center justify-between mb-6">
             <button
-              className="w-full bg-gradient-to-r from-chimera-gold to-chimera-ember hover:from-chimera-gold/90 hover:to-chimera-ember/90 text-white font-bold py-3 px-6 rounded-lg transition-all hover:shadow-glow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-nuaibria-gold to-nuaibria-ember hover:from-nuaibria-gold/90 hover:to-nuaibria-ember/90 text-white font-bold py-3 px-6 rounded-lg transition-all hover:shadow-glow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               type="submit"
               disabled={loading}
             >
@@ -136,11 +136,11 @@ const LoginPage = () => {
           </div>
 
           <div className="text-center">
-            <p className="text-sm text-chimera-text-muted">
+            <p className="text-sm text-nuaibria-text-muted">
               Don't have an account?{' '}
               <Link
                 to="/signup"
-                className="text-chimera-arcane hover:text-chimera-gold font-semibold transition-colors"
+                className="text-nuaibria-arcane hover:text-nuaibria-gold font-semibold transition-colors"
               >
                 Sign up
               </Link>

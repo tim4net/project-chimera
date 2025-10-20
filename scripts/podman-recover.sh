@@ -6,7 +6,7 @@ set -euo pipefail
 # - Removes ONLY containers for this compose project (keeps volumes and data)
 # - Starts stack again
 
-export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-project-chimera}
+export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-nuaibria}
 
 if ! command -v podman &>/dev/null; then
   echo "podman is required" >&2

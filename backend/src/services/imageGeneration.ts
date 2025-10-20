@@ -1,4 +1,6 @@
 import { Buffer } from 'node:buffer';
+import * as fs from 'fs';
+import * as path from 'path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { getActiveStyleConfig } from './styleConfig';
@@ -219,7 +221,7 @@ const generateWithGemini = async (
       const response = await fetchFn(url, {
         signal: AbortSignal.timeout(45_000),
         headers: {
-          'User-Agent': 'Project-Chimera/1.0'
+          'User-Agent': 'Nuaibria/1.0'
         }
       });
 
@@ -246,23 +248,9 @@ const generateWithGemini = async (
   throw lastError instanceof Error ? lastError : new Error('Image generation failed');
 };
 
-const createPlaceholderImage = (dimensions: ImageDimensions): Buffer => {
-  const svg = `
-    <svg width="${dimensions.width}" height="${dimensions.height}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#0a0e1a;stop-opacity:1" />
-          <stop offset="50%" style="stop-color:#1a1f2e;stop-opacity:1" />
-          <stop offset="100%" style="stop-color:#252b3d;stop-opacity:1" />
-        </linearGradient>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#grad)"/>
-      <text x="50%" y="50%" text-anchor="middle" fill="#d4af37" font-family="Arial" font-size="16" opacity="0.5">
-        Generating...
-      </text>
-    </svg>
-  `;
-  return Buffer.from(svg);
+const createPlaceholderImage = (): Buffer => {
+  const placeholderPath = path.join(__dirname, '../assets/placeholder.svg');
+  return fs.readFileSync(placeholderPath);
 };
 
 const uploadToStorage = async (
@@ -393,7 +381,7 @@ export const generateImage = async ({
     const styleVersionId = await getStyleVersionId();
     const fullPrompt = buildImagePrompt(prompt, contextType, context, styleConfig);
 
-    console.info(`[ImageGen] Generating image: ${fullPrompt.substring(0, 100)}...`);
+    console.info(`[ImageGen] Full prompt (${contextType}): ${fullPrompt}`);
 
     let imageBuffer: Buffer;
 
@@ -401,8 +389,35 @@ export const generateImage = async ({
       imageBuffer = await tryGenerationPipeline(fullPrompt, dimensions, styleConfig, contextType);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('[ImageGen] Generation pipeline failed, using placeholder:', message);
-      imageBuffer = createPlaceholderImage(dimensions);
+      console.error('[ImageGen] Generation pipeline failed, creating and uploading placeholder:', message);
+      imageBuffer = createPlaceholderImage();
+      
+      // Upload the placeholder and return its URL directly
+      const fileName = `${contextType}/${Date.now()}_placeholder.svg`;
+      const storedUrl = await uploadToStorage(imageBuffer, fileName, 'image/svg+xml');
+      
+      // Cache the placeholder result
+      await cacheGeneratedImage({
+        prompt,
+        imageUrl: storedUrl,
+        dimensions,
+        contextType,
+        styleVersionId,
+        metadata: { 
+          generatedAt: new Date().toISOString(),
+          model: 'placeholder',
+          contextProvided: Object.keys(context),
+          error: message
+        }
+      });
+
+      await updateAssetRequestStatus(request.id, 'completed');
+
+      return {
+        imageUrl: storedUrl,
+        cached: false,
+        metadata: { generatedAt: new Date().toISOString(), placeholder: true }
+      };
     }
 
     const fileName = `${contextType}/${Date.now()}_${generateHash(prompt).substring(0, 16)}.png`;

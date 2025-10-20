@@ -1,6 +1,6 @@
-# Project Chimera - Development TODO List
+# Nuaibria - Development TODO List
 
-This document outlines the development tasks for Project Chimera. It is a living document and will be updated as new tasks are discovered.
+This document outlines the development tasks for Nuaibria. It is a living document and will be updated as new tasks are discovered.
 
 ## Sprint 1: Foundation
 

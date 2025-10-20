@@ -1,3 +1,18 @@
+/**
+ * DEPRECATED: Backend should use supabaseServiceClient only
+ *
+ * This file created an anon-key Supabase client, which is NOT recommended for backend use.
+ * The anon key provides limited permissions and is intended for client-side use only.
+ *
+ * Backend operations should ALWAYS use the service role client from supabaseClient.ts
+ * which has full admin access and bypasses RLS policies.
+ *
+ * This file is kept for backward compatibility during migration, but all imports
+ * should be replaced with supabaseServiceClient from './supabaseClient'.
+ *
+ * TODO: Remove this file once all references are migrated to supabaseServiceClient
+ */
+
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 type SupabaseKeys = {
@@ -18,6 +33,10 @@ const resolveSupabaseKeys = (): SupabaseKeys => {
 
 const { url, anonKey } = resolveSupabaseKeys();
 
+/**
+ * @deprecated Use supabaseServiceClient from './supabaseClient' instead
+ * Backend should always use service role client for full admin access
+ */
 export const supabase: SupabaseClient = createClient(url, anonKey);
 
 export default supabase;

@@ -1,4 +1,4 @@
-# Project Chimera Orchestrator: Dual-AI Build System
+# Nuaibria Orchestrator: Dual-AI Build System
 
 ## Overview
 

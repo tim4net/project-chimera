@@ -1,8 +1,8 @@
 You are an AI build orchestrator. Review the task architecture and the current state to select the next task to work on.
 TASK ARCHITECTURE:
-# Project Chimera: MVP Architecture & Development Tasks
+# Nuaibria: MVP Architecture & Development Tasks
 
-This document provides a structured breakdown of the MVP implementation tasks for Project Chimera, designed to be consumed by AI agents (Gemini) to generate executable build commands.
+This document provides a structured breakdown of the MVP implementation tasks for Nuaibria, designed to be consumed by AI agents (Gemini) to generate executable build commands.
 
 ## Task Status Tracking
 
@@ -23,7 +23,7 @@ Each task has:
 
 **Deliverables**:
 ```
-/srv/project-chimera/
+/srv/nuaibria/
 ├── backend/           # Node.js/Python backend server
 │   ├── src/
 │   ├── tests/

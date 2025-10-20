@@ -55,7 +55,7 @@ const SignupPage = () => {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">
-          Join Project Chimera
+          Join Nuaibria
         </h1>
 
         {error && (

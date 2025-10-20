@@ -1,5 +1,5 @@
 export const buildOnboardingPrompt = (): string => {
-  return 'Introduce a new adventurer entering the world of Chimera.';
+  return 'Introduce a new adventurer entering the world of Nuaibria.';
 };
 
 export default buildOnboardingPrompt;

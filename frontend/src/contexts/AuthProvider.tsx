@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext, type ReactNode } from 'react';
 import type {
   AuthChangeEvent,
+  AuthError,
   Provider,
   Session,
   SignInWithPasswordCredentials,
@@ -17,7 +18,10 @@ type SignOutResult = Awaited<ReturnType<typeof supabase.auth.signOut>>;
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   loading: boolean;
+  error: AuthError | null;
+  clearError: () => void;
   signUp: (credentials: SignUpWithPasswordCredentials) => Promise<SignUpResult>;
   signIn: (credentials: SignInWithPasswordCredentials | { provider: Provider }) => Promise<SignInResult>;
   signOut: () => Promise<SignOutResult>;
@@ -30,86 +34,147 @@ type AuthProviderProps = { children: ReactNode };
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<AuthError | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
-    // Aggressive fallback: if still loading after 5 seconds, assume no user and continue
-    const emergencyTimeout = setTimeout(() => {
-      if (isMounted) {
-        console.warn('[AuthProvider] Emergency timeout - forcing loading to complete');
-        setLoading(false);
-        setUser(null);
-      }
-    }, 5000);
-
-    const fetchUser = async () => {
+    const initAuth = async () => {
       try {
-        console.log('[AuthProvider] Starting session check...');
-
-        // Use getSession instead of getUser - it's faster and doesn't make network call
-        const { data, error } = await supabase.auth.getSession();
-
-        clearTimeout(emergencyTimeout);
+        // Get initial session from storage (fast, no network call)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (!isMounted) return;
-        if (error) {
-          console.error('[AuthProvider] Initial session check failed:', error);
-          setUser(null);
-        } else {
-          console.log('[AuthProvider] Initial session check success:', data.session?.user?.email ?? 'No user');
-          setUser(data.session?.user ?? null);
+
+        if (sessionError) {
+          console.error('[AuthProvider] Session check failed:', sessionError);
+          setError(sessionError);
         }
-      } catch (error) {
-        if (!isMounted) return;
-        console.error('[AuthProvider] Initial session check threw:', error);
-        setUser(null);
-      } finally {
+
+        // Session loaded successfully
+        setUser(session?.user ?? null);
+        setLoading(false);
+      } catch (err) {
+        console.error('[AuthProvider] Session check threw:', err);
         if (isMounted) {
-          clearTimeout(emergencyTimeout);
-          console.log('[AuthProvider] Setting loading to false');
+          setUser(null);
+          setError(err as AuthError);
           setLoading(false);
         }
       }
     };
-    fetchUser();
 
+    // Set up auth state listener (runs once, no re-subscriptions)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
-        console.log('[AuthProvider] Auth state changed:', event, 'User:', session?.user?.email ?? 'No user');
-        // Directly use the session user from the event instead of fetching again
-        setUser(session?.user ?? null);
-        setLoading(false);
+        if (!isMounted) return;
+
+        // Reduced logging - only errors logged elsewhere
+        // Handle different auth events
+        if (event === 'TOKEN_REFRESHED') {
+          setUser(session?.user ?? null);
+          setError(null);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setError(null);
+        } else if (event === 'USER_UPDATED') {
+          setUser(session?.user ?? null);
+          setError(null);
+        } else if (event === 'SIGNED_IN') {
+          setUser(session?.user ?? null);
+          setError(null);
+        } else {
+          // Handle any other events
+          setUser(session?.user ?? null);
+        }
+
+        // Mark as loaded after first auth event
+        if (loading) {
+          setLoading(false);
+        }
       }
     );
+
+    // Initialize authentication
+    initAuth();
 
     return () => {
       isMounted = false;
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Empty dependency array - runs once, no re-subscriptions
 
-  const signUp: AuthContextType['signUp'] = (credentials) => supabase.auth.signUp(credentials);
-
-  const signIn: AuthContextType['signIn'] = (credentials) => {
-    if ('provider' in credentials) {
-      console.log('[AuthProvider] Starting OAuth flow with provider:', credentials.provider);
-      return supabase.auth.signInWithOAuth({
-        provider: credentials.provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      });
+  const signUp: AuthContextType['signUp'] = async (credentials) => {
+    setError(null);
+    try {
+      const result = await supabase.auth.signUp(credentials);
+      if (result.error) {
+        setError(result.error);
+      }
+      return result;
+    } catch (err) {
+      const authError = err as AuthError;
+      setError(authError);
+      throw authError;
     }
-    return supabase.auth.signInWithPassword(credentials);
   };
+
+  const signIn: AuthContextType['signIn'] = async (credentials) => {
+    setError(null);
+    try {
+      if ('provider' in credentials) {
+        // Starting OAuth flow
+        const result = await supabase.auth.signInWithOAuth({
+          provider: credentials.provider,
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+            skipBrowserRedirect: false,
+          }
+        });
+        if (result.error) {
+          setError(result.error);
+        }
+        return result;
+      }
+
+      const result = await supabase.auth.signInWithPassword(credentials);
+      if (result.error) {
+        setError(result.error);
+      }
+      return result;
+    } catch (err) {
+      const authError = err as AuthError;
+      setError(authError);
+      throw authError;
+    }
+  };
+
+  const signOut: AuthContextType['signOut'] = async () => {
+    setError(null);
+    try {
+      const result = await supabase.auth.signOut();
+      if (result.error) {
+        setError(result.error);
+      }
+      return result;
+    } catch (err) {
+      const authError = err as AuthError;
+      setError(authError);
+      throw authError;
+    }
+  };
+
+  const clearError = () => setError(null);
 
   const value: AuthContextType = {
     signUp,
     signIn,
-    signOut: () => supabase.auth.signOut(),
+    signOut,
     user,
+    session: null, // TODO: Track session state properly
     loading,
+    error,
+    clearError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -11,7 +11,7 @@ interface AuthenticatedLayoutProps {
  */
 const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-chimera-bg">
+    <div className="min-h-screen bg-nuaibria-bg">
       <NavigationBar />
       <main>{children}</main>
     </div>

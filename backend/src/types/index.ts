@@ -19,6 +19,25 @@ export interface EquipmentItem {
   quantity?: number;
 }
 
+export interface ThreatData {
+  chance: number; // 0-100 probability
+  severity: 'low' | 'medium' | 'high' | 'very_high';
+  types: string[]; // Possible threat variants
+  created_at: string;
+  escalation_rate: number; // How much threat increases per week
+}
+
+export type TutorialState =
+  | 'complete'
+  | 'needs_subclass'
+  | 'needs_cantrips'
+  | 'needs_spells'
+  | 'interview_welcome'
+  | 'interview_class_intro'
+  | 'needs_equipment'
+  | 'interview_backstory'
+  | 'interview_complete';
+
 export interface CharacterRecord {
   id: string;
   user_id: string;
@@ -29,6 +48,7 @@ export interface CharacterRecord {
   alignment: string;
   level: number;
   xp: number;
+  gold: number; // Character wealth in gold pieces
   ability_scores: AbilityScores;
   hp_max: number;
   hp_current: number;
@@ -43,7 +63,15 @@ export interface CharacterRecord {
   skills: string | null;
   portrait_url: string | null;
   proficiency_bonus: number;
-  equipment: EquipmentItem[];
+  tutorial_state?: TutorialState; // Tutorial progression for spellcasters
+  inspiration?: boolean; // D&D 5e inspiration system
+  exhaustion_level?: number; // D&D 5e exhaustion level (0-6)
+  equipment?: EquipmentItem[]; // Optional: equipment stored in separate items table
+  active_threats?: Record<string, ThreatData>; // Threat system for narrative claims
+  reputation_tags?: string[]; // Tags like "accepted_royal_claim", "caught_lying"
+  reputation_scores?: Record<string, number>; // Faction reputation (-100 to +100)
+  subclass?: string | null; // Character's chosen subclass (chosen at specific level per class)
+  subclass_features?: SubclassFeatureGrant[]; // Granted subclass features with timestamps
   created_at?: string;
   updated_at?: string;
 }
@@ -73,8 +101,8 @@ export interface MapTile {
   x: number;
   y: number;
   biome: string;
-  elevation: number;
-  traversable: boolean;
+  elevation?: number;
+  traversable?: boolean;
   explored?: boolean;
 }
 
@@ -166,4 +194,11 @@ export interface LootItem {
 export interface LootRollResult {
   gold: number;
   items: LootItem[];
+}
+
+export interface SubclassFeatureGrant {
+  name: string;
+  level: number;
+  description: string;
+  grantedAt: string; // ISO timestamp
 }

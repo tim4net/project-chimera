@@ -31,9 +31,9 @@ describe('simulateCombat', () => {
   test('should simulate combat where character1 wins', () => {
     mockRollDice.mockImplementation((dice: string) => {
       if (dice === '1d20') {
-        return 17;
+        return { total: 17, rolls: [17], modifier: 0, notation: dice };
       }
-      return 5;
+      return { total: 5, rolls: [5], modifier: 0, notation: dice };
     });
 
     const result = simulateCombat(character1, character2);
@@ -58,7 +58,10 @@ describe('simulateCombat', () => {
 
   test('should ensure original combatants are not modified', () => {
     const initialHealth = character1.stats.health;
-    mockRollDice.mockReturnValueOnce(15).mockReturnValueOnce(4).mockReturnValueOnce(5);
+    mockRollDice
+      .mockReturnValueOnce({ total: 15, rolls: [15], modifier: 0, notation: '1d20' })
+      .mockReturnValueOnce({ total: 4, rolls: [4], modifier: 0, notation: '1d6' })
+      .mockReturnValueOnce({ total: 5, rolls: [5], modifier: 0, notation: '1d20' });
     
     simulateCombat(character1, character2);
 
@@ -67,7 +70,7 @@ describe('simulateCombat', () => {
 
   test('should end in a draw after reaching the maximum number of turns', () => {
     character2.stats.health = character1.stats.health;
-    mockRollDice.mockReturnValue(1);
+    mockRollDice.mockReturnValue({ total: 1, rolls: [1], modifier: 0, notation: '1d20' });
 
     const result = simulateCombat(character1, character2);
 

@@ -4,7 +4,7 @@ set -euo pipefail
 # Rootful podman compose up without rebuilding unless --build is passed.
 # Never removes volumes; safe for databases.
 
-export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-project-chimera}
+export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-nuaibria}
 
 if ! command -v podman &>/dev/null; then
   echo "podman is required" >&2

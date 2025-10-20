@@ -1,4 +1,4 @@
-# Project Chimera - Improvement Tasks
+# Nuaibria - Improvement Tasks
 
 This document contains a systematic breakdown of tasks to complete the MVP and make the app fully functional.
 

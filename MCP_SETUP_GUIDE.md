@@ -35,7 +35,7 @@
 
 ## Configuration for Claude Code
 
-**Location:** `/srv/project-chimera/.mcp.json`
+**Location:** `/srv/nuaibria/.mcp.json`
 
 Already configured! Both servers are active in Claude Code.
 
@@ -47,7 +47,7 @@ Already configured! Both servers are active in Claude Code.
 1. Open Gemini Desktop
 2. Settings → MCP Servers
 3. Click "Add Server"
-4. Copy config from `/srv/project-chimera/mcp-config-shared.json`
+4. Copy config from `/srv/nuaibria/mcp-config-shared.json`
 
 ### Option 2: Gemini CLI
 **Location:** `~/.config/gemini-cli/mcp-servers.json`
@@ -57,14 +57,14 @@ Already configured! Both servers are active in Claude Code.
 mkdir -p ~/.config/gemini-cli
 
 # Copy shared config
-cp /srv/project-chimera/mcp-config-shared.json ~/.config/gemini-cli/mcp-servers.json
+cp /srv/nuaibria/mcp-config-shared.json ~/.config/gemini-cli/mcp-servers.json
 ```
 
 ### Option 3: Project-Specific Gemini Config
 Create `.gemini-mcp.json` in project root:
 
 ```bash
-cd /srv/project-chimera
+cd /srv/nuaibria
 ln -s mcp-config-shared.json .gemini-mcp.json
 ```
 
@@ -81,7 +81,7 @@ npx -y @supabase/mcp-server-supabase \
 
 ### Test Nuaibria World MCP
 ```bash
-cd /srv/project-chimera/mcp-server-nuaibria
+cd /srv/nuaibria/mcp-server-nuaibria
 node dist/index.js
 ```
 
@@ -127,7 +127,7 @@ Gemini: *Uses Nuaibria World MCP to list race lore*
 ### Nuaibria World MCP Not Found
 ```bash
 # Rebuild if needed
-cd /srv/project-chimera/mcp-server-nuaibria
+cd /srv/nuaibria/mcp-server-nuaibria
 npm run build
 ```
 

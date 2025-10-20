@@ -1,6 +1,6 @@
 # Dependency Guidelines
 
-This document outlines the guidelines for managing dependencies in Project Chimera. Our goal is to use dependencies that are secure, well-maintained, and free of major issues.
+This document outlines the guidelines for managing dependencies in Nuaibria. Our goal is to use dependencies that are secure, well-maintained, and free of major issues.
 
 ## Vetting New Dependencies
 

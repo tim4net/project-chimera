@@ -33,7 +33,7 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({ variant = 'default', classN
       <button
         onClick={handleLogout}
         disabled={isLoggingOut}
-        className={`text-chimera-text-secondary hover:text-chimera-ember transition-colors duration-200 ${className}`}
+        className={`text-nuaibria-text-secondary hover:text-nuaibria-ember transition-colors duration-200 ${className}`}
         title="Sign Out"
       >
         {isLoggingOut ? 'Signing out...' : 'Sign Out'}
@@ -45,8 +45,8 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({ variant = 'default', classN
     <button
       onClick={handleLogout}
       disabled={isLoggingOut}
-      className={`px-4 py-2 bg-chimera-surface border border-chimera-border hover:border-chimera-ember
-                  text-chimera-text-secondary hover:text-chimera-ember rounded-lg
+      className={`px-4 py-2 bg-nuaibria-surface border border-nuaibria-border hover:border-nuaibria-ember
+                  text-nuaibria-text-secondary hover:text-nuaibria-ember rounded-lg
                   transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
     >
       {isLoggingOut ? (

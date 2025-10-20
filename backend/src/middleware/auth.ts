@@ -9,7 +9,7 @@ export interface AuthenticatedRequest extends Request {
 const UNAUTHORIZED_RESPONSE = { error: 'Unauthorized' } as const;
 
 export const requireAuth = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -26,16 +26,52 @@ export const requireAuth = async (
       return;
     }
 
+    // Validate JWT with Supabase (primary validation)
     const { data, error } = await supabaseServiceClient.auth.getUser(token);
 
     if (error || !data?.user) {
+      console.warn('[Auth] Token validation failed:', error?.message);
       res.status(401).json(UNAUTHORIZED_RESPONSE);
       return;
     }
 
-    req.user = data.user as User;
+    // Additional JWT claims validation (defense-in-depth)
+    try {
+      const jwtPayload = JSON.parse(
+        Buffer.from(token.split('.')[1], 'base64').toString()
+      );
+
+      // Check expiration (redundant with getUser(), but adds defense-in-depth)
+      if (jwtPayload.exp && jwtPayload.exp < Date.now() / 1000) {
+        console.warn('[Auth] Expired token detected for user:', data.user.id);
+        res.status(401).json({ error: 'Token expired' });
+        return;
+      }
+
+      // Optional: Check Authentication Assurance Level (AAL) for MFA
+      // Uncomment if MFA is required for certain routes:
+      // if (jwtPayload.aal && jwtPayload.aal !== 'aal2') {
+      //   console.warn('[Auth] MFA required for user:', data.user.id);
+      //   res.status(403).json({ error: 'Multi-factor authentication required' });
+      //   return;
+      // }
+
+      // Optional: Validate session_id exists (ensures token is from active session)
+      if (!jwtPayload.session_id) {
+        console.warn('[Auth] Token missing session_id for user:', data.user.id);
+        res.status(401).json({ error: 'Invalid session' });
+        return;
+      }
+
+    } catch (decodeError) {
+      // If JWT decode fails, log but continue (getUser() already validated it)
+      console.warn('[Auth] JWT decode error (continuing anyway):', decodeError);
+    }
+
+    (req as AuthenticatedRequest).user = data.user as User;
     next();
   } catch (error) {
+    console.error('[Auth] Unexpected authentication error:', error);
     next(error instanceof Error ? error : new Error('Authentication middleware failed'));
   }
 };

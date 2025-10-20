@@ -143,7 +143,7 @@ describe('rollDice', () => {
       const max = 6;
       let sum = 0;
       for (let i = 0; i < numRolls; i += 1) {
-        const roll = rollDice('1d6');
+        const roll = rollDice('1d6').total;
         expect(roll).toBeGreaterThanOrEqual(min);
         expect(roll).toBeLessThanOrEqual(max);
         sum += roll;
@@ -160,7 +160,7 @@ describe('rollDice', () => {
       const max = 12;
       let sum = 0;
       for (let i = 0; i < numRolls; i += 1) {
-        const roll = rollDice('2d6');
+        const roll = rollDice('2d6').total;
         expect(roll).toBeGreaterThanOrEqual(min);
         expect(roll).toBeLessThanOrEqual(max);
         sum += roll;

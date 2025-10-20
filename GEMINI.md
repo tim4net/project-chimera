@@ -1,8 +1,8 @@
-# Project Chimera
+# Nuaibria
 
 ## Project Overview
 
-Project Chimera is a semi-idle RPG powered by an AI Dungeon Master. It features a hybrid AI architecture, combining a powerful cloud-based LLM (Gemini Pro) for creative tasks with a smaller, local LLM for routine actions. The game is designed to be played through a web-based frontend and a Discord bot, offering a dual interface for different types of interactions.
+Nuaibria is a semi-idle RPG powered by an AI Dungeon Master. It features a hybrid AI architecture, combining a powerful cloud-based LLM (Gemini Pro) for creative tasks with a smaller, local LLM for routine actions. The game is designed to be played through a web-based frontend and a Discord bot, offering a dual interface for different types of interactions.
 
 The project is built on a flexible architecture that supports both solo and multiplayer gameplay within a persistent, procedurally generated world. The database is powered by **Supabase**, a self-hosted, open-source Firebase alternative that provides a PostgreSQL database with restful APIs. Key features include a lore-driven portal system, a dual-model D&D 5e mechanics system, tiered NPC management, multi-vector character progression, and a layered quest generation system. The world is designed to evolve over time through an "Epoch System" that reflects the long-term impact of player actions.
 

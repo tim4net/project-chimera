@@ -9,6 +9,9 @@ import DashboardPage from './pages/DashboardPage.tsx';
 import WelcomePage from './pages/WelcomePage.tsx';
 import CharacterCreationScreen from './components/character-creation/CharacterCreationScreen.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
+import AuthenticatedLayout from './components/AuthenticatedLayout';
+import PreviewLayout from './components/PreviewLayout';
+import MapPreviewPage from './pages/MapPreviewPage.tsx';
 
 // Public route wrapper (redirects to dashboard if already logged in)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -78,6 +81,17 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CharacterCreationScreen />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/map-preview"
+        element={
+          <ProtectedRoute>
+            <PreviewLayout>
+              <MapPreviewPage />
+            </PreviewLayout>
           </ProtectedRoute>
         }
       />

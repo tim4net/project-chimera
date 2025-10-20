@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -----------------------------------------------------------------------------
-# verify_setup.sh - Verification script for Project Chimera setup
+# verify_setup.sh - Verification script for Nuaibria setup
 #
 # This script verifies that the infrastructure is properly configured before
 # proceeding with development. It's designed to be run by fresh agents or
@@ -211,7 +211,7 @@ verify_orchestrator_script() {
 
 main() {
     echo "=============================================="
-    echo "Project Chimera Infrastructure Verification"
+    echo "Nuaibria Infrastructure Verification"
     echo "=============================================="
     echo ""
 

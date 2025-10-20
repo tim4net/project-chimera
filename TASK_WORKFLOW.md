@@ -1,4 +1,4 @@
-# Project Chimera: AI-Driven Task Workflow
+# Nuaibria: AI-Driven Task Workflow
 
 ## 4-Step Development Cycle for Each Task
 
@@ -226,7 +226,7 @@ while iteration < 5:
 ## Directory Structure for Task Execution
 
 ```
-/srv/project-chimera/
+/srv/nuaibria/
 ├── prompts/                    # AI prompts for each task step
 │   ├── INFRA-001_1_define.txt
 │   ├── INFRA-001_2_implement.txt

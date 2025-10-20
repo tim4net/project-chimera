@@ -1,6 +1,6 @@
 # Coding Standards and Best Practices
 
-This document outlines the coding standards and best practices to be followed in Project Chimera. Our goal is to write clean, maintainable, and robust code.
+This document outlines the coding standards and best practices to be followed in Nuaibria. Our goal is to write clean, maintainable, and robust code.
 
 ## Guiding Principles
 

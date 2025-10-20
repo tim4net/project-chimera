@@ -19,20 +19,20 @@ const NavigationBar: React.FC = () => {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-chimera-border bg-chimera-surface/95 backdrop-blur-sm">
+    <nav className="sticky top-0 z-50 border-b border-nuaibria-border bg-nuaibria-surface/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         {/* Left: Brand/Logo */}
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-chimera-gold via-chimera-ember to-chimera-gold p-[2px]">
-            <div className="flex h-full w-full items-center justify-center rounded-lg bg-chimera-bg">
-              <span className="font-display text-lg font-bold text-chimera-gold">N</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-nuaibria-gold via-nuaibria-ember to-nuaibria-gold p-[2px]">
+            <div className="flex h-full w-full items-center justify-center rounded-lg bg-nuaibria-bg">
+              <span className="font-display text-lg font-bold text-nuaibria-gold">N</span>
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="font-display text-lg font-bold leading-tight text-chimera-gold group-hover:text-chimera-ember transition-colors">
+            <span className="font-display text-lg font-bold leading-tight text-nuaibria-gold group-hover:text-nuaibria-ember transition-colors">
               Nuaibria
             </span>
-            <span className="text-xs text-chimera-text-muted">Project Chimera</span>
+            <span className="text-xs text-nuaibria-text-muted">Nuaibria</span>
           </div>
         </Link>
 
@@ -46,8 +46,8 @@ const NavigationBar: React.FC = () => {
                 to={item.path}
                 className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? 'bg-chimera-elevated text-chimera-gold font-semibold'
-                    : 'text-chimera-text-secondary hover:text-chimera-text-primary hover:bg-chimera-elevated/50'
+                    ? 'bg-nuaibria-elevated text-nuaibria-gold font-semibold'
+                    : 'text-nuaibria-text-secondary hover:text-nuaibria-text-primary hover:bg-nuaibria-elevated/50'
                 }`}
               >
                 {item.label}
@@ -59,17 +59,17 @@ const NavigationBar: React.FC = () => {
         {/* Right: User info + Logout */}
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex flex-col items-end">
-            <span className="text-sm text-chimera-text-primary font-medium">
+            <span className="text-sm text-nuaibria-text-primary font-medium">
               {user?.email?.split('@')[0] || 'Adventurer'}
             </span>
-            <span className="text-xs text-chimera-text-muted">Level 1</span>
+            <span className="text-xs text-nuaibria-text-muted">Level 1</span>
           </div>
           <LogoutButton variant="minimal" />
         </div>
       </div>
 
       {/* Mobile Navigation (shown on small screens) */}
-      <div className="flex md:hidden border-t border-chimera-border bg-chimera-bg/50 px-4 py-2 gap-1 overflow-x-auto">
+      <div className="flex md:hidden border-t border-nuaibria-border bg-nuaibria-bg/50 px-4 py-2 gap-1 overflow-x-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -78,8 +78,8 @@ const NavigationBar: React.FC = () => {
               to={item.path}
               className={`px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition-all duration-200 ${
                 isActive
-                  ? 'bg-chimera-elevated text-chimera-gold font-semibold'
-                  : 'text-chimera-text-secondary hover:text-chimera-text-primary hover:bg-chimera-elevated/50'
+                  ? 'bg-nuaibria-elevated text-nuaibria-gold font-semibold'
+                  : 'text-nuaibria-text-secondary hover:text-nuaibria-text-primary hover:bg-nuaibria-elevated/50'
               }`}
             >
               {item.label}

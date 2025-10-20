@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Rootful podman compose down WITHOUT removing volumes.
 
-export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-project-chimera}
+export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-nuaibria}
 
 if ! command -v podman &>/dev/null; then
   echo "podman is required" >&2

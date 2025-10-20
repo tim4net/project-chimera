@@ -1,0 +1,663 @@
+npm warn Unknown global config "python". This will stop working in the next major version of npm.
+Fetching magic items list...
+Found 362 magic items. Fetching details...
+[1/362] Fetching Adamantine Armor...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/adamantine-armor
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/adamantine-armor
+Error fetching Adamantine Armor: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[2/362] Fetching Ammunition, +1, +2, or +3...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/ammunition
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/ammunition
+Error fetching Ammunition, +1, +2, or +3: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[3/362] Fetching Ammunition, +1...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/ammunition-1
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/ammunition-1
+Error fetching Ammunition, +1: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[4/362] Fetching Ammunition, +2...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/ammunition-2
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/ammunition-2
+Error fetching Ammunition, +2: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[5/362] Fetching Ammunition, +3...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/ammunition-3
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/ammunition-3
+Error fetching Ammunition, +3: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[6/362] Fetching Amulet of Health...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/amulet-of-health
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/amulet-of-health
+Error fetching Amulet of Health: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[7/362] Fetching Amulet of Proof against Detection and Location...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/amulet-of-proof-against-detection-and-location
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/amulet-of-proof-against-detection-and-location
+Error fetching Amulet of Proof against Detection and Location: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[8/362] Fetching Amulet of the Planes...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/amulet-of-the-planes
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/amulet-of-the-planes
+Error fetching Amulet of the Planes: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[9/362] Fetching Animated Shield...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/animated-shield
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/animated-shield
+Error fetching Animated Shield: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[10/362] Fetching Apparatus of the Crab...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/apparatus-of-the-crab
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/apparatus-of-the-crab
+Error fetching Apparatus of the Crab: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[11/362] Fetching Armor, +1, +2, or +3...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor
+Error fetching Armor, +1, +2, or +3: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[12/362] Fetching Armor, +1...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-1
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-1
+Error fetching Armor, +1: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[13/362] Fetching Armor, +2...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-2
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-2
+Error fetching Armor, +2: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[14/362] Fetching Armor, +3...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-3
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-3
+Error fetching Armor, +3: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[15/362] Fetching Armor of Invulnerability...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-of-invulnerability
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-of-invulnerability
+Error fetching Armor of Invulnerability: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[16/362] Fetching Armor of Resistance...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-of-resistance
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-of-resistance
+Error fetching Armor of Resistance: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[17/362] Fetching Armor of Vulnerability...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-of-vulnerability
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/armor-of-vulnerability
+Error fetching Armor of Vulnerability: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[18/362] Fetching Arrow-Catching Shield...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/arrow-catching-shield
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/arrow-catching-shield
+Error fetching Arrow-Catching Shield: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[19/362] Fetching Arrow of Slaying...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/arrow-of-slaying
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/arrow-of-slaying
+Error fetching Arrow of Slaying: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[20/362] Fetching Bag of Beans...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-beans
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-beans
+Error fetching Bag of Beans: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[21/362] Fetching Bag of Devouring...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-devouring
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-devouring
+Error fetching Bag of Devouring: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[22/362] Fetching Bag of Holding...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-holding
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-holding
+Error fetching Bag of Holding: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[23/362] Fetching Bag of Tricks...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-tricks
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-tricks
+Error fetching Bag of Tricks: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[24/362] Fetching Gray Bag of Tricks...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-tricks-gray
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-tricks-gray
+Error fetching Gray Bag of Tricks: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[25/362] Fetching Rust Bag of Tricks...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-tricks-rust
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-tricks-rust
+Error fetching Rust Bag of Tricks: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[26/362] Fetching Tan Bag of Tricks...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-tricks-tan
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bag-of-tricks-tan
+Error fetching Tan Bag of Tricks: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[27/362] Fetching Bead of Force...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bead-of-force
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bead-of-force
+Error fetching Bead of Force: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[28/362] Fetching Belt of Dwarvenkind...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-dwarvenkind
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-dwarvenkind
+Error fetching Belt of Dwarvenkind: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[29/362] Fetching Belt of Giant Strength...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength
+Error fetching Belt of Giant Strength: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[30/362] Fetching Belt of Cloud Giant Strength...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-cloud
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-cloud
+Error fetching Belt of Cloud Giant Strength: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[31/362] Fetching Belt of Fire Giant Strength...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-fire
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-fire
+Error fetching Belt of Fire Giant Strength: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[32/362] Fetching Belt of Frost Giant Strength...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-frost
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-frost
+Error fetching Belt of Frost Giant Strength: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[33/362] Fetching Belt of Hill Giant Strength...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-hill
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-hill
+Error fetching Belt of Hill Giant Strength: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[34/362] Fetching Belt of Stone Giant Strength...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-stone
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-stone
+Error fetching Belt of Stone Giant Strength: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[35/362] Fetching Belt of Storm Giant Strength...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-storm
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/belt-of-giant-strength-storm
+Error fetching Belt of Storm Giant Strength: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[36/362] Fetching Berserker Axe...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/berserker-axe
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/berserker-axe
+Error fetching Berserker Axe: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[37/362] Fetching Boots of Elvenkind...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-elvenkind
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-elvenkind
+Error fetching Boots of Elvenkind: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[38/362] Fetching Boots of Levitation...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-levitation
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-levitation
+Error fetching Boots of Levitation: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[39/362] Fetching Boots of Speed...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-speed
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-speed
+Error fetching Boots of Speed: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[40/362] Fetching Boots of Striding and Springing...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-striding-and-springing
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-striding-and-springing
+Error fetching Boots of Striding and Springing: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[41/362] Fetching Boots of the Winterlands...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-the-winterlands
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/boots-of-the-winterlands
+Error fetching Boots of the Winterlands: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[42/362] Fetching Bowl of Commanding Water Elementals...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bowl-of-commanding-water-elementals
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bowl-of-commanding-water-elementals
+Error fetching Bowl of Commanding Water Elementals: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[43/362] Fetching Bracers of Archery...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bracers-of-archery
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bracers-of-archery
+Error fetching Bracers of Archery: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[44/362] Fetching Bracers of Defense...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bracers-of-defense
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/bracers-of-defense
+Error fetching Bracers of Defense: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[45/362] Fetching Brazier of Commanding Fire Elementals...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/brazier-of-commanding-fire-elementals
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/brazier-of-commanding-fire-elementals
+Error fetching Brazier of Commanding Fire Elementals: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[46/362] Fetching Brooch of Shielding...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/brooch-of-shielding
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/brooch-of-shielding
+Error fetching Brooch of Shielding: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[47/362] Fetching Broom of Flying...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/broom-of-flying
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/broom-of-flying
+Error fetching Broom of Flying: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[48/362] Fetching Candle of Invocation...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/candle-of-invocation
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/candle-of-invocation
+Error fetching Candle of Invocation: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[49/362] Fetching Cape of the Mountebank...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cape-of-the-mountebank
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cape-of-the-mountebank
+Error fetching Cape of the Mountebank: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[50/362] Fetching Carpet of Flying...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying
+Error fetching Carpet of Flying: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[51/362] Fetching Carpet of Flying (3 ft. × 5 ft.)...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying-3x5
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying-3x5
+Error fetching Carpet of Flying (3 ft. × 5 ft.): Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[52/362] Fetching Carpet of Flying (4 ft. × 6 ft.)...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying-4x6
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying-4x6
+Error fetching Carpet of Flying (4 ft. × 6 ft.): Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[53/362] Fetching Carpet of Flying (5 ft. × 7 ft.)...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying-5x7
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying-5x7
+Error fetching Carpet of Flying (5 ft. × 7 ft.): Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[54/362] Fetching Carpet of Flying (6 ft. × 9 ft.)...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying-6x9
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/carpet-of-flying-6x9
+Error fetching Carpet of Flying (6 ft. × 9 ft.): Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[55/362] Fetching Censer of Controlling Air Elementals...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/censer-of-controlling-air-elementals
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/censer-of-controlling-air-elementals
+Error fetching Censer of Controlling Air Elementals: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[56/362] Fetching Chime of Opening...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/chime-of-opening
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/chime-of-opening
+Error fetching Chime of Opening: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[57/362] Fetching Circlet of Blasting...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/circlet-of-blasting
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/circlet-of-blasting
+Error fetching Circlet of Blasting: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[58/362] Fetching Cloak of Arachnida...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-arachnida
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-arachnida
+Error fetching Cloak of Arachnida: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[59/362] Fetching Cloak of Displacement...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-displacement
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-displacement
+Error fetching Cloak of Displacement: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[60/362] Fetching Cloak of Elvenkind...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-elvenkind
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-elvenkind
+Error fetching Cloak of Elvenkind: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[61/362] Fetching Cloak of Protection...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-protection
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-protection
+Error fetching Cloak of Protection: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[62/362] Fetching Cloak of the Bat...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-the-bat
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-the-bat
+Error fetching Cloak of the Bat: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[63/362] Fetching Cloak of the Manta Ray...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-the-manta-ray
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cloak-of-the-manta-ray
+Error fetching Cloak of the Manta Ray: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[64/362] Fetching Crystal Ball...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/crystal-ball
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/crystal-ball
+Error fetching Crystal Ball: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[65/362] Fetching Crystal Ball of Mind Reading...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/crystal-ball-of-mind-reading
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/crystal-ball-of-mind-reading
+Error fetching Crystal Ball of Mind Reading: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[66/362] Fetching Crystal Ball of Telepathy...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/crystal-ball-of-telepathy
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/crystal-ball-of-telepathy
+Error fetching Crystal Ball of Telepathy: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[67/362] Fetching Crystal Ball of True Seeing...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/crystal-ball-of-true-seeing
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/crystal-ball-of-true-seeing
+Error fetching Crystal Ball of True Seeing: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[68/362] Fetching Cube of Force...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cube-of-force
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cube-of-force
+Error fetching Cube of Force: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[69/362] Fetching Cubic Gate...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cubic-gate
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/cubic-gate
+Error fetching Cubic Gate: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[70/362] Fetching Dagger of Venom...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dagger-of-venom
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dagger-of-venom
+Error fetching Dagger of Venom: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[71/362] Fetching Dancing Sword...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dancing-sword
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dancing-sword
+Error fetching Dancing Sword: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[72/362] Fetching Decanter of Endless Water...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/decanter-of-endless-water
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/decanter-of-endless-water
+Error fetching Decanter of Endless Water: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[73/362] Fetching Deck of Illusions...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/deck-of-illusions
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/deck-of-illusions
+Error fetching Deck of Illusions: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[74/362] Fetching Deck of Many Things...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/deck-of-many-things
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/deck-of-many-things
+Error fetching Deck of Many Things: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[75/362] Fetching Defender...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/defender
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/defender
+Error fetching Defender: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[76/362] Fetching Demon Armor...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/demon-armor
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/demon-armor
+Error fetching Demon Armor: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[77/362] Fetching Dimensional Shackles...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dimensional-shackles
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dimensional-shackles
+Error fetching Dimensional Shackles: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[78/362] Fetching Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail
+Error fetching Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[79/362] Fetching Black Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-black
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-black
+Error fetching Black Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[80/362] Fetching Blue Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-blue
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-blue
+Error fetching Blue Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[81/362] Fetching Brass Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-brass
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-brass
+Error fetching Brass Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[82/362] Fetching Bronze Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-bronze
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-bronze
+Error fetching Bronze Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[83/362] Fetching Copper Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-copper
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-copper
+Error fetching Copper Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[84/362] Fetching Gold Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-gold
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-gold
+Error fetching Gold Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[85/362] Fetching Green Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-green
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-green
+Error fetching Green Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[86/362] Fetching Red Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-red
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-red
+Error fetching Red Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[87/362] Fetching Silver Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-silver
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-silver
+Error fetching Silver Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[88/362] Fetching White Dragon Scale Mail...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-white
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-scale-mail-white
+Error fetching White Dragon Scale Mail: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[89/362] Fetching Dragon Slayer...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-slayer
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dragon-slayer
+Error fetching Dragon Slayer: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[90/362] Fetching Dust of Disappearance...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dust-of-disappearance
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dust-of-disappearance
+Error fetching Dust of Disappearance: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[91/362] Fetching Dust of Dryness...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dust-of-dryness
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dust-of-dryness
+Error fetching Dust of Dryness: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[92/362] Fetching Dust of Sneezing and Choking...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dust-of-sneezing-and-choking
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dust-of-sneezing-and-choking
+Error fetching Dust of Sneezing and Choking: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[93/362] Fetching Dwarven Plate...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dwarven-plate
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dwarven-plate
+Error fetching Dwarven Plate: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[94/362] Fetching Dwarven Thrower...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dwarven-thrower
+Retry 2/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/dwarven-thrower
+Error fetching Dwarven Thrower: Error: HTTP 404: Not Found
+    at fetchWithRetry (/srv/nuaibria/scripts/fetchMagicItems.ts:161:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (/srv/nuaibria/scripts/fetchMagicItems.ts:186:22)
+[95/362] Fetching Efficient Quiver...
+Retry 1/3 for https://www.dnd5eapi.co/api/api/2014/magic-items/efficient-quiver

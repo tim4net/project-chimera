@@ -1,6 +1,6 @@
-# Project Chimera: MVP Architecture & Development Tasks
+# Nuaibria: MVP Architecture & Development Tasks
 
-This document provides a structured breakdown of the MVP implementation tasks for Project Chimera, designed to be consumed by AI agents (Gemini) to generate executable build commands.
+This document provides a structured breakdown of the MVP implementation tasks for Nuaibria, designed to be consumed by AI agents (Gemini) to generate executable build commands.
 
 ## Task Status Tracking
 
@@ -21,7 +21,7 @@ Each task has:
 
 **Deliverables**:
 ```
-/srv/project-chimera/
+/srv/nuaibria/
 ├── backend/           # Node.js/Python backend server
 │   ├── src/
 │   ├── tests/
@@ -788,3 +788,65 @@ Example state tracking:
   "current_sprint": 1
 }
 ```
+
+---
+
+## CRITICAL PRIORITY: CONVERSATIONAL AI DM INTERFACE
+
+### UI-CHAT-001: Build Chat Interface with The Chronicler
+**Status**: pending
+**Dependencies**: None (this is CRITICAL and should be done ASAP)
+**Category**: Frontend - Core Gameplay
+**Description**: Implement the PRIMARY game interface - a conversational chat with The Chronicler (AI DM)
+
+**Context**: 
+The main gameplay happens through natural language conversation with the AI Dungeon Master, NOT through action buttons. Players should chat with The Chronicler to describe what they want to do, and the AI narrates outcomes.
+
+**Deliverables**:
+1. Chat UI component for DashboardPage:
+   - Text input field for player messages
+   - Scrollable conversation history (player messages + DM responses)
+   - "Send" button and Enter key support
+   - Loading indicator while DM is "thinking"
+   - Message bubbles styled for player (right, gold) vs DM (left, arcane purple)
+
+2. Backend API endpoint `/api/chat/dm`:
+   - POST endpoint accepting: `{ characterId, message, conversationHistory? }`
+   - Returns: `{ response, journalEntry?, stateChanges? }`
+   - Integrates with Local LLM (or Gemini as fallback)
+   - Includes character context, position, world state in LLM prompt
+
+3. Conversation persistence:
+   - Store conversation in `dm_conversations` table (character_id, role, content, timestamp)
+   - Load last 20 messages on dashboard mount
+   - Auto-scroll to latest message
+
+4. Replace action buttons with chat-driven gameplay:
+   - Remove hardcoded "Travel", "Scout", "Rest" buttons
+   - Players type: "I want to travel north" or "I scout the area"
+   - DM responds with narration and updates game state
+
+**Implementation Notes**:
+- Use WebSocket or SSE for streaming DM responses (optional for MVP, can use polling)
+- DM prompt should include: character stats, position, nearby POIs, current quests, recent journal entries
+- Extract game state changes from DM response (e.g., "The player travels to (505, 502)")
+- Auto-create journal entries for significant moments (combat, discoveries, quest updates)
+
+**Example Conversation Flow**:
+```
+Player: "I travel north through the forest"
+DM: "You push through the dense undergrowth, your boots squelching in the damp earth. After an hour of travel, you emerge at a clearing. Your position is now (500, 505). You notice smoke rising in the distance to the northeast. What do you do?"
+[System updates position, creates journal entry: "Traveled north through forest"]
+
+Player: "I investigate the smoke"
+DM: "As you approach cautiously, you see a small camp with three goblins roasting a rabbit over a fire. They haven't noticed you yet. Roll for Stealth or declare your approach."
+[System triggers Active Phase if combat initiated]
+```
+
+**Testing**:
+- Player can send messages and receive DM responses
+- Conversation history persists across page refreshes
+- Game state updates when DM describes movement/actions
+- Journal auto-populates with key moments
+
+---

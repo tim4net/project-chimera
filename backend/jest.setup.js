@@ -1,1 +1,1 @@
-require('dotenv').config({ path: '/srv/project-chimera/.env' });
+require('dotenv').config({ path: '/srv/nuaibria/.env' });

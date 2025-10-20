@@ -7,7 +7,8 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useImageGeneration } from '../../hooks/useAssetGeneration';
 import { supabase } from '../../lib/supabase';
-import { User, UserRound } from 'lucide-react';
+import SubclassSelectionModal from '../SubclassSelectionModal';
+import { generateRandomName } from '../../utils/nameGenerator';
 
 // --- TYPE DEFINITIONS ---
 
@@ -53,19 +54,54 @@ const CLASS_SKILLS: Record<typeof CLASSES[number], { choices: number, options: S
 };
 
 const EQUIPMENT_CHOICES: Record<typeof CLASSES[number], { name: string, items: string[] }[]> = {
+    Barbarian: [
+        { name: "Greataxe & Javelins", items: ["Greataxe", "Two Handaxes", "Four Javelins", "Explorer's Pack"] },
+        { name: "Martial Weapon & Handaxes", items: ["Greatsword", "Two Handaxes", "Four Javelins", "Explorer's Pack"] },
+    ],
+    Bard: [
+        { name: "Rapier & Lute", items: ["Leather Armor", "Rapier", "Lute", "Dagger", "Entertainer's Pack"] },
+        { name: "Longsword & Lyre", items: ["Leather Armor", "Longsword", "Lyre", "Dagger", "Entertainer's Pack"] },
+    ],
+    Cleric: [
+        { name: "Mace & Shield", items: ["Chain Mail", "Mace", "Shield", "Holy Symbol", "Light Crossbow", "Priest's Pack"] },
+        { name: "Warhammer & Chain", items: ["Chain Mail", "Warhammer", "Shield", "Holy Symbol", "Five Javelins", "Priest's Pack"] },
+    ],
+    Druid: [
+        { name: "Wooden Shield & Scimitar", items: ["Leather Armor", "Wooden Shield", "Scimitar", "Druidic Focus", "Explorer's Pack"] },
+        { name: "Wooden Shield & Spear", items: ["Leather Armor", "Wooden Shield", "Spear", "Druidic Focus", "Explorer's Pack"] },
+    ],
     Fighter: [
-        { name: "Chain Mail & Shield", items: ["Chain Mail", "Longsword", "Shield", "Light Crossbow"] },
-        { name: "Leather & Greatsword", items: ["Leather Armor", "Greatsword", "Two Handaxes"] },
+        { name: "Chain Mail & Shield", items: ["Chain Mail", "Longsword", "Shield", "Light Crossbow", "Dungeoneer's Pack"] },
+        { name: "Leather & Greatsword", items: ["Leather Armor", "Greatsword", "Two Handaxes", "Dungeoneer's Pack"] },
+    ],
+    Monk: [
+        { name: "Shortsword & Darts", items: ["Shortsword", "Ten Darts", "Dungeoneer's Pack"] },
+        { name: "Spear & Darts", items: ["Spear", "Ten Darts", "Explorer's Pack"] },
+    ],
+    Paladin: [
+        { name: "Martial & Shield", items: ["Chain Mail", "Longsword", "Shield", "Five Javelins", "Holy Symbol", "Priest's Pack"] },
+        { name: "Greatsword & Chain", items: ["Chain Mail", "Greatsword", "Two Handaxes", "Holy Symbol", "Priest's Pack"] },
+    ],
+    Ranger: [
+        { name: "Scale Mail & Shortswords", items: ["Scale Mail", "Two Shortswords", "Longbow", "Twenty Arrows", "Dungeoneer's Pack"] },
+        { name: "Leather & Longsword", items: ["Leather Armor", "Longsword", "Shield", "Longbow", "Twenty Arrows", "Explorer's Pack"] },
     ],
     Rogue: [
-        { name: "Rapier & Shortbow", items: ["Leather Armor", "Rapier", "Shortbow", "Dagger"] },
-        { name: "Shortsword & Daggers", items: ["Leather Armor", "Shortsword", "Two Daggers"] },
+        { name: "Rapier & Shortbow", items: ["Leather Armor", "Rapier", "Shortbow", "Twenty Arrows", "Dagger", "Burglar's Pack"] },
+        { name: "Shortsword & Daggers", items: ["Leather Armor", "Shortsword", "Two Daggers", "Burglar's Pack"] },
+    ],
+    Sorcerer: [
+        { name: "Light Crossbow & Daggers", items: ["Light Crossbow", "Twenty Bolts", "Two Daggers", "Arcane Focus", "Dungeoneer's Pack"] },
+        { name: "Quarterstaff & Focus", items: ["Quarterstaff", "Two Daggers", "Component Pouch", "Explorer's Pack"] },
+    ],
+    Warlock: [
+        { name: "Light Crossbow & Focus", items: ["Leather Armor", "Light Crossbow", "Twenty Bolts", "Two Daggers", "Arcane Focus", "Scholar's Pack"] },
+        { name: "Dagger & Component Pouch", items: ["Leather Armor", "Dagger", "Two Daggers", "Component Pouch", "Dungeoneer's Pack"] },
     ],
     Wizard: [
-        { name: "Dagger & Spellbook", items: ["Robes", "Dagger", "Arcane Focus", "Spellbook"] },
-        { name: "Quarterstaff & Spellbook", items: ["Robes", "Quarterstaff", "Component Pouch", "Spellbook"] },
+        { name: "Dagger & Spellbook", items: ["Robes", "Dagger", "Arcane Focus", "Spellbook", "Scholar's Pack"] },
+        { name: "Quarterstaff & Spellbook", items: ["Robes", "Quarterstaff", "Component Pouch", "Spellbook", "Explorer's Pack"] },
     ],
-    Barbarian: [], Bard: [], Cleric: [], Druid: [], Monk: [], Paladin: [], Ranger: [], Sorcerer: [], Warlock: [],
 };
 
 // Descriptions
@@ -77,12 +113,28 @@ const pointBuySystemDescription = "Customize abilities by spending points. Highe
 const POINT_BUY_CONFIG = { initialPoints: 27, minScore: 8, maxScore: 15, scoreCost: { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 } as Record<number, number> };
 const INITIAL_SCORES: AbilityScores = { STR: 8, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8 };
 
+// Recommended ability score arrays optimized for each class (27 point buy)
+const RECOMMENDED_STATS: Record<string, AbilityScores> = {
+  Barbarian: { STR: 15, DEX: 13, CON: 14, INT: 8, WIS: 10, CHA: 12 },
+  Bard: { STR: 8, DEX: 14, CON: 12, INT: 10, WIS: 13, CHA: 15 },
+  Cleric: { STR: 14, DEX: 8, CON: 13, INT: 10, WIS: 15, CHA: 12 },
+  Druid: { STR: 8, DEX: 12, CON: 14, INT: 13, WIS: 15, CHA: 10 },
+  Fighter: { STR: 15, DEX: 14, CON: 13, INT: 8, WIS: 10, CHA: 12 },
+  Monk: { STR: 12, DEX: 15, CON: 13, INT: 8, WIS: 14, CHA: 10 },
+  Paladin: { STR: 15, DEX: 10, CON: 13, INT: 8, WIS: 12, CHA: 14 },
+  Ranger: { STR: 12, DEX: 15, CON: 13, INT: 8, WIS: 14, CHA: 10 },
+  Rogue: { STR: 8, DEX: 15, CON: 12, INT: 14, WIS: 13, CHA: 10 },
+  Sorcerer: { STR: 8, DEX: 13, CON: 14, INT: 10, WIS: 12, CHA: 15 },
+  Warlock: { STR: 8, DEX: 13, CON: 14, INT: 10, WIS: 12, CHA: 15 },
+  Wizard: { STR: 8, DEX: 14, CON: 13, INT: 15, WIS: 12, CHA: 10 },
+};
+
 // --- HELPER ICONS ---
 const PlusIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>);
 const MinusIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>);
 const ChevronDownIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>);
 const InfoIcon = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>);
-const CharacterPlaceholderIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-chimera-gold/20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
+const CharacterPlaceholderIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-nuaibria-gold/20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
 const CheckCircleIcon = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-2.99"/></svg>);
 
 // Animated loading spinner
@@ -95,23 +147,23 @@ const LoadingSpinner: React.FC<{ className?: string }> = ({ className = '' }) =>
 
 // --- UI COMPONENTS ---
 const Panel: React.FC<{ title: string; children: React.ReactNode; className?: string; }> = ({ title, children, className = '' }) => (
-  <div className={`bg-chimera-surface border border-chimera-gold/20 rounded-lg p-6 shadow-card-hover animate-fade-in ${className}`}>
-    <h2 className="font-display text-2xl text-chimera-gold mb-6 tracking-wider">{title}</h2>
+  <div className={`bg-nuaibria-surface border border-nuaibria-gold/20 rounded-lg p-6 shadow-card-hover animate-fade-in ${className}`}>
+    <h2 className="font-display text-2xl text-nuaibria-gold mb-6 tracking-wider">{title}</h2>
     <div className="space-y-6">{children}</div>
   </div>
 );
 
 const StyledInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string; }> = ({ label, ...props }) => (
     <div>
-        <label className="block font-body text-sm text-chimera-text-secondary font-semibold mb-2">{label}</label>
-        <input {...props} className="w-full bg-chimera-bg border-2 border-chimera-border rounded-lg px-4 py-3 font-body text-chimera-text-primary focus:outline-none focus:border-chimera-gold/50 focus:shadow-glow transition-all shadow-inner-dark" />
+        <label className="block font-body text-sm text-nuaibria-text-secondary font-semibold mb-2">{label}</label>
+        <input {...props} className="w-full bg-nuaibria-bg border-2 border-nuaibria-border rounded-lg px-4 py-3 font-body text-nuaibria-text-primary focus:outline-none focus:border-nuaibria-gold/50 focus:shadow-glow transition-all shadow-inner-dark" />
     </div>
 );
 
 const StyledTextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; }> = ({ label, ...props }) => (
     <div>
-        <label className="block font-body text-sm text-chimera-text-secondary font-semibold mb-2">{label}</label>
-        <textarea {...props} rows={3} className="w-full bg-chimera-bg border-2 border-chimera-border rounded-lg px-4 py-3 font-body text-chimera-text-primary focus:outline-none focus:border-chimera-gold/50 focus:shadow-glow transition-all shadow-inner-dark custom-scrollbar" />
+        <label className="block font-body text-sm text-nuaibria-text-secondary font-semibold mb-2">{label}</label>
+        <textarea {...props} rows={3} className="w-full bg-nuaibria-bg border-2 border-nuaibria-border rounded-lg px-4 py-3 font-body text-nuaibria-text-primary focus:outline-none focus:border-nuaibria-gold/50 focus:shadow-glow transition-all shadow-inner-dark custom-scrollbar" />
     </div>
 );
 
@@ -126,16 +178,16 @@ const StyledSelect: React.FC<{ label: string; options: readonly string[]; value:
     const handleSelect = (option: string) => { onChange(option); setIsOpen(false); };
     return (
         <div className="relative" ref={ref}>
-            <label className="block font-body text-sm text-chimera-text-secondary font-semibold mb-2">{label}</label>
-            <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center bg-chimera-bg border-2 border-chimera-border rounded-lg px-4 py-3 font-body text-chimera-text-primary focus:outline-none focus:border-chimera-gold/50 focus:shadow-glow transition-all shadow-inner-dark">
+            <label className="block font-body text-sm text-nuaibria-text-secondary font-semibold mb-2">{label}</label>
+            <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center bg-nuaibria-bg border-2 border-nuaibria-border rounded-lg px-4 py-3 font-body text-nuaibria-text-primary focus:outline-none focus:border-nuaibria-gold/50 focus:shadow-glow transition-all shadow-inner-dark">
                 <span>{value || `Select ${label}`}</span><ChevronDownIcon />
             </button>
             {isOpen && (
-                <div className="absolute z-10 w-full mt-2 bg-chimera-elevated border-2 border-chimera-gold/50 rounded-lg shadow-glow-lg max-h-96 overflow-auto custom-scrollbar">
+                <div className="absolute z-10 w-full mt-2 bg-nuaibria-elevated border-2 border-nuaibria-gold/50 rounded-lg shadow-glow-lg max-h-96 overflow-auto custom-scrollbar">
                     {options.map((option) => (
-                        <div key={option} onClick={() => handleSelect(option)} className="px-4 py-3 hover:bg-chimera-gold/10 cursor-pointer transition-all first:rounded-t-lg last:rounded-b-lg border-b border-chimera-border last:border-b-0">
-                            <div className="text-chimera-text-primary font-semibold hover:text-chimera-gold transition-colors">{option}</div>
-                            {descriptions && descriptions[option] && (<p className="text-chimera-text-muted text-xs mt-1 leading-relaxed">{descriptions[option]}</p>)}
+                        <div key={option} onClick={() => handleSelect(option)} className="px-4 py-3 hover:bg-nuaibria-gold/10 cursor-pointer transition-all first:rounded-t-lg last:rounded-b-lg border-b border-nuaibria-border last:border-b-0">
+                            <div className="text-nuaibria-text-primary font-semibold hover:text-nuaibria-gold transition-colors">{option}</div>
+                            {descriptions && descriptions[option] && (<p className="text-nuaibria-text-muted text-xs mt-1 leading-relaxed">{descriptions[option]}</p>)}
                         </div>
                     ))}
                 </div>
@@ -144,21 +196,52 @@ const StyledSelect: React.FC<{ label: string; options: readonly string[]; value:
     );
 };
 
-const AbilityScoreRow: React.FC<{ ability: Ability; score: number; onScoreChange: (ability: Ability, delta: 1 | -1) => void; canIncrease: boolean; canDecrease: boolean; }> = ({ ability, score, onScoreChange, canIncrease, canDecrease }) => {
+// Racial ability bonuses (D&D 5e SRD)
+const RACIAL_BONUSES: Record<string, Partial<AbilityScores>> = {
+    Dwarf: { CON: 2 },
+    Elf: { DEX: 2 },
+    Halfling: { DEX: 2 },
+    Human: { STR: 1, DEX: 1, CON: 1, INT: 1, WIS: 1, CHA: 1 },
+    Dragonborn: { STR: 2, CHA: 1 },
+    Gnome: { INT: 2 },
+    Tiefling: { CHA: 2, INT: 1 },
+    Aasimar: { CHA: 2, WIS: 1 },
+    Goliath: { STR: 2, CON: 1 },
+    Orc: { STR: 2, CON: 1 },
+};
+
+const AbilityScoreRow: React.FC<{ ability: Ability; score: number; race: string; onScoreChange: (ability: Ability, delta: 1 | -1) => void; canIncrease: boolean; canDecrease: boolean; }> = ({ ability, score, race, onScoreChange, canIncrease, canDecrease }) => {
     const [showTooltip, setShowTooltip] = useState(false);
+    const racialBonus = RACIAL_BONUSES[race]?.[ability] || 0;
+    const finalScore = score + racialBonus;
+    const modifier = Math.floor((finalScore - 10) / 2);
+
     return (
-    <div className="flex items-center justify-between bg-chimera-elevated/50 rounded-lg p-4 border border-chimera-border hover:border-chimera-gold/30 transition-all group">
+    <div className="flex items-center justify-between bg-nuaibria-elevated/50 rounded-lg p-4 border border-nuaibria-border hover:border-nuaibria-gold/30 transition-all group">
         <div className="flex items-center gap-2 flex-1">
-            <span className="font-body text-lg text-chimera-text-secondary font-semibold w-16">{ability}</span>
+            <span className="font-body text-lg text-nuaibria-text-secondary font-semibold w-16">{ability}</span>
             <div className="relative">
-                <button type="button" onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)} className="text-chimera-gold/50 hover:text-chimera-gold transition-colors"><InfoIcon /></button>
-                {showTooltip && (<div className="absolute left-0 bottom-full mb-2 w-72 bg-chimera-bg border-2 border-chimera-gold/30 rounded-lg p-3 shadow-glow-lg z-20 animate-fade-in"><p className="text-chimera-text-primary text-xs leading-relaxed">{abilityScoreDescriptions[ability]}</p></div>)}
+                <button type="button" onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)} className="text-nuaibria-gold/50 hover:text-nuaibria-gold transition-colors"><InfoIcon /></button>
+                {showTooltip && (<div className="absolute left-0 bottom-full mb-2 w-72 bg-nuaibria-bg border-2 border-nuaibria-gold/30 rounded-lg p-3 shadow-glow-lg z-20 animate-fade-in"><p className="text-nuaibria-text-primary text-xs leading-relaxed">{abilityScoreDescriptions[ability]}</p></div>)}
             </div>
         </div>
         <div className="flex items-center gap-4">
-            <button type="button" onClick={() => onScoreChange(ability, -1)} disabled={!canDecrease} className="p-2 rounded-full border-2 border-chimera-gold/30 text-chimera-gold transition-all hover:enabled:bg-chimera-gold/20 hover:enabled:border-chimera-gold hover:enabled:shadow-glow disabled:text-chimera-text-muted disabled:border-chimera-border disabled:cursor-not-allowed"><MinusIcon /></button>
-            <span className="font-mono text-3xl text-chimera-gold font-bold w-12 text-center">{score}</span>
-            <button type="button" onClick={() => onScoreChange(ability, 1)} disabled={!canIncrease} className="p-2 rounded-full border-2 border-chimera-gold/30 text-chimera-gold transition-all hover:enabled:bg-chimera-gold/20 hover:enabled:border-chimera-gold hover:enabled:shadow-glow disabled:text-chimera-text-muted disabled:border-chimera-border disabled:cursor-not-allowed"><PlusIcon /></button>
+            <button type="button" onClick={() => onScoreChange(ability, -1)} disabled={!canDecrease} className="p-2 rounded-full border-2 border-nuaibria-gold/30 text-nuaibria-gold transition-all hover:enabled:bg-nuaibria-gold/20 hover:enabled:border-nuaibria-gold hover:enabled:shadow-glow disabled:text-nuaibria-text-muted disabled:border-nuaibria-border disabled:cursor-not-allowed"><MinusIcon /></button>
+            <div className="flex flex-col items-center gap-1">
+                <span className="font-mono text-3xl text-nuaibria-gold font-bold w-12 text-center">{score}</span>
+                {racialBonus > 0 && (
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs text-nuaibria-ember">+{racialBonus}</span>
+                        <span className="text-xs text-nuaibria-text-muted">→</span>
+                        <span className="text-sm font-bold text-nuaibria-health">{finalScore}</span>
+                        <span className="text-xs text-nuaibria-text-muted">({modifier >= 0 ? '+' : ''}{modifier})</span>
+                    </div>
+                )}
+                {racialBonus === 0 && (
+                    <span className="text-xs text-nuaibria-text-muted">({modifier >= 0 ? '+' : ''}{modifier})</span>
+                )}
+            </div>
+            <button type="button" onClick={() => onScoreChange(ability, 1)} disabled={!canIncrease} className="p-2 rounded-full border-2 border-nuaibria-gold/30 text-nuaibria-gold transition-all hover:enabled:bg-nuaibria-gold/20 hover:enabled:border-nuaibria-gold hover:enabled:shadow-glow disabled:text-nuaibria-text-muted disabled:border-nuaibria-border disabled:cursor-not-allowed"><PlusIcon /></button>
         </div>
     </div>
 )};
@@ -179,6 +262,9 @@ export const CharacterCreationScreen: React.FC = () => {
     const [portraitPrompt, setPortraitPrompt] = useState('');
     const [selectedPortrait, setSelectedPortrait] = useState<string | null>(null);
     const [imageGenParams, setImageGenParams] = useState<Parameters<typeof useImageGeneration>[0]>(null);
+    const [showSubclassModal, setShowSubclassModal] = useState(false);
+    const [availableSubclasses, setAvailableSubclasses] = useState<any[]>([]);
+    const [createdCharacterId, setCreatedCharacterId] = useState<string | null>(null);
 
     const { imageUrl: generatedPortrait, loading: portraitsLoading } = useImageGeneration(imageGenParams);
     const generatedPortraits = generatedPortrait ? [generatedPortrait] : null;
@@ -201,6 +287,12 @@ export const CharacterCreationScreen: React.FC = () => {
         if (newCost <= POINT_BUY_CONFIG.initialPoints) setAbilityScores(newScores);
     }, [abilityScores]);
 
+    const handleUseRecommendedStats = useCallback(() => {
+        if (characterClass && RECOMMENDED_STATS[characterClass]) {
+            setAbilityScores(RECOMMENDED_STATS[characterClass]);
+        }
+    }, [characterClass]);
+
     const handleSkillToggle = useCallback((skill: Skill) => {
         if (backgroundProficiencies.has(skill)) return;
         const newSelection = new Set(selectedClassSkills);
@@ -212,12 +304,99 @@ export const CharacterCreationScreen: React.FC = () => {
     const handleGeneratePortraits = () => {
         if (!race || !characterClass) return;
 
-        // Build comprehensive character description
+        // Clear previous portrait to force regeneration
+        setSelectedPortrait(null);
+
+        // Build comprehensive character description with ALL details
         const skillsList = Array.from(totalProficiencies).join(', ');
 
-        // Include all character context for AI generation
+        // Map ability scores to physical/mental traits
+        const strDesc = abilityScores.STR >= 14 ? 'muscular and powerful' : abilityScores.STR <= 10 ? 'lean and wiry' : 'average build';
+        const dexDesc = abilityScores.DEX >= 14 ? 'agile and graceful' : '';
+        const conDesc = abilityScores.CON >= 14 ? 'hardy and vigorous' : abilityScores.CON <= 10 ? 'frail looking' : '';
+        const intDesc = abilityScores.INT >= 14 ? 'intelligent gaze' : '';
+        const wisDesc = abilityScores.WIS >= 14 ? 'perceptive eyes' : '';
+        const chaDesc = abilityScores.CHA >= 14 ? 'charismatic and striking' : abilityScores.CHA <= 10 ? 'plain appearance' : '';
+
+        const physicalTraits = [strDesc, dexDesc, conDesc, chaDesc].filter(Boolean).join(', ');
+        const mentalTraits = [intDesc, wisDesc].filter(Boolean).join(', ');
+
+        // Explicit race features that MUST appear
+        const raceFeatures: Record<string, string> = {
+            'Dragonborn': 'MUST HAVE: dragon head, reptilian scales covering entire body, draconic snout, sharp teeth, horns, NO human face, NO hair',
+            'Tiefling': 'MUST HAVE: curved horns on head, red or purple skin, pointed tail, glowing eyes, sharp features',
+            'Orc': 'MUST HAVE: green or gray skin, prominent tusks from lower jaw, brutish muscular features',
+            'Dwarf': 'MUST HAVE: short stocky stature (4 feet tall), thick beard, broad shoulders, sturdy build',
+            'Elf': 'MUST HAVE: long pointed ears, slender graceful features, ethereal beauty',
+            'Halfling': 'MUST HAVE: very small stature (3 feet tall), childlike proportions, youthful face',
+            'Gnome': 'MUST HAVE: tiny stature (3 feet), large nose, clever expression, tinkerer appearance',
+            'Goliath': 'MUST HAVE: over 7 feet tall, massive muscular build, stone-like markings on skin',
+            'Aasimar': 'MUST HAVE: otherworldly beauty, faint divine glow, celestial radiance, perfect features',
+            'Human': 'standard human features, diverse appearance'
+        };
+
+        // Background-based appearance hints (affects clothing, demeanor, and bearing)
+        const backgroundHints: Record<string, string> = {
+            'Acolyte': 'religious robes, holy symbols, simple but clean attire, spiritual humble bearing',
+            'Charlatan': 'flashy yet practical outfit, confidence, disguise elements, clever smirk',
+            'Criminal': 'dark practical street clothing, hidden weapons, suspicious alert demeanor',
+            'Entertainer': 'colorful performance costume, dramatic flair, eye-catching accessories, charismatic presence',
+            'Folk Hero': 'common working clothes, honest determined face, modest heroic bearing, relatable',
+            'Guild Artisan': 'practical work clothes with tool marks, professional appearance, skilled craftsman bearing',
+            'Hermit': 'worn weathered simple clothing, ascetic bearing, contemplative wisdom, isolated appearance',
+            'Noble': 'expensive fine clothing, jewelry, aristocratic regal posture, elegant refined bearing',
+            'Outlander': 'rugged wilderness attire, weather-beaten appearance, survival gear, hardy outdoorsman',
+            'Sage': 'scholarly robes, reading glasses, book or scroll in hand, intellectual contemplative expression',
+            'Sailor': 'practical nautical clothing, weathered by sun and sea, rope accessories, sea-faring bearing',
+            'Soldier': 'military uniform or practical armor, disciplined bearing, battle-worn marks, campaign veteran',
+            'Urchin': 'patched worn clothing, street-smart scrappy appearance, survival-hardened bearing'
+        };
+
+        const genderDesc = gender ? `${gender.toLowerCase()} ` : '';
+        const raceDesc = raceFeatures[race] || race.toLowerCase();
+        const bgHint = backgroundHints[background] || '';
+
+        // Build comprehensive prompt with STRONG emphasis on class and background
+        const classEmphasis: Record<string, string> = {
+            Barbarian: 'wielding massive greataxe or greatsword, tribal war paint, barely armored, primal fury',
+            Bard: 'holding lute or instrument, performer outfit with flair, charismatic smile, entertainer',
+            Cleric: 'holy symbol prominently displayed, plate armor or robes, divine light, blessed aura',
+            Druid: 'wooden staff with vines, animal pelts, nature-themed, leaves and flowers in attire',
+            Fighter: 'heavily armored warrior, sword and shield clearly visible, battle-ready, martial expert',
+            Monk: 'unarmored martial artist, simple robes, meditation pose or fighting stance, disciplined',
+            Paladin: 'gleaming plate armor, longsword and shield, holy radiance, righteous knight',
+            Ranger: 'leather armor, longbow clearly visible, forest hunter, tracking gear',
+            Rogue: 'dark leather, multiple visible daggers, hood or mask, sneaky thief',
+            Sorcerer: 'arcane energy crackling from hands, elegant robes, innate magic aura, wild magic',
+            Warlock: 'eldritch patron symbols, dark pact magic, otherworldly features, occult runes',
+            Wizard: 'pointed hat or scholarly robes, spellbook in hand, arcane focus, studious mage'
+        };
+
+        // Alignment-based visual styling
+        const alignmentStyle: Record<string, string> = {
+            'Lawful Good': 'noble atmosphere, bright golden lighting with warm highlights, confident kind expression with compassionate eyes',
+            'Neutral Good': 'warm protective atmosphere, soft natural sunlight, friendly approachable expression',
+            'Chaotic Good': 'rebellious hero energy, dynamic dramatic lighting with bold contrasts, mischievous adventurous expression',
+            'Lawful Neutral': 'orderly disciplined atmosphere, balanced even lighting, serious composed expression',
+            'True Neutral': 'balanced natural atmosphere, realistic lighting, calm observant expression',
+            'Chaotic Neutral': 'unpredictable wild atmosphere, erratic sharp lighting, curious free-spirited expression',
+            'Lawful Evil': 'cold tyrannical atmosphere, harsh lighting with ominous red-purple tints, cruel calculating expression',
+            'Neutral Evil': 'predatory atmosphere, dim murky lighting with sickly tones, selfish cold expression',
+            'Chaotic Evil': 'chaotic destructive atmosphere, flickering hellish red-orange lighting, maniacal wild expression'
+        };
+
+        // CRITICAL: Put gender FIRST and emphasize it
+        const genderEmphasis = gender ? `IMPORTANT: ${gender.toUpperCase()} character, ${gender.toLowerCase()} features, ${gender.toLowerCase()} presentation. ` : '';
+
+        // Add alignment styling if alignment is selected
+        const alignmentVisuals = alignment && alignmentStyle[alignment] ? `MOOD AND LIGHTING: ${alignmentStyle[alignment]}. ` : '';
+
+        const fullPrompt = `${genderEmphasis}${genderDesc}${race} ${characterClass} portrait: ${raceDesc}. CLASS FEATURES: ${classEmphasis[characterClass] || characterClass}. BACKGROUND: ${bgHint}. ${alignmentVisuals}Physical build: ${physicalTraits}. ${mentalTraits ? `Personality: ${mentalTraits}.` : ''} ${portraitPrompt ? `Custom: ${portraitPrompt}.` : ''} D&D fantasy RPG character art, dramatic lighting, highly detailed face and equipment, professional digital painting, dark fantasy aesthetic, Baldur's Gate 3 style.`;
+
+        // Include all character context for backend
         const characterContext = {
             name: name || 'heroic adventurer',
+            gender,
             race,
             class: characterClass,
             background,
@@ -226,10 +405,6 @@ export const CharacterCreationScreen: React.FC = () => {
             skills: skillsList,
             backstory
         };
-
-        // Build rich prompt with character details
-        const genderDesc = gender ? `${gender.toLowerCase()} ` : '';
-        const fullPrompt = `${genderDesc}${race} ${characterClass} character portrait. Name: ${characterContext.name}. Background: ${background}, Alignment: ${alignment}. Physical appearance: ${portraitPrompt || 'typical for race and class'}. Dark fantasy style, dramatic lighting, detailed facial features, professional D&D character art, 4K quality.`;
 
         setImageGenParams({
             prompt: fullPrompt,
@@ -281,8 +456,32 @@ export const CharacterCreationScreen: React.FC = () => {
             const newCharacter = await response.json();
             console.log("CHARACTER CREATED:", newCharacter);
 
-            // Redirect to dashboard
-            window.location.href = '/dashboard';
+            // Store character ID for modals
+            setCreatedCharacterId(newCharacter.id);
+
+            // Check if subclass selection is needed
+            if (newCharacter.tutorial_state === 'needs_subclass') {
+                console.log('[CharacterCreation] Character needs subclass selection');
+
+                // Fetch available subclasses
+                const subclassResponse = await fetch(`/api/subclass/${newCharacter.id}/available-subclasses`, {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
+
+                if (subclassResponse.ok) {
+                    const subclassData = await subclassResponse.json();
+                    setAvailableSubclasses(subclassData.subclasses || []);
+                    setShowSubclassModal(true);
+                } else {
+                    console.error('[CharacterCreation] Failed to fetch subclasses');
+                    window.location.href = '/dashboard';
+                }
+            } else {
+                // No Session 0, no subclass needed - proceed to dashboard
+                window.location.href = '/dashboard';
+            }
         } catch (error) {
             console.error("Failed to create character:", error);
             const message = error instanceof Error ? error.message : 'Unknown error';
@@ -290,16 +489,39 @@ export const CharacterCreationScreen: React.FC = () => {
         }
     };
 
+    const handleSubclassComplete = () => {
+        console.log('[CharacterCreation] Subclass selection complete');
+        setShowSubclassModal(false);
+        window.location.href = '/dashboard';
+    };
+
+    const handleSubclassClose = () => {
+        console.log('[CharacterCreation] Subclass selection cancelled');
+        setShowSubclassModal(false);
+        window.location.href = '/dashboard';
+    };
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-chimera-bg via-chimera-surface to-chimera-bg text-white p-4 sm:p-8 font-body">
+        <div className="min-h-screen bg-gradient-to-br from-nuaibria-bg via-nuaibria-surface to-nuaibria-bg text-white p-4 sm:p-8 font-body">
+            {/* Subclass Selection Modal */}
+            {showSubclassModal && createdCharacterId && (
+                <SubclassSelectionModal
+                    show={showSubclassModal}
+                    characterId={createdCharacterId}
+                    className={characterClass}
+                    availableSubclasses={availableSubclasses}
+                    onComplete={handleSubclassComplete}
+                    onClose={handleSubclassClose}
+                />
+            )}
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1 lg:sticky lg:top-8 self-start">
-                    <div className="bg-chimera-surface/50 border-2 border-chimera-gold/20 rounded-lg p-6 shadow-card-hover min-h-[400px] flex flex-col items-center justify-center">
-                        <div className="w-64 h-64 rounded-lg bg-chimera-bg border-2 border-chimera-border flex items-center justify-center overflow-hidden mb-6 relative">
+                    <div className="bg-nuaibria-surface/50 border-2 border-nuaibria-gold/20 rounded-lg p-6 shadow-card-hover min-h-[400px] flex flex-col items-center justify-center">
+                        <div className="w-64 h-64 rounded-lg bg-nuaibria-bg border-2 border-nuaibria-border flex items-center justify-center overflow-hidden mb-6 relative">
                             {portraitsLoading ? (
                                 <div className="flex flex-col items-center gap-4">
-                                    <LoadingSpinner className="w-16 h-16 text-chimera-gold" />
-                                    <p className="text-chimera-text-secondary text-sm animate-pulse">Generating portrait...</p>
+                                    <LoadingSpinner className="w-16 h-16 text-nuaibria-gold" />
+                                    <p className="text-nuaibria-text-secondary text-sm animate-pulse">Generating portrait...</p>
                                 </div>
                             ) : selectedPortrait ? (
                                 <img src={selectedPortrait} alt="Portrait" className="w-full h-full object-cover" />
@@ -307,16 +529,16 @@ export const CharacterCreationScreen: React.FC = () => {
                                 <CharacterPlaceholderIcon />
                             )}
                         </div>
-                        <h3 className="font-display text-3xl text-chimera-gold tracking-wider text-center">{name || "Nameless Hero"}</h3>
-                        <p className="text-chimera-text-accent font-semibold mt-2">{race} {characterClass}</p>
-                        <p className="text-chimera-text-secondary mt-1 text-sm">{background} / {alignment}</p>
+                        <h3 className="font-display text-3xl text-nuaibria-gold tracking-wider text-center">{name || "Nameless Hero"}</h3>
+                        <p className="text-nuaibria-text-accent font-semibold mt-2">{race} {characterClass}</p>
+                        <p className="text-nuaibria-text-secondary mt-1 text-sm">{background} / {alignment}</p>
                     </div>
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
                     <header className="text-center lg:text-left">
-                        <h1 className="font-display text-5xl text-chimera-gold tracking-widest drop-shadow-lg">Create Your Hero</h1>
-                        <p className="text-chimera-text-secondary mt-3 text-lg">Forge your legend in Nuaibria.</p>
+                        <h1 className="font-display text-5xl text-nuaibria-gold tracking-widest drop-shadow-lg">Create Your Hero</h1>
+                        <p className="text-nuaibria-text-secondary mt-3 text-lg">Forge your legend in Nuaibria.</p>
                     </header>
 
                     <Panel title="Identity">
@@ -325,30 +547,41 @@ export const CharacterCreationScreen: React.FC = () => {
                             <div className="flex-1">
                                 <StyledInput label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your character's name" />
                             </div>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const newName = await generateRandomName(race, gender.toLowerCase() as 'male' | 'female' | 'nonbinary');
+                                    setName(newName);
+                                }}
+                                className="px-4 py-3 bg-nuaibria-gold/20 hover:bg-nuaibria-gold/30 text-nuaibria-gold font-semibold rounded-lg border-2 border-nuaibria-gold/40 hover:border-nuaibria-gold transition-all hover:shadow-glow"
+                                title="Generate unique fantasy name using AI (falls back to curated list if unavailable)"
+                            >
+                                ✨ Generate
+                            </button>
                             <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setGender('Male')}
-                                    className={`p-3 rounded-lg border-2 transition-all ${
+                                    className={`px-4 py-3 flex items-center justify-center rounded-lg border-2 transition-all font-semibold ${
                                         gender === 'Male'
-                                            ? 'border-chimera-gold bg-chimera-gold/10 text-chimera-gold'
-                                            : 'border-chimera-border text-chimera-text-muted hover:border-chimera-gold/50 hover:text-chimera-gold'
+                                            ? 'border-nuaibria-gold bg-nuaibria-gold/10 text-nuaibria-gold'
+                                            : 'border-nuaibria-border text-nuaibria-text-muted hover:border-nuaibria-gold/50 hover:text-nuaibria-gold'
                                     }`}
                                     title="Male"
                                 >
-                                    <User className="w-5 h-5" />
+                                    <span className="text-2xl mr-2">♂</span> M
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setGender('Female')}
-                                    className={`p-3 rounded-lg border-2 transition-all ${
+                                    className={`px-4 py-3 flex items-center justify-center rounded-lg border-2 transition-all font-semibold ${
                                         gender === 'Female'
-                                            ? 'border-chimera-gold bg-chimera-gold/10 text-chimera-gold'
-                                            : 'border-chimera-border text-chimera-text-muted hover:border-chimera-gold/50 hover:text-chimera-gold'
+                                            ? 'border-nuaibria-gold bg-nuaibria-gold/10 text-nuaibria-gold'
+                                            : 'border-nuaibria-border text-nuaibria-text-muted hover:border-nuaibria-gold/50 hover:text-nuaibria-gold'
                                     }`}
                                     title="Female"
                                 >
-                                    <UserRound className="w-5 h-5" />
+                                    <span className="text-2xl mr-2">♀</span> F
                                 </button>
                             </div>
                         </div>
@@ -362,23 +595,32 @@ export const CharacterCreationScreen: React.FC = () => {
                     </Panel>
 
                     <Panel title="Ability Scores">
-                        <div className="bg-chimera-bg/50 border border-chimera-gold/20 rounded-lg p-4 mb-6"><p className="text-chimera-text-secondary text-sm leading-relaxed">{pointBuySystemDescription}</p></div>
-                        <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-chimera-gold/20">
-                            <h3 className="font-body text-lg text-chimera-text-secondary font-semibold">Allocate Points</h3>
-                            <div className="text-right"><span className="font-mono text-4xl text-chimera-gold font-bold">{pointsRemaining}</span><p className="text-sm text-chimera-text-accent">Remaining</p></div>
+                        <div className="bg-nuaibria-bg/50 border border-nuaibria-gold/20 rounded-lg p-4 mb-6"><p className="text-nuaibria-text-secondary text-sm leading-relaxed">{pointBuySystemDescription}</p></div>
+                        <div className="flex justify-between items-center mb-4 pb-4 border-b-2 border-nuaibria-gold/20">
+                            <h3 className="font-body text-lg text-nuaibria-text-secondary font-semibold">Allocate Points</h3>
+                            <div className="text-right"><span className="font-mono text-4xl text-nuaibria-gold font-bold">{pointsRemaining}</span><p className="text-sm text-nuaibria-text-accent">Remaining</p></div>
+                        </div>
+                        <div className="mb-6">
+                            <button
+                                type="button"
+                                onClick={handleUseRecommendedStats}
+                                className="w-full font-body bg-nuaibria-gold/20 text-nuaibria-gold border-2 border-nuaibria-gold/50 px-6 py-3 rounded-lg hover:bg-nuaibria-gold/30 hover:border-nuaibria-gold hover:shadow-glow transition-all font-semibold"
+                            >
+                                Use Recommended Stats for {characterClass}
+                            </button>
                         </div>
                         <div className="space-y-3">{ABILITIES.map(ability => {
                             const score = abilityScores[ability];
                             const canIncrease = score < POINT_BUY_CONFIG.maxScore && pointsRemaining >= (POINT_BUY_CONFIG.scoreCost[score + 1] - POINT_BUY_CONFIG.scoreCost[score]);
                             const canDecrease = score > POINT_BUY_CONFIG.minScore;
-                            return <AbilityScoreRow key={ability} ability={ability} score={score} onScoreChange={handleScoreChange} canIncrease={canIncrease} canDecrease={canDecrease} />;
+                            return <AbilityScoreRow key={ability} ability={ability} score={score} race={race} onScoreChange={handleScoreChange} canIncrease={canIncrease} canDecrease={canDecrease} />;
                         })}</div>
                     </Panel>
 
                     <Panel title="Skills & Proficiencies">
-                        <div className="bg-chimera-bg/50 border border-chimera-gold/20 rounded-lg p-4">
-                            <p className="text-chimera-text-secondary text-sm">Background grants: <strong className="text-chimera-gold">{BACKGROUNDS[background].skillProficiencies.join(', ')}</strong>. Choose <strong className="text-chimera-gold">{classSkillInfo.choices}</strong> more.</p>
-                            <p className="text-chimera-text-accent text-sm mt-2 font-semibold">Remaining: {classSkillInfo.choices - selectedClassSkills.size}</p>
+                        <div className="bg-nuaibria-bg/50 border border-nuaibria-gold/20 rounded-lg p-4">
+                            <p className="text-nuaibria-text-secondary text-sm">Background grants: <strong className="text-nuaibria-gold">{BACKGROUNDS[background].skillProficiencies.join(', ')}</strong>. Choose <strong className="text-nuaibria-gold">{classSkillInfo.choices}</strong> more.</p>
+                            <p className="text-nuaibria-text-accent text-sm mt-2 font-semibold">Remaining: {classSkillInfo.choices - selectedClassSkills.size}</p>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                             {SKILLS.map(skill => {
@@ -386,12 +628,12 @@ export const CharacterCreationScreen: React.FC = () => {
                                 const isSelected = selectedClassSkills.has(skill);
                                 const canSelect = classSkillInfo.options.includes(skill) && !isFromBg;
                                 return (
-                                    <div key={skill} onClick={() => canSelect && handleSkillToggle(skill)} className={`flex items-center gap-3 p-3 rounded-md transition-all ${canSelect ? 'cursor-pointer hover:bg-chimera-gold/10' : 'opacity-60'}`}>
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected || isFromBg ? 'bg-chimera-gold border-chimera-gold' : 'border-chimera-border'}`}>
+                                    <div key={skill} onClick={() => canSelect && handleSkillToggle(skill)} className={`flex items-center gap-3 p-3 rounded-md transition-all ${canSelect ? 'cursor-pointer hover:bg-nuaibria-gold/10' : 'opacity-60'}`}>
+                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected || isFromBg ? 'bg-nuaibria-gold border-nuaibria-gold' : 'border-nuaibria-border'}`}>
                                             {(isSelected || isFromBg) && <CheckCircleIcon />}
                                         </div>
-                                        <span className={`font-semibold ${isSelected || isFromBg ? 'text-chimera-gold' : 'text-chimera-text-primary'}`}>{skill}</span>
-                                        {isFromBg && <span className="text-xs bg-chimera-gold/20 text-chimera-gold px-2 py-0.5 rounded-full ml-auto">BG</span>}
+                                        <span className={`font-semibold ${isSelected || isFromBg ? 'text-nuaibria-gold' : 'text-nuaibria-text-primary'}`}>{skill}</span>
+                                        {isFromBg && <span className="text-xs bg-nuaibria-gold/20 text-nuaibria-gold px-2 py-0.5 rounded-full ml-auto">BG</span>}
                                     </div>
                                 );
                             })}
@@ -408,9 +650,9 @@ export const CharacterCreationScreen: React.FC = () => {
                         <Panel title="Starting Equipment">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {EQUIPMENT_CHOICES[characterClass].map((choice, index) => (
-                                    <div key={index} onClick={() => setEquipmentChoice(index)} className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${equipmentChoice === index ? 'border-chimera-gold shadow-glow' : 'border-chimera-border hover:border-chimera-gold/50'}`}>
-                                        <h4 className="font-semibold text-lg text-chimera-text-primary">{choice.name}</h4>
-                                        <ul className="list-disc list-inside mt-2 text-chimera-text-secondary text-sm space-y-1">
+                                    <div key={index} onClick={() => setEquipmentChoice(index)} className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${equipmentChoice === index ? 'border-nuaibria-gold shadow-glow' : 'border-nuaibria-border hover:border-nuaibria-gold/50'}`}>
+                                        <h4 className="font-semibold text-lg text-nuaibria-text-primary">{choice.name}</h4>
+                                        <ul className="list-disc list-inside mt-2 text-nuaibria-text-secondary text-sm space-y-1">
                                             {choice.items.map(item => <li key={item}>{item}</li>)}
                                         </ul>
                                     </div>
@@ -421,20 +663,20 @@ export const CharacterCreationScreen: React.FC = () => {
 
                     <Panel title="Appearance">
                         <StyledInput label="Describe appearance" value={portraitPrompt} onChange={e => setPortraitPrompt(e.target.value)} placeholder="e.g., Braided red hair, stoic, scar" />
-                        <button type="button" onClick={handleGeneratePortraits} disabled={portraitsLoading} className="font-display bg-chimera-gold/80 text-white px-8 py-3 rounded-lg hover:bg-chimera-gold hover:shadow-glow-lg transition-all disabled:bg-chimera-text-muted">
+                        <button type="button" onClick={handleGeneratePortraits} disabled={portraitsLoading} className="font-display bg-nuaibria-gold/80 text-white px-8 py-3 rounded-lg hover:bg-nuaibria-gold hover:shadow-glow-lg transition-all disabled:bg-nuaibria-text-muted">
                             {portraitsLoading ? 'Generating...' : 'Generate Portrait'}
                         </button>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
                             {portraitsLoading ? (
                                 // Show loading placeholders while generating
                                 Array.from({ length: 1 }).map((_, i) => (
-                                    <div key={i} className="aspect-square rounded-lg bg-chimera-bg border-2 border-chimera-gold/20 flex items-center justify-center">
-                                        <LoadingSpinner className="w-12 h-12 text-chimera-gold" />
+                                    <div key={i} className="aspect-square rounded-lg bg-nuaibria-bg border-2 border-nuaibria-gold/20 flex items-center justify-center">
+                                        <LoadingSpinner className="w-12 h-12 text-nuaibria-gold" />
                                     </div>
                                 ))
                             ) : (
                                 generatedPortraits?.map((url, i) => (
-                                    <div key={i} onClick={() => setSelectedPortrait(url)} className={`rounded-lg overflow-hidden border-4 cursor-pointer transition-all ${selectedPortrait === url ? 'border-chimera-gold shadow-glow' : 'border-transparent hover:border-chimera-gold/50'}`}>
+                                    <div key={i} onClick={() => setSelectedPortrait(url)} className={`rounded-lg overflow-hidden border-4 cursor-pointer transition-all ${selectedPortrait === url ? 'border-nuaibria-gold shadow-glow' : 'border-transparent hover:border-nuaibria-gold/50'}`}>
                                         <img src={url} alt={`Option ${i+1}`} className="aspect-square object-cover" />
                                     </div>
                                 ))
@@ -443,7 +685,7 @@ export const CharacterCreationScreen: React.FC = () => {
                     </Panel>
 
                     <div className="flex justify-end pt-6">
-                        <button type="submit" onClick={handleSubmit} disabled={!isFormValid} className="font-display text-xl bg-gradient-to-r from-chimera-gold to-chimera-ember text-white px-12 py-4 rounded-lg hover:from-chimera-gold/90 hover:to-chimera-ember/90 hover:shadow-glow-lg transition-all hover:-translate-y-0.5 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed">
+                        <button type="submit" onClick={handleSubmit} disabled={!isFormValid} className="font-display text-xl bg-gradient-to-r from-nuaibria-gold to-nuaibria-ember text-white px-12 py-4 rounded-lg hover:from-nuaibria-gold/90 hover:to-nuaibria-ember/90 hover:shadow-glow-lg transition-all hover:-translate-y-0.5 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed">
                             Embark on Your Journey
                         </button>
                     </div>

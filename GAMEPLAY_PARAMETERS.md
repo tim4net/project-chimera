@@ -1,4 +1,4 @@
-# Project Chimera: Gameplay Parameters Specification
+# Nuaibria: Gameplay Parameters Specification
 
 This document defines the concrete parameters for map size, time systems, and gameplay mechanics for the MVP.
 
@@ -8,7 +8,7 @@ This document defines the concrete parameters for map size, time systems, and ga
 
 ### World Name
 
-The world of Project Chimera is named **Nuaibria**.
+The world of Nuaibria is named **Nuaibria**.
 
 ### World Description
 

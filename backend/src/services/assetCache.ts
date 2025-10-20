@@ -130,6 +130,16 @@ export const checkPendingRequest = async (requestHash: string): Promise<AssetReq
   return handleNotFound(error, data as AssetRequestRow | null);
 };
 
+const getExistingRequest = async (requestHash: string): Promise<AssetRequestRow | null> => {
+  const { data } = await supabaseServiceClient
+    .from('asset_requests')
+    .select('*')
+    .eq('request_hash', requestHash)
+    .single();
+
+  return data as AssetRequestRow | null;
+};
+
 export const createAssetRequest = async (
   requestHash: string,
   requestType: AssetRequestRow['request_type']
@@ -145,6 +155,13 @@ export const createAssetRequest = async (
     .single();
 
   if (error) {
+    // Handle duplicate key error gracefully
+    if (error.code === '23505') {
+      console.warn('[AssetCache] Request already exists, fetching existing:', requestHash);
+      const existing = await getExistingRequest(requestHash);
+      if (existing) return existing;
+    }
+
     console.error('Error creating asset request:', error);
     throw new Error('Failed to create asset request');
   }
@@ -171,16 +188,24 @@ export const updateAssetRequestStatus = async (
   return data as AssetRequestRow;
 };
 
-export const cleanupStaleRequests = async (): Promise<void> => {
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+export const cleanupStaleRequests = async (olderThanMinutes: number = 30): Promise<number> => {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60 * 1000).toISOString();
 
-  const { error } = await supabaseServiceClient
+  const { data, error } = await supabaseServiceClient
     .from('asset_requests')
-    .delete()
+    .update({ status: 'failed' })
     .in('status', ['pending', 'processing'])
-    .lt('started_at', oneHourAgo);
+    .lt('started_at', cutoff)
+    .select();
 
   if (error) {
-    console.error('Error cleaning up stale requests:', error);
+    console.error('[AssetCache] Cleanup failed:', error);
+    return 0;
   }
+
+  const count = data?.length || 0;
+  if (count > 0) {
+    console.log(`[AssetCache] Marked ${count} stale requests as failed (older than ${olderThanMinutes} minutes)`);
+  }
+  return count;
 };

@@ -1,6 +1,6 @@
-**Project Chimera: Master Architectural Decision Records (ADRs)**
+**Nuaibria: Master Architectural Decision Records (ADRs)**
 
-This document contains the complete collection of Architectural Decision Records for Project Chimera. Each ADR outlines a key design decision, its context, and its consequences.
+This document contains the complete collection of Architectural Decision Records for Nuaibria. Each ADR outlines a key design decision, its context, and its consequences.
 
 **ADR-001: Hybrid AI and Web-Based Architecture**
 
@@ -354,7 +354,7 @@ We will implement a **World Epoch System** to create a dynamically evolving worl
 
 **Context**
 
-The full design of Project Chimera is comprehensive and complex. To begin development, we need to define a smaller, core feature set that is achievable in a reasonable timeframe and can serve as a foundation for future iteration. This is the Minimum Viable Product (MVP).
+The full design of Nuaibria is comprehensive and complex. To begin development, we need to define a smaller, core feature set that is achievable in a reasonable timeframe and can serve as a foundation for future iteration. This is the Minimum Viable Product (MVP).
 
 **Decision**
 
