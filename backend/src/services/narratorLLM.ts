@@ -176,10 +176,16 @@ async function getTownContext(character: CharacterRecord): Promise<string> {
     // Build reveal tier context (what the character knows based on exploration)
     // For now, show public information by default
     // In future, this will be filtered based on discovered secrets
+    console.log(`[TownContext] Building context for ${townData.name}`);
+    console.log(`[TownContext] Locations count: ${townData.locations?.length || 0}`);
+    console.log(`[TownContext] NPCs count: ${townData.npcs?.length || 0}`);
+    console.log(`[TownContext] Quests count: ${townData.quests?.length || 0}`);
+
     let townContext = `\nSTARTER TOWN CONTEXT:\n`;
     townContext += `Name: ${townData.name}\n`;
     townContext += `Location: ${townData.region || 'A modest settlement'}\n`;
     townContext += `Description: ${townData.one_liner}\n`;
+    console.log(`[TownContext] After basic info, length: ${townContext.length}`);
 
     // Add key locations
     if (townData.locations && townData.locations.length > 0) {
@@ -223,6 +229,8 @@ async function getTownContext(character: CharacterRecord): Promise<string> {
     }
 
     // Cache the result
+    console.log(`[TownContext] FINAL town context length: ${townContext.length}`);
+    console.log(`[TownContext] FINAL town context (full):\n${townContext}`);
     townContextCache.set(cacheKey, { value: townContext, expires: now + TOWN_CONTEXT_TTL });
 
     return townContext;
@@ -335,13 +343,21 @@ REMEMBER: Do NOT let the player explore yet. They must complete this interview s
 
   // Get starter town context (only if in world, not during interview)
   let townContext = '';
+  console.log(`[NarratorLLM] Tutorial state for ${character.name}: "${character.tutorial_state}"`);
+  console.log(`[NarratorLLM] Will fetch town context? !tutorial_state=${!character.tutorial_state} || tutorial_state=complete=${character.tutorial_state === 'complete'}`);
+
   if (!character.tutorial_state || character.tutorial_state === 'complete') {
+    console.log(`[NarratorLLM] Fetching town context for campaign: ${character.campaign_seed}`);
     townContext = await getTownContext(character);
-    if (townContext) {
-      console.log(`[NarratorLLM] Town context loaded for ${character.name}:`, townContext.substring(0, 100));
+    if (townContext && townContext.length > 0) {
+      console.log(`[NarratorLLM] Town context loaded for ${character.name}, length=${townContext.length}`);
+      console.log(`[NarratorLLM] Town context (first 200 chars):\n${townContext.substring(0, 200)}`);
+      console.log(`[NarratorLLM] Town context (last 100 chars):\n${townContext.substring(townContext.length - 100)}`);
     } else {
-      console.log(`[NarratorLLM] No town context found for campaign: ${character.campaign_seed}`);
+      console.log(`[NarratorLLM] No town context found for campaign: ${character.campaign_seed} (empty or null)`);
     }
+  } else {
+    console.log(`[NarratorLLM] SKIPPED town context (tutorial_state='${character.tutorial_state}')`);
   }
 
   // Get tutorial context (if character is Level 0 and in tutorial mode)
@@ -371,6 +387,11 @@ ${townContext}
 
 ${tutorialContext ? `\n=== TUTORIAL MODE ===\n${tutorialContext}\n=== END TUTORIAL ===\n` : ''}
 `.trim();
+
+  // DEBUG: Log if town context is in the final character sheet
+  if (townContext && townContext.length > 0) {
+    console.log(`[NarratorLLM] Character sheet includes town context: ${characterSheet.includes('STARTER TOWN CONTEXT') ? 'YES' : 'NO'}`);
+  }
 
   // Action result summary (what ACTUALLY happened according to rules)
   let actionSummary = `
