@@ -17,8 +17,22 @@ import { getActiveQuests, shouldOfferQuest, generateRadiantQuest } from './quest
 import { getWorldContext } from './worldContext';
 import { getTutorialContext } from './tutorialGuidance';
 import { getInterviewPrompt } from './session0Interview';
+import { getModel, createCachedPrompt, generateWithCache } from './gemini';
+import { TownGenerationService } from './townGenerationService';
+import type { GeneratedTown, TownLocation, TownNPC, TownQuest } from './townGenerationService';
 
 const LOCAL_LLM_ENDPOINT = process.env.LOCAL_LLM_ENDPOINT || 'http://localhost:1234/v1';
+
+// Town context caching: per-campaign with TTL
+const townContextCache = new Map<string, { value: string; expires: number }>();
+const TOWN_CONTEXT_TTL = 60_000; // 60 seconds
+
+// ARCHITECTURE DECISION (2025-01-20):
+// - Real-time chat ALWAYS uses Gemini Flash (fast < 2s response, cheap $0.20/10 players/month)
+// - Local LLM (GTX 1080) is TOO SLOW for chat (4-8s responses break immersion)
+// - Local LLM reserved for ASYNC background tasks only (quest gen, POI descriptions, etc.)
+// - This supports 100+ players within $50/month budget with good UX
+const USE_GEMINI_FOR_REALTIME = true; // Always true - do not change without measuring latency
 
 // ============================================================================
 // NARRATIVE-ONLY SYSTEM PROMPT (Security Hardened)
@@ -126,6 +140,99 @@ function selectBestModel(availableModels: string[]): string {
 }
 
 // ============================================================================
+// TOWN CONTEXT HELPER
+// ============================================================================
+
+/**
+ * Fetch and format town context for the Chronicler
+ * Returns narrative-friendly town information with reveal tier filtering
+ * Uses TTL cache to avoid excessive database queries
+ */
+async function getTownContext(character: CharacterRecord): Promise<string> {
+  try {
+    console.log(`[NarratorLLM getTownContext] Called for campaign: ${character.campaign_seed}`);
+    const now = Date.now();
+    const cacheKey = character.campaign_seed;
+
+    // Check cache first
+    const cached = townContextCache.get(cacheKey);
+    if (cached && cached.expires > now) {
+      console.log(`[NarratorLLM getTownContext] Returning cached town context`);
+      return cached.value;
+    }
+
+    // Get the town for this campaign
+    const town = await TownGenerationService.getTown(character.campaign_seed);
+
+    if (!town || !town.full_data) {
+      console.log(`[NarratorLLM] No town data found for campaign: ${character.campaign_seed}`);
+      return ''; // No town generated yet
+    }
+
+    console.log(`[NarratorLLM] Found town: ${town.name} for campaign: ${character.campaign_seed}`);
+
+    const townData = town.full_data as GeneratedTown;
+
+    // Build reveal tier context (what the character knows based on exploration)
+    // For now, show public information by default
+    // In future, this will be filtered based on discovered secrets
+    let townContext = `\nSTARTER TOWN CONTEXT:\n`;
+    townContext += `Name: ${townData.name}\n`;
+    townContext += `Location: ${townData.region || 'A modest settlement'}\n`;
+    townContext += `Description: ${townData.one_liner}\n`;
+
+    // Add key locations
+    if (townData.locations && townData.locations.length > 0) {
+      const publicLocations = townData.locations.filter(
+        (loc: TownLocation) => loc.reveal_tier === 'public'
+      );
+
+      if (publicLocations.length > 0) {
+        townContext += `\nKnown Locations:\n`;
+        publicLocations.forEach((loc: TownLocation) => {
+          townContext += `- ${loc.name}: ${loc.description.key_feature}\n`;
+        });
+      }
+    }
+
+    // Add key NPCs
+    if (townData.npcs && townData.npcs.length > 0) {
+      townContext += `\nNotable NPCs:\n`;
+      townData.npcs.forEach((npc: TownNPC) => {
+        townContext += `- ${npc.name} (${npc.role}): ${npc.appearance.distinctive_feature}\n`;
+      });
+    }
+
+    // Add available quests (trivial/easy ones)
+    if (townData.quests && townData.quests.length > 0) {
+      const easyQuests = townData.quests.filter(
+        (q: TownQuest) => q.difficulty === 'trivial' || q.difficulty === 'easy'
+      );
+
+      if (easyQuests.length > 0) {
+        townContext += `\nAvailable Tasks:\n`;
+        easyQuests.forEach((quest: TownQuest) => {
+          townContext += `- ${quest.title} (offered by ${quest.giver})\n`;
+        });
+      }
+    }
+
+    // Add atmosphere hints
+    if (townData.atmosphere) {
+      townContext += `\nAtmosphere: ${townData.atmosphere.ambient_sounds || 'Typical town sounds'}\n`;
+    }
+
+    // Cache the result
+    townContextCache.set(cacheKey, { value: townContext, expires: now + TOWN_CONTEXT_TTL });
+
+    return townContext;
+  } catch (error) {
+    console.error('[NarratorLLM] Error fetching town context:', error);
+    return ''; // Gracefully degrade if town context fails
+  }
+}
+
+// ============================================================================
 // PROMPT BUILDING
 // ============================================================================
 
@@ -226,6 +333,17 @@ REMEMBER: Do NOT let the player explore yet. They must complete this interview s
     worldContext = 'Character is in Chronicle Chamber (Session 0). Not in world yet.';
   }
 
+  // Get starter town context (only if in world, not during interview)
+  let townContext = '';
+  if (!character.tutorial_state || character.tutorial_state === 'complete') {
+    townContext = await getTownContext(character);
+    if (townContext) {
+      console.log(`[NarratorLLM] Town context loaded for ${character.name}:`, townContext.substring(0, 100));
+    } else {
+      console.log(`[NarratorLLM] No town context found for campaign: ${character.campaign_seed}`);
+    }
+  }
+
   // Get tutorial context (if character is Level 0 and in tutorial mode)
   const tutorialContext = getTutorialContext(character);
 
@@ -248,6 +366,8 @@ ${narrativeContext}
 ${questContext}
 
 ${worldContext}
+
+${townContext}
 
 ${tutorialContext ? `\n=== TUTORIAL MODE ===\n${tutorialContext}\n=== END TUTORIAL ===\n` : ''}
 `.trim();
@@ -285,8 +405,8 @@ Remember: This is a CONSEQUENCE of their earlier narrative claim!`;
     { role: 'system', content: `CHARACTER SHEET (READ-ONLY):\n${characterSheet}` },
   ];
 
-  // Add recent conversation history (last 5 exchanges)
-  const recentHistory = conversationHistory.slice(-10);
+  // Add recent conversation history (last 25 exchanges for better context retention)
+  const recentHistory = conversationHistory.slice(-50);
   recentHistory.forEach(msg => {
     messages.push({
       role: msg.role === 'dm' ? 'assistant' : 'user',
@@ -384,36 +504,30 @@ export async function generateNarrative(
     console.log('[NarratorLLM] Character sheet length:', messages[1].content.length);
     console.log('[NarratorLLM] Final user prompt:', messages[messages.length - 1].content.substring(0, 200) + '...');
     console.log('[NarratorLLM] Total messages:', messages.length);
+    console.log('[NarratorLLM] Using Gemini Flash (real-time chat - always)');
 
-    const response = await fetch(`${LOCAL_LLM_ENDPOINT}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: cachedModel,
-        messages,
-        temperature: 0.8,
-        max_tokens: 300,
-        stop: ['```', 'json', '{'], // Prevent JSON generation
-      }),
-    });
+    let narrative: string;
 
-    if (!response.ok) {
-      throw new Error(`Local LLM returned ${response.status}`);
-    }
+    // ALWAYS use Gemini Flash for real-time chat (fast + cheap)
+    // Local LLM on GTX 1080 is too slow (4-8s vs <2s)
+    const model = await getModel('flash');
 
-    const data = await response.json() as {
-      choices: Array<{ message: { content: string } }>;
-    };
+    // Convert messages to single prompt string (Gemini prefers simple text prompts)
+    const combinedPrompt = messages.map(m => m.content).join('\n\n');
 
-    const narrative = data.choices[0]?.message?.content || '';
+    const result = await model.generateContent(combinedPrompt);
+    narrative = result.response.text() || '';
+    console.log('[NarratorLLM] Gemini response received:', narrative.substring(0, 100));
 
     console.log('[NarratorLLM] Raw LLM response:', narrative);
 
-    // Security: Strip any JSON blocks that might have leaked through
+    // Security: Strip JSON code blocks and structured data that leaked through
+    // Note: This regex is safer - it targets JSON objects (curly brace + quote)
+    // while preserving narrative text that uses curly braces (e.g., "{magical runes}")
     const cleanedNarrative = narrative
-      .replace(/```json[\s\S]*?```/g, '')
-      .replace(/```[\s\S]*?```/g, '')
-      .replace(/\{[\s\S]*?\}/g, '')
+      .replace(/```json[\s\S]*?```/g, '') // Remove JSON code blocks
+      .replace(/```[\s\S]*?```/g, '') // Remove any code blocks
+      .replace(/\{\s*"[\s\S]*?\}/g, '') // Remove JSON objects (starts with {" )
       .trim();
 
     console.log('[NarratorLLM] Cleaned narrative:', cleanedNarrative);
@@ -421,14 +535,15 @@ export async function generateNarrative(
     return cleanedNarrative || "The Chronicler ponders the situation...";
 
   } catch (error) {
-    console.error('[NarratorLLM] Error generating narrative:', error);
-    // Fallback to action summary if LLM fails
-    return actionResult.narrativeContext.summary;
+    console.error('[NarratorLLM] Error generating narrative with Gemini:', error);
+    // Fallback to action summary if Gemini fails
+    // Note: We don't fall back to Local LLM for real-time (too slow)
+    return actionResult.narrativeContext.summary + " (The Chronicler's connection wavers...)";
   }
 }
 
 // ============================================================================
-// GEMINI FALLBACK
+// GEMINI FUNCTIONS (Real-Time Chat)
 // ============================================================================
 
 export async function generateNarrativeWithGemini(
@@ -474,5 +589,126 @@ export async function generateNarrativeWithGemini(
   } catch (error) {
     console.error('[NarratorLLM] Gemini fallback failed:', error);
     return actionResult.narrativeContext.summary;
+  }
+}
+
+// ============================================================================
+// SIGNIFICANCE DETECTION (AI-powered journal entry detection)
+// ============================================================================
+
+/**
+ * Determines if an event is significant enough to create a journal entry
+ * Uses Gemini Flash to analyze narrative importance
+ */
+export async function isSignificantEvent(
+  playerMessage: string,
+  narrative: string,
+  actionType: string
+): Promise<{ isSignificant: boolean; reason: string }> {
+  // Skip for recognized game mechanics (they handle their own journal entries)
+  if (actionType !== 'CONVERSATION') {
+    return { isSignificant: false, reason: 'Handled by game mechanics' };
+  }
+
+  try {
+    const model = await getModel('flash');
+
+    const prompt = `You are analyzing a moment in a D&D RPG game to determine if it's significant enough to record in the character's journal.
+
+PLAYER ACTION: "${playerMessage}"
+NARRATIVE OUTCOME: "${narrative}"
+
+A journal entry should be created for events like:
+- Meeting major NPCs (kings, dragons, legendary figures)
+- Discovering important locations or secrets
+- Making life-changing decisions or pacts
+- Witnessing or causing major events (awakening something, destroying something, saving someone)
+- Starting or completing major story arcs
+- Gaining or losing something extremely valuable or important
+
+Do NOT create journal entries for:
+- Simple conversations with ordinary travelers
+- Minor exploration or movement
+- Asking questions or getting information
+- Routine interactions
+
+Is this event significant enough for a journal entry? Respond with ONLY a JSON object:
+{"isSignificant": true/false, "reason": "brief explanation"}`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text().trim();
+
+    // Parse JSON response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      console.log('[SignificanceDetector]', parsed);
+      return parsed;
+    }
+
+    // Fallback if JSON parsing fails
+    return { isSignificant: false, reason: 'Parse error' };
+  } catch (error) {
+    console.error('[SignificanceDetector] Error:', error);
+    return { isSignificant: false, reason: 'Detection failed' };
+  }
+}
+
+// ============================================================================
+// LOCAL LLM FUNCTIONS (Background Tasks ONLY - Not for real-time chat!)
+// ============================================================================
+
+/**
+ * Generate text using Local LLM for ASYNC background tasks only
+ *
+ * ⚠️ WARNING: Do NOT use for real-time chat!
+ * - GTX 1080 generates responses in 4-8 seconds (too slow for chat UX)
+ * - Use only for overnight batch processing, pre-generation, etc.
+ *
+ * Suitable for:
+ * - Quest template generation (run overnight)
+ * - POI description pre-generation (batch process)
+ * - Journal summarization (after session ends)
+ * - NPC personality generation (background pool)
+ */
+export async function generateWithLocalLLM(
+  prompt: string,
+  options: { temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
+  // Select model if not cached
+  if (!cachedModel) {
+    const models = await listAvailableModels();
+    cachedModel = selectBestModel(models);
+  }
+
+  const messages = [
+    { role: 'system' as const, content: 'You are a helpful D&D content generator.' },
+    { role: 'user' as const, content: prompt }
+  ];
+
+  try {
+    const response = await fetch(`${LOCAL_LLM_ENDPOINT}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: cachedModel,
+        messages,
+        temperature: options.temperature ?? 0.8,
+        max_tokens: options.maxTokens ?? 500,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Local LLM returned ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices: Array<{ message: { content: string } }>;
+    };
+
+    return data.choices[0]?.message?.content || '';
+  } catch (error) {
+    console.error('[LocalLLM] Error generating content:', error);
+    throw error;
   }
 }

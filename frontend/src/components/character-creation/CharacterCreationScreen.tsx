@@ -8,6 +8,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useImageGeneration } from '../../hooks/useAssetGeneration';
 import { supabase } from '../../lib/supabase';
 import SubclassSelectionModal from '../SubclassSelectionModal';
+import SpellLearningModal from '../level-up/SpellLearningModal';
 import { generateRandomName } from '../../utils/nameGenerator';
 
 // --- TYPE DEFINITIONS ---
@@ -265,6 +266,8 @@ export const CharacterCreationScreen: React.FC = () => {
     const [showSubclassModal, setShowSubclassModal] = useState(false);
     const [availableSubclasses, setAvailableSubclasses] = useState<any[]>([]);
     const [createdCharacterId, setCreatedCharacterId] = useState<string | null>(null);
+    const [showSpellModal, setShowSpellModal] = useState(false);
+    const [createdCharacterLevel, setCreatedCharacterLevel] = useState(1);
 
     const { imageUrl: generatedPortrait, loading: portraitsLoading } = useImageGeneration(imageGenParams);
     const generatedPortraits = generatedPortrait ? [generatedPortrait] : null;
@@ -456,10 +459,15 @@ export const CharacterCreationScreen: React.FC = () => {
             const newCharacter = await response.json();
             console.log("CHARACTER CREATED:", newCharacter);
 
-            // Store character ID for modals
+            // Store character ID and level for modals
             setCreatedCharacterId(newCharacter.id);
+            setCreatedCharacterLevel(newCharacter.level || 1);
 
-            // Check if subclass selection is needed
+            // Define spellcaster classes
+            const SPELLCASTER_CLASSES = ['Bard', 'Wizard', 'Cleric', 'Sorcerer', 'Warlock', 'Druid'];
+            const isSpellcaster = SPELLCASTER_CLASSES.includes(newCharacter.class);
+
+            // Check if subclass selection is needed FIRST
             if (newCharacter.tutorial_state === 'needs_subclass') {
                 console.log('[CharacterCreation] Character needs subclass selection');
 
@@ -478,8 +486,12 @@ export const CharacterCreationScreen: React.FC = () => {
                     console.error('[CharacterCreation] Failed to fetch subclasses');
                     window.location.href = '/dashboard';
                 }
+            } else if (isSpellcaster) {
+                // Spellcasters need to select starting spells
+                console.log('[CharacterCreation] Character needs spell selection');
+                setShowSpellModal(true);
             } else {
-                // No Session 0, no subclass needed - proceed to dashboard
+                // Non-spellcasters proceed directly to dashboard
                 window.location.href = '/dashboard';
             }
         } catch (error) {
@@ -492,12 +504,34 @@ export const CharacterCreationScreen: React.FC = () => {
     const handleSubclassComplete = () => {
         console.log('[CharacterCreation] Subclass selection complete');
         setShowSubclassModal(false);
-        window.location.href = '/dashboard';
+
+        // After subclass, check if spell selection is needed
+        const SPELLCASTER_CLASSES = ['Bard', 'Wizard', 'Cleric', 'Sorcerer', 'Warlock', 'Druid'];
+        const isSpellcaster = SPELLCASTER_CLASSES.includes(characterClass);
+
+        if (isSpellcaster) {
+            console.log('[CharacterCreation] Proceeding to spell selection');
+            setShowSpellModal(true);
+        } else {
+            window.location.href = '/dashboard';
+        }
     };
 
     const handleSubclassClose = () => {
         console.log('[CharacterCreation] Subclass selection cancelled');
         setShowSubclassModal(false);
+        window.location.href = '/dashboard';
+    };
+
+    const handleSpellComplete = () => {
+        console.log('[CharacterCreation] Spell selection complete');
+        setShowSpellModal(false);
+        window.location.href = '/dashboard';
+    };
+
+    const handleSpellClose = () => {
+        console.log('[CharacterCreation] Spell selection cancelled');
+        setShowSpellModal(false);
         window.location.href = '/dashboard';
     };
 
@@ -514,6 +548,38 @@ export const CharacterCreationScreen: React.FC = () => {
                     onClose={handleSubclassClose}
                 />
             )}
+
+            {/* Spell Learning Modal */}
+            {showSpellModal && createdCharacterId && (() => {
+                // Calculate starting spells for level 1 spellcasters
+                const spellsKnownConfig: Record<string, { cantrips: number; spells: number; maxLevel: number }> = {
+                    Bard: { cantrips: 2, spells: 4, maxLevel: 1 },
+                    Wizard: { cantrips: 3, spells: 6, maxLevel: 1 },
+                    Cleric: { cantrips: 3, spells: 2, maxLevel: 1 },
+                    Druid: { cantrips: 2, spells: 2, maxLevel: 1 },
+                    Sorcerer: { cantrips: 4, spells: 2, maxLevel: 1 },
+                    Warlock: { cantrips: 2, spells: 2, maxLevel: 1 },
+                };
+
+                const config = spellsKnownConfig[characterClass] || { cantrips: 0, spells: 0, maxLevel: 1 };
+
+                return (
+                    <SpellLearningModal
+                        show={showSpellModal}
+                        characterId={createdCharacterId}
+                        characterClass={characterClass}
+                        currentLevel={createdCharacterLevel}
+                        spellsKnown={[]}
+                        cantripsKnown={[]}
+                        spellsToLearn={config.spells}
+                        cantripsToLearn={config.cantrips}
+                        maxSpellLevel={config.maxLevel}
+                        canReplaceSpell={false}
+                        onComplete={handleSpellComplete}
+                        onClose={handleSpellClose}
+                    />
+                );
+            })()}
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1 lg:sticky lg:top-8 self-start">
                     <div className="bg-nuaibria-surface/50 border-2 border-nuaibria-gold/20 rounded-lg p-6 shadow-card-hover min-h-[400px] flex flex-col items-center justify-center">

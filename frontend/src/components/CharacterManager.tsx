@@ -16,6 +16,7 @@ interface Character {
   hp_max: number;
   xp: number;
   created_at: string;
+  portrait_url?: string | null;
 }
 
 interface CharacterManagerProps {
@@ -41,7 +42,7 @@ const CharacterManager = ({ currentCharacterId, onCharacterSelect }: CharacterMa
 
     const { data, error } = await supabase
       .from('characters')
-      .select('id, name, race, class, level, hp_current, hp_max, xp, created_at')
+      .select('id, name, race, class, level, hp_current, hp_max, xp, created_at, portrait_url')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -135,6 +136,23 @@ const CharacterManager = ({ currentCharacterId, onCharacterSelect }: CharacterMa
                 }`}
               >
                 <div className="flex items-start justify-between">
+                  {/* Portrait Thumbnail */}
+                  <div className="flex-shrink-0 mr-4">
+                    {char.portrait_url ? (
+                      <img
+                        src={char.portrait_url}
+                        alt={`${char.name} portrait`}
+                        className="w-20 h-20 rounded-lg object-cover border-2 border-nuaibria-gold/40"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg bg-nuaibria-surface border-2 border-nuaibria-gold/40 flex items-center justify-center">
+                        <span className="text-3xl text-nuaibria-gold/60">
+                          {char.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Character info */}
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">

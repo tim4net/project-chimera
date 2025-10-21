@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Nuaibria is a semi-idle RPG powered by an AI Dungeon Master. The project uses a hybrid AI architecture combining:
-- **Gemini Pro**: A powerful cloud-based LLM for high-stakes creative tasks (major plot points, world generation)
-- **Local LLM**: Running on project infrastructure for high-frequency routine tasks (minor descriptions, NPC chatter)
+Nuaibria is a semi-idle RPG powered by an AI Dungeon Master. The project uses an optimized AI architecture:
+- **Gemini Flash (Primary)**: Fast, cost-effective cloud LLM for all real-time player interactions (~$2-5/month for 10-50 players)
+- **Gemini Pro (Premium)**: Reserved for special moments (character onboarding, major story beats) when quality is critical
+- **Local LLM (GTX 1080)**: Used ONLY for async background tasks (quest generation, POI descriptions) where 4-8s latency is acceptable
 
-The game features dual interfaces (web application and Discord bot) and supports both solo and multiplayer gameplay within a persistent, procedurally generated world. The project implements D&D 5e mechanics adapted for semi-idle gameplay.
+The game features a conversational web interface where players chat with "The Chronicler" (AI DM) to play. The project implements D&D 5e mechanics adapted for semi-idle gameplay.
 
 ## Architecture
 
@@ -25,10 +26,13 @@ The game features dual interfaces (web application and Discord bot) and supports
 3. **Web Frontend**: Primary UI displaying procedurally generated map, character sheets, and game logs (React/Vite app)
 4. **Discord Bot**: Secondary interface for notifications, narrative updates, and quick actions (planned)
 
-### Hybrid AI System
-- **Gemini Pro**: Reserved for one-time high-impact moments (character onboarding, major story arcs, NPC persona generation)
-- **Local LLM**: Handles frequent tasks (travel narration, radiant quests, routine NPC conversations)
-- Conversation handoff protocol ensures consistency while minimizing API costs
+### AI Architecture (Updated 2025-01-20)
+- **Gemini Flash**: Handles ALL real-time chat (< 2s response time, $0.20-$1.00/month for 10-50 players)
+- **Gemini Pro**: Reserved for special moments requiring highest quality (onboarding, major story beats)
+- **Local LLM (GTX 1080)**: Background tasks only (quest templates, POI descriptions, journal summaries)
+  - Not used for real-time chat due to 4-8s latency (breaks immersion)
+- **Cost Tracking**: Built-in token usage monitoring and per-request cost calculation
+- **Prompt Caching**: In-memory cache for system prompts and character sheets to reduce redundant token usage
 
 ## Development Commands
 
@@ -146,34 +150,61 @@ podman compose build
 
 The current development focuses on the **Minimum Viable Product** with these constraints:
 - **Solo player experience only** (multiplayer postponed)
-- **CRITICAL: Conversational AI DM interface** - Players chat with The Chronicler to play
+- **✅ COMPLETE: Conversational AI DM interface** - Players chat with The Chronicler through a fully-functional chat UI
 - Core gameplay loop: Chat with DM → AI narration → Player response → State updates
-- Only Travel and Scout idle tasks implemented
-- Template-based radiant quests only (Layer 1)
+- Travel, Scout, and other idle tasks implemented
+- Radiant quest system with AI-generated quests
 - Web UI with 3-column layout: Character panel, Map, Chat with The Chronicler
-- Single Gemini Pro call for personalized onboarding
-- Local LLM for all other narration and DM responses
-- Basic XP and non-magical loot
+- Character creation with spell selection integrated
+- Gemini Flash for all real-time narration
+- Full D&D 5e mechanics (combat, skills, leveling, loot)
+- AI-powered journal entry detection
 
-**Explicitly excluded from MVP**: Multiplayer/party systems, portal system, faction/reputation, major NPCs, Discord bot, world epochs, advanced crafting.
+**Explicitly excluded from MVP**: Full multiplayer/party systems, portal system, faction/reputation, major NPCs, Discord bot, world epochs, advanced crafting.
 
-### CRITICAL MISSING FEATURE (Must Build):
-**The Dashboard currently lacks the chat interface with The Chronicler.** The main gameplay happens through natural language conversation with the AI DM, not through action buttons. The current DashboardPage.tsx has placeholder action buttons but is missing:
-1. Chat message input field
-2. Conversation history display
-3. Integration with backend LLM endpoints for DM responses
-4. Real-time message streaming
-5. Auto-generation of journal entries from significant conversation moments
+### MVP Status: Core Features Complete ✅
+The conversational chat interface is fully implemented (`frontend/src/components/ChatInterface.tsx`):
+- ✅ Chat message input field with real-time response
+- ✅ Conversation history display with message styling
+- ✅ Integration with secure backend DM endpoint (`/api/chat/dm`)
+- ✅ Action result display (dice rolls, state changes)
+- ✅ Auto-generation of journal entries from significant moments (AI-powered significance detection)
+
+## Cost Optimization Strategy
+
+### Why This Architecture is Cost-Effective
+- **Gemini Flash** is 40x cheaper than Gemini Pro per million tokens
+- **Local LLM** handles batch tasks overnight (free, but not for real-time due to GTX 1080 latency)
+- **Prompt Caching** reduces repeated context costs by 90%
+- **Cost Tracking** logs every request's token usage and cost for monitoring
+
+### Projected Costs (< $50/month budget)
+- **10 players, 50 msgs/month:** $2-3/month
+- **50 players, 50 msgs/month:** $5-8/month
+- **100 players, 50 msgs/month:** $10-15/month
+- **200 players, 50 msgs/month:** $20-30/month
+
+**Scalability:** Can support 100-200 players within $50/month budget.
 
 ## Important Files
 
 ### Documentation
 - `project.md`: Complete Architectural Decision Records (ADRs) documenting all design decisions
+  - **ADR-015**: AI-Generated POI Content (Proposed - Post-MVP)
+  - **ADR-016**: AI-Powered Journal Significance Detection (Active - Implemented)
 - `GEMINI.md`: Project overview and development conventions (lighter version)
 - `CLAUDE.md`: This file - guidance for Claude Code agents
 - `ARCHITECTURE_TASKS.md`: Complete MVP task breakdown with IDs and dependencies (763 lines)
 - `TASK_WORKFLOW.md`: 4-step TDD workflow for AI-driven development
 - `FIXES.md`: Documentation of orchestrator bug fixes
+
+### Core Services
+- `backend/src/services/narratorLLM.ts`: AI narration service (Gemini Flash for real-time)
+- `backend/src/services/gemini.ts`: Gemini API wrapper with prompt caching
+- `backend/src/services/backgroundTasks.ts`: Async batch processing using Local LLM
+- `backend/src/services/ruleEngine.ts`: D&D 5e mechanics and state management
+- `backend/src/services/intentDetector.ts`: Natural language → structured actions
+- `backend/src/routes/dmChatSecure.ts`: Main chat endpoint with cost tracking
 
 ### Scripts
 - `build_orchestrator.sh`: AI-driven build automation with Gemini integration (v16)

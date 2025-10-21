@@ -6,7 +6,10 @@
 
 import { LayoutManager } from './ui/layout.js';
 import { ApiClient } from './api/client.js';
+import { CharacterCreationWizard, type CharacterCreationData } from './ui/wizards/characterCreation.js';
+import { createCharacter, type AbilityScores, type CreateCharacterPayload } from './api/characters.js';
 import type { Character } from './types/index.js';
+import blessed from 'blessed';
 
 /**
  * CLI Arguments
@@ -14,6 +17,7 @@ import type { Character } from './types/index.js';
 interface CliArgs {
   user?: string;
   help?: boolean;
+  createCharacter?: boolean;
 }
 
 /**
@@ -28,6 +32,8 @@ function parseArgs(): CliArgs {
     if (arg === '--user' && i + 1 < argv.length) {
       args.user = argv[i + 1];
       i++;
+    } else if (arg === '--create' || arg === '-c') {
+      args.createCharacter = true;
     } else if (arg === '--help' || arg === '-h') {
       args.help = true;
     }
@@ -48,10 +54,12 @@ Usage:
 
 Options:
   --user <email>    Load characters for the specified user email
+  --create, -c      Create a new character
   --help, -h        Show this help message
 
 Examples:
   nuaibria --user player@example.com
+  nuaibria --user player@example.com --create
   nuaibria
 
 Note: Backend must be running at http://localhost:3001 (configurable via BACKEND_URL env var)
@@ -62,21 +70,22 @@ Note: Backend must be running at http://localhost:3001 (configurable via BACKEND
  * Main application class
  */
 class NuaibriaCLI {
-  private layout: LayoutManager;
+  private layout: LayoutManager | null = null;
   private api: ApiClient;
   private characterId: string | null = null;
   private userEmail: string | null = null;
+  private shouldCreateCharacter: boolean = false;
+  private accessToken: string = '';
 
-  constructor(userEmail?: string) {
+  constructor(userEmail?: string, createCharacter: boolean = false) {
     this.userEmail = userEmail || null;
+    this.shouldCreateCharacter = createCharacter;
 
     // Get backend URL from environment or use production default
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
     this.api = new ApiClient(backendUrl);
 
-    // Initialize layout with backend URL
-    this.layout = new LayoutManager(backendUrl);
-
+    // Note: Layout initialization deferred until after character creation
     // Start application
     this.start();
   }
@@ -85,10 +94,7 @@ class NuaibriaCLI {
    * Start the application
    */
   private async start(): Promise<void> {
-    // Show welcome message
-    this.layout.showWelcome();
-
-    // Check backend connection
+    // Check backend connection first
     const connected = await this.checkConnection();
     if (!connected) {
       console.error('\n❌ ERROR: Cannot connect to Nuaibria backend server');
@@ -100,11 +106,133 @@ class NuaibriaCLI {
       process.exit(1);
     }
 
+    // Handle character creation flow
+    if (this.shouldCreateCharacter) {
+      if (!this.userEmail) {
+        console.error('\n❌ ERROR: --user <email> required when creating a character');
+        process.exit(1);
+      }
+      await this.handleCharacterCreation();
+      return;
+    }
+
+    // Initialize layout now
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+    this.layout = new LayoutManager(backendUrl);
+    this.layout.showWelcome();
+
     // Load character based on user email or demo
     if (this.userEmail) {
       await this.loadUserCharacters(this.userEmail);
     } else {
       await this.loadDemoCharacter();
+    }
+  }
+
+  /**
+   * Handle character creation flow
+   */
+  private async handleCharacterCreation(): Promise<void> {
+    console.log('\n🎭 Starting Character Creation Wizard...\n');
+
+    // Create a temporary screen for the wizard
+    const screen = blessed.screen({
+      smartCSR: true,
+      title: 'Nuaibria - Character Creation',
+      fullUnicode: true,
+    });
+
+    screen.key(['escape', 'q', 'C-c'], () => {
+      screen.destroy();
+      console.log('\n❌ Character creation cancelled');
+      process.exit(0);
+    });
+
+    // Start the wizard
+    const wizard = new CharacterCreationWizard(
+      screen,
+      async (data: CharacterCreationData) => {
+        screen.destroy();
+        await this.submitNewCharacter(data);
+      },
+      () => {
+        screen.destroy();
+        console.log('\n❌ Character creation cancelled');
+        process.exit(0);
+      }
+    );
+
+    screen.render();
+  }
+
+  /**
+   * Submit newly created character to backend
+   */
+  private async submitNewCharacter(data: CharacterCreationData): Promise<void> {
+    try {
+      console.log('\n✨ Creating your character...');
+
+      // Convert wizard data to API payload
+      const abilityScores: AbilityScores = {
+        STR: data.abilityScores?.strength ?? 10,
+        DEX: data.abilityScores?.dexterity ?? 10,
+        CON: data.abilityScores?.constitution ?? 10,
+        INT: data.abilityScores?.intelligence ?? 10,
+        WIS: data.abilityScores?.wisdom ?? 10,
+        CHA: data.abilityScores?.charisma ?? 10,
+      };
+
+      const payload: CreateCharacterPayload = {
+        name: data.name || 'Unknown Hero',
+        race: data.race || 'Human',
+        class: data.class || 'Fighter',
+        background: data.background || 'Folk Hero',
+        alignment: data.alignment || 'Neutral Good',
+        abilityScores,
+      };
+
+      // TODO: Get actual access token from authentication
+      // For now, using a placeholder - this needs proper auth integration
+      const response = await createCharacter(payload, this.accessToken || 'DEMO_TOKEN');
+
+      console.log(`\n✅ ${response.name} has been created!`);
+      console.log(`   Level ${response.level} ${response.race} ${response.class}`);
+      console.log(`   HP: ${response.hp_current}/${response.hp_max}`);
+      console.log('\n🎮 Loading your character...\n');
+
+      // Now load the character into the game
+      const character: Character = {
+        id: response.id,
+        name: response.name,
+        class: response.class,
+        level: response.level,
+        hp: response.hp_current,
+        maxHp: response.hp_max,
+        xp: response.xp,
+        xpToNextLevel: 1000, // TODO: Calculate from level
+        position: response.position,
+        abilities: {
+          strength: response.ability_scores.STR,
+          dexterity: response.ability_scores.DEX,
+          constitution: response.ability_scores.CON,
+          intelligence: response.ability_scores.INT,
+          wisdom: response.ability_scores.WIS,
+          charisma: response.ability_scores.CHA,
+        },
+        skills: {}, // TODO: Parse from response
+        inventory: [], // TODO: Parse from response
+      };
+
+      // Initialize layout now that we have a character
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+      this.layout = new LayoutManager(backendUrl);
+
+      await this.loadCharacter(character);
+
+    } catch (error) {
+      console.error(`\n❌ Failed to create character: ${error instanceof Error ? error.message : error}`);
+      console.error('\nPlease try again or contact support if the issue persists.');
+      process.exit(1);
     }
   }
 
@@ -183,6 +311,11 @@ class NuaibriaCLI {
     };
 
     // Update layout with character data
+    if (!this.layout) {
+      console.error('\n❌ Layout not initialized');
+      process.exit(1);
+    }
+
     this.layout.updateGameState({
       character: fullCharacter,
       worldMap: demoMap,
@@ -251,6 +384,11 @@ class NuaibriaCLI {
     };
 
     // Update layout with demo data
+    if (!this.layout) {
+      console.error('\n❌ Layout not initialized');
+      process.exit(1);
+    }
+
     this.layout.updateGameState({
       character: demoCharacter,
       worldMap: demoMap,
@@ -310,4 +448,4 @@ if (args.help) {
   process.exit(0);
 }
 
-new NuaibriaCLI(args.user);
+new NuaibriaCLI(args.user, args.createCharacter);

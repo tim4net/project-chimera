@@ -5,12 +5,11 @@ import { supabase } from '../lib/supabase';
 import ChatInterface, { type ChatInterfaceRef } from '../components/ChatInterface';
 import QuestPanel from '../components/QuestPanel';
 import TensionBadge from '../components/TensionBadge';
+import IdleTaskPanel from '../components/IdleTaskPanel';
+import PartyPanel from '../components/PartyPanel';
+import StrategicMap from '../components/StrategicMap';
+import TownApproachingLoader from '../components/TownApproachingLoader';
 import type { DmApiResponse } from '../types';
-import { PhaserBridgeProvider, usePhaserBridge } from '../contexts/PhaserBridgeProvider';
-import ZoomableGameCanvas from '../components/ZoomableGameCanvas';
-import FullscreenMap from '../components/FullscreenMap';
-import { HybridWorldGenerator } from '../game/generation/HybridWorldGenerator';
-import { convertProcGenToZone } from '../utils/mapConverters';
 
 type CharacterRecord = {
   id: string;
@@ -117,53 +116,37 @@ const DashboardPageInner = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const chatRef = useRef<ChatInterfaceRef>(null);
-  const { emitToPhaser, onPhaserEvent } = usePhaserBridge();
 
   const [character, setCharacter] = useState<CharacterRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [mapData, setMapData] = useState<MapData | null>(null);
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
+  const [travelDestination, setTravelDestination] = useState<{ x: number; y: number } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   // Keep journal entries state for future journal modal/panel feature
 
-  // Generate procedural zone based on character position
-  const currentZone = useMemo(() => {
-    if (!character) return null;
+  // Define fetchJournalEntries first (before useEffect)
+  const fetchJournalEntries = useCallback(async (characterId: string): Promise<void> => {
+    try {
+      const { data, error: journalError } = await supabase
+        .from('journal_entries')
+        .select('*')
+        .eq('character_id', characterId)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-    const seed = character.campaign_seed
-      ? parseInt(character.campaign_seed.split('-').pop() || '12345', 10)
-      : 12345;
+      if (journalError) throw journalError;
+      const normalizedEntries = (data ?? [])
+        .map((entry) => normalizeJournalEntry(entry))
+        .filter((entry): entry is JournalEntry => entry !== null);
+      setJournalEntries(normalizedEntries);
+    } catch (err) {
+      console.error('Error fetching journal:', err);
+    }
+  }, []);
 
-    // Generate rich world with villages, paths, and POIs
-    const generator = new HybridWorldGenerator({
-      width: 100,
-      height: 80,
-      seed,
-      clearingRadius: 12,
-      caveCountRange: [2, 4],
-    });
-    const map = generator.generate();
-    return convertProcGenToZone(map, 'wilderness-start', 'The Wandering Lands');
-  }, [character]);
-
-  // Listen for player movement from Phaser
-  useEffect(() => {
-    const unsubscribe = onPhaserEvent('player/moved', ({ position }) => {
-      setCharacter(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          position_x: Math.floor(position.x / 16),
-          position_y: Math.floor(position.y / 16),
-        };
-      });
-    });
-    return unsubscribe;
-  }, [onPhaserEvent]);
-
-  // Fetch character data
+  // Fetch character data on mount
   useEffect(() => {
     const fetchCharacter = async (): Promise<void> => {
       // ProtectedRoute already handles auth redirect, just wait for user
@@ -196,11 +179,6 @@ const DashboardPageInner = () => {
         }
         setCharacter(typedCharacter);
 
-        // Fetch map data around character position
-        if (typedCharacter.campaign_seed) {
-          void fetchMapData(typedCharacter.position_x, typedCharacter.position_y, typedCharacter.campaign_seed);
-        }
-
         // Fetch journal entries
         void fetchJournalEntries(typedCharacter.id);
       } catch (err) {
@@ -213,42 +191,7 @@ const DashboardPageInner = () => {
     };
 
     fetchCharacter();
-  }, [user, navigate]);
-
-  const fetchMapData = async (x: number, y: number, seed: string): Promise<void> => {
-    try {
-      // Use relative URL - Vite proxy will forward to backend
-      const response = await fetch(
-        `/api/world/${seed}/map?x=${x}&y=${y}&radius=5`
-      );
-      if (!response.ok) {
-        throw new Error(`Map request failed with status ${response.status}`);
-      }
-      const data = (await response.json()) as MapData;
-      setMapData(data);
-    } catch (err) {
-      console.error('Error fetching map:', err);
-    }
-  };
-
-  const fetchJournalEntries = useCallback(async (characterId: string): Promise<void> => {
-    try {
-      const { data, error: journalError } = await supabase
-        .from('journal_entries')
-        .select('*')
-        .eq('character_id', characterId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (journalError) throw journalError;
-      const normalizedEntries = (data ?? [])
-        .map((entry) => normalizeJournalEntry(entry))
-        .filter((entry): entry is JournalEntry => entry !== null);
-      setJournalEntries(normalizedEntries);
-    } catch (err) {
-      console.error('Error fetching journal:', err);
-    }
-  }, []);
+  }, [user, navigate, fetchJournalEntries]);
 
   const handleLogout = async () => {
     const { error: signOutError } = await signOut();
@@ -291,11 +234,7 @@ const DashboardPageInner = () => {
         }
       });
 
-      // Refetch map if position changed
-      if (newPosition && prev.campaign_seed) {
-        void fetchMapData(newPosition.x, newPosition.y, prev.campaign_seed);
-      }
-
+      // Strategic map will auto-refresh via props change
       return { ...prev, ...updates };
     });
   };
@@ -307,12 +246,10 @@ const DashboardPageInner = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-amber-500 mx-auto mb-4"></div>
-          <p className="text-amber-100 text-xl">Loading your adventure...</p>
-        </div>
-      </div>
+      <TownApproachingLoader
+        characterName={character?.name || 'Adventurer'}
+        townName={character?.campaign_seed ? 'the Unknown Town' : undefined}
+      />
     );
   }
 
@@ -429,47 +366,16 @@ const DashboardPageInner = () => {
             {/* Active Quests */}
             <QuestPanel characterId={character.id} />
 
-            {/* Idle Tasks Card */}
-            <div className="bg-nuaibria-surface border-2 border-nuaibria-arcane/20 rounded-lg shadow-card-hover overflow-hidden hover:border-nuaibria-arcane/40 transition-all">
-              <div className="bg-gradient-to-r from-nuaibria-arcane/20 via-nuaibria-poison/10 to-nuaibria-arcane/20 px-6 py-4 border-b border-nuaibria-border">
-                <h2 className="text-xl font-display font-bold text-nuaibria-arcane">Actions</h2>
-              </div>
-              <div className="p-6 space-y-3">
-                {character.idle_task ? (
-                  <div className="bg-nuaibria-elevated rounded-lg p-4 border border-nuaibria-gold/20 shadow-inner-dark">
-                    <p className="text-nuaibria-gold font-semibold mb-2 font-display">Current Task</p>
-                    <p className="text-nuaibria-text-primary text-sm leading-relaxed">{character.idle_task}</p>
-                    <p className="text-nuaibria-text-muted text-xs mt-3 font-mono">
-                      Started:{' '}
-                      {character.idle_task_started_at
-                        ? new Date(character.idle_task_started_at).toLocaleTimeString()
-                        : 'Unknown'}
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => handleQuickAction("I want to travel and explore the area.")}
-                      className="w-full bg-gradient-to-r from-nuaibria-poison to-nuaibria-poison/80 hover:from-nuaibria-poison/90 hover:to-nuaibria-poison/70 text-white font-semibold py-3 px-4 rounded-lg transition-all hover:shadow-glow hover:-translate-y-0.5"
-                    >
-                      Travel
-                    </button>
-                    <button
-                      onClick={() => handleQuickAction("I want to scout the surrounding area for points of interest.")}
-                      className="w-full bg-gradient-to-r from-nuaibria-mana to-nuaibria-ice hover:from-nuaibria-mana/90 hover:to-nuaibria-ice/90 text-white font-semibold py-3 px-4 rounded-lg transition-all hover:shadow-glow hover:-translate-y-0.5"
-                    >
-                      Scout Area
-                    </button>
-                    <button
-                      onClick={() => handleQuickAction("I want to rest and recover my health.")}
-                      className="w-full bg-gradient-to-r from-nuaibria-arcane to-nuaibria-arcane/80 hover:from-nuaibria-arcane/90 hover:to-nuaibria-arcane/70 text-white font-semibold py-3 px-4 rounded-lg transition-all hover:shadow-glow hover:-translate-y-0.5"
-                    >
-                      Rest
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
+            {/* Party System - Multiplayer */}
+            <PartyPanel characterId={character.id} />
+
+            {/* Idle Tasks Card - Background tasks while AFK */}
+            <IdleTaskPanel
+              characterId={character.id}
+              onTaskComplete={() => window.location.reload()}
+              currentPosition={{ x: character.position_x, y: character.position_y }}
+              travelDestination={travelDestination}
+            />
           </div>
 
           {/* Center Column - Chat with The Chronicler (PRIMARY INTERFACE) */}
@@ -482,11 +388,11 @@ const DashboardPageInner = () => {
             />
           </div>
 
-          {/* Right Column - Minimap (Expandable) */}
+          {/* Right Column - Strategic World Map */}
           <div className="lg:col-span-3">
             <div className="bg-nuaibria-surface border-2 border-nuaibria-ember/20 rounded-lg shadow-card-hover overflow-hidden hover:border-nuaibria-ember/40 transition-all">
               <div className="bg-gradient-to-r from-nuaibria-ember/20 via-nuaibria-gold/10 to-nuaibria-ember/20 px-4 py-3 border-b border-nuaibria-border flex items-center justify-between">
-                <h2 className="text-lg font-display font-bold text-nuaibria-ember">Map</h2>
+                <h2 className="text-lg font-display font-bold text-nuaibria-ember">World Map</h2>
                 <button
                   onClick={() => setIsFullscreenMap(true)}
                   className="px-3 py-1 bg-nuaibria-gold/20 hover:bg-nuaibria-gold/30 text-nuaibria-gold text-xs font-semibold rounded transition-colors"
@@ -495,17 +401,18 @@ const DashboardPageInner = () => {
                   ⊞ Expand
                 </button>
               </div>
-              <div className="p-2" style={{ height: '300px' }}>
-                {currentZone && !isFullscreenMap ? (
-                  <ZoomableGameCanvas
-                    key={currentZone.id}
-                    initialZone={currentZone}
-                    onFullscreenToggle={setIsFullscreenMap}
+              <div className="p-0" style={{ height: '400px' }}>
+                {character?.campaign_seed && !isFullscreenMap ? (
+                  <StrategicMap
+                    characterId={character.id}
+                    campaignSeed={character.campaign_seed}
+                    isFullscreen={false}
+                    onTileClick={setTravelDestination}
                   />
                 ) : (
                   <div className="bg-gray-900 rounded p-4 text-center h-full flex items-center justify-center">
                     <p className="text-gray-500 text-sm">
-                      {isFullscreenMap ? 'Map expanded' : 'Loading...'}
+                      {isFullscreenMap ? 'Map expanded' : 'Loading world map...'}
                     </p>
                   </div>
                 )}
@@ -516,21 +423,29 @@ const DashboardPageInner = () => {
       </div>
 
       {/* Fullscreen Map Modal */}
-      <FullscreenMap
-        zone={currentZone}
-        isOpen={isFullscreenMap}
-        onClose={() => setIsFullscreenMap(false)}
-      />
+      {isFullscreenMap && character?.campaign_seed && (
+        <div className="fixed inset-0 z-50 bg-black/95">
+          {/* Close button */}
+          <button
+            onClick={() => setIsFullscreenMap(false)}
+            className="absolute top-4 right-4 z-[60] px-6 py-3 bg-nuaibria-gold hover:bg-nuaibria-gold/80 text-black font-bold rounded-lg shadow-lg transition-colors text-lg"
+          >
+            ✕ Close Map
+          </button>
+
+          {/* Fullscreen map */}
+          <div className="w-full h-full">
+            <StrategicMap
+              characterId={character.id}
+              campaignSeed={character.campaign_seed}
+              isFullscreen={true}
+              onTileClick={setTravelDestination}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-const DashboardPage = () => {
-  return (
-    <PhaserBridgeProvider>
-      <DashboardPageInner />
-    </PhaserBridgeProvider>
-  );
-};
-
-export default DashboardPage;
+export default DashboardPageInner;

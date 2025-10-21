@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import { GoogleGenerativeAI, type GenerativeModel, type CachedContent } from '@google/generative-ai';
 import type { CharacterRecord } from '../types';
 import type { ChatMessage, ParsedDmResponse } from '../types/chat';
 
@@ -311,9 +311,137 @@ export async function getDmResponse(
   }
 }
 
+// ============================================================================
+// PROMPT CACHING (Cost Optimization - 90% savings on repeated content)
+// ============================================================================
+
+/**
+ * Cache system prompt and static context to reduce costs
+ * Cached content can be reused across requests for up to 1 hour
+ * Reduces input token costs by ~90% for repeated context
+ *
+ * NOTE: As of 2025-01, Gemini caching API may be in preview.
+ * This is a placeholder implementation for future use.
+ */
+
+interface CacheKey {
+  type: 'system_prompt' | 'character_sheet' | 'world_context';
+  identifier: string;
+}
+
+const cacheStore: Map<string, { content: string; timestamp: number }> = new Map();
+const CACHE_TTL = 3600000; // 1 hour
+const MAX_CACHE_SIZE = 1000; // Maximum number of cached entries
+
+/**
+ * Create or retrieve cached prompt content
+ * This is a simplified implementation - actual Gemini caching uses cachedContent API
+ */
+export async function createCachedPrompt(
+  key: CacheKey,
+  content: string
+): Promise<string> {
+  const cacheId = `${key.type}:${key.identifier}`;
+  const now = Date.now();
+
+  // Check if cache exists and is valid
+  const cached = cacheStore.get(cacheId);
+  if (cached && (now - cached.timestamp) < CACHE_TTL) {
+    console.log(`[Gemini Cache] HIT: ${cacheId}`);
+    return cacheId;
+  }
+
+  // Store new cache
+  cacheStore.set(cacheId, { content, timestamp: now });
+  console.log(`[Gemini Cache] MISS: ${cacheId} - created new cache`);
+
+  // Enforce cache size limit using LRU (Least Recently Used) eviction
+  // Maps iterate in insertion order, so oldest entries are first
+  if (cacheStore.size > MAX_CACHE_SIZE) {
+    const oldestKey = cacheStore.keys().next().value;
+    if (oldestKey) {
+      cacheStore.delete(oldestKey);
+      console.log(`[Gemini Cache] EVICT: ${oldestKey} (cache size limit reached)`);
+    }
+  }
+
+  return cacheId;
+}
+
+/**
+ * Generate content using cached prompts
+ * Combines cached content with new user input
+ */
+export async function generateWithCache(
+  cacheIds: string[],
+  userPrompt: string,
+  options: { temperature?: number; maxTokens?: number; modelType?: GeminiModelType } = {}
+): Promise<string> {
+  // Retrieve cached content
+  const cachedContents = cacheIds
+    .map(id => cacheStore.get(id))
+    .filter((c): c is { content: string; timestamp: number } => c !== undefined)
+    .map(c => c.content);
+
+  if (cachedContents.length !== cacheIds.length) {
+    console.warn('[Gemini Cache] Some cached content was not found, regenerating...');
+  }
+
+  // Combine cached content with user prompt
+  const fullPrompt = [...cachedContents, userPrompt].join('\n\n');
+
+  // Use standard generateText function
+  // In future, this would use Gemini's cachedContent API for actual token savings
+  return await generateText(fullPrompt, options);
+}
+
+/**
+ * Clean up expired cache entries
+ */
+export function cleanExpiredCache(): void {
+  const now = Date.now();
+  let cleaned = 0;
+
+  for (const [key, value] of cacheStore.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      cacheStore.delete(key);
+      cleaned++;
+    }
+  }
+
+  if (cleaned > 0) {
+    console.log(`[Gemini Cache] Cleaned ${cleaned} expired entries`);
+  }
+}
+
+// Cache cleanup interval management (lifecycle-safe)
+let cacheCleanupInterval: NodeJS.Timeout | null = null;
+
+export function startCacheCleaner(): void {
+  if (cacheCleanupInterval) {
+    console.log('[Gemini Cache] Cleaner already running, skipping...');
+    return;
+  }
+  console.log('[Gemini Cache] Starting cache cleanup interval (every 10 minutes)');
+  cacheCleanupInterval = setInterval(cleanExpiredCache, 600000);
+}
+
+export function stopCacheCleaner(): void {
+  if (cacheCleanupInterval) {
+    clearInterval(cacheCleanupInterval);
+    cacheCleanupInterval = null;
+    console.log('[Gemini Cache] Stopped cache cleanup interval');
+  }
+}
+
 export default {
   generateOnboardingScene,
   generateText,
   generateImage,
-  getDmResponse
+  getDmResponse,
+  createCachedPrompt,
+  generateWithCache,
+  cleanExpiredCache,
+  startCacheCleaner,
+  stopCacheCleaner
 };

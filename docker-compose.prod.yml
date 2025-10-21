@@ -21,14 +21,48 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - "3001:3001"
+    volumes:
+      # Volume mount disabled - using Docker image for source files
+      # Re-enable for development: - ./backend/src:/usr/src/app/src:rw,Z
+      - ./.git:/srv/project-chimera/.git:rw,Z  # Mount git for auto-commits (Z flag for SELinux)
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - DATABASE_URL=${DATABASE_URL}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LOCAL_LLM_ENDPOINT=${LOCAL_LLM_ENDPOINT}
       - PORT=${PORT:-3001}
+      - NODE_ENV=production
+      - SELF_HEALING_PROJECT_ROOT=/srv/project-chimera
+    env_file:
+      - ./.env
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./backend/src:/usr/src/app/src:rw,Z
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - LOCAL_LLM_ENDPOINT=${LOCAL_LLM_ENDPOINT}
+      - WORKER_INTERVAL_MINUTES=${WORKER_INTERVAL_MINUTES:-60}
+      - WORKER_PORT=3002
       - NODE_ENV=production
     env_file:
       - ./.env
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+      start_period: 30s

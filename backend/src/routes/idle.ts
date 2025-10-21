@@ -1,73 +1,150 @@
 import { Router, type Request, type Response } from 'express';
+import { requireAuth, type AuthenticatedRequest } from '../middleware/auth';
 import { supabaseServiceClient } from '../services/supabaseClient';
-
-interface IdleTaskRecord {
-  idle_task: string | null;
-  idle_task_started_at: string | null;
-}
+import {
+  startIdleTask,
+  checkIdleTaskStatus,
+  resolveIdleTask,
+  type IdleTaskType
+} from '../services/idleTaskService';
 
 const router = Router();
 
-router.post('/:id/idle-task', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { task } = req.body as { task?: string };
+// POST /api/idle/:id/start - Start an idle task
+router.post(
+  '/:id/start',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authenticatedReq = req as AuthenticatedRequest;
+    const { id: characterId } = req.params;
+    const { taskType, parameters } = req.body as {
+      taskType?: IdleTaskType;
+      parameters?: Record<string, any>;
+    };
 
-  if (!task) {
-    return res.status(400).json({ error: 'Task is required' });
+    // Verify ownership
+    const { data: character } = await supabaseServiceClient
+      .from('characters')
+      .select('id')
+      .eq('id', characterId)
+      .eq('user_id', authenticatedReq.user.id)
+      .single();
+
+    if (!character) {
+      res.status(404).json({ error: 'Character not found' });
+      return;
+    }
+
+    if (!taskType) {
+      res.status(400).json({ error: 'Task type is required' });
+      return;
+    }
+
+    const result = await startIdleTask(characterId, taskType, parameters);
+
+    if (!result.success) {
+      res.status(400).json({ error: result.message });
+      return;
+    }
+
+    res.json(result);
   }
+);
 
-  const { data, error } = await supabaseServiceClient
-    .from('characters')
-    .update({
-      idle_task: task,
-      idle_task_started_at: new Date().toISOString()
-    })
-    .eq('id', id)
-    .select('idle_task, idle_task_started_at');
+// GET /api/idle/:id/status - Check idle task status
+router.get(
+  '/:id/status',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authenticatedReq = req as AuthenticatedRequest;
+    const { id: characterId } = req.params;
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
+    // Verify ownership
+    const { data: character } = await supabaseServiceClient
+      .from('characters')
+      .select('id')
+      .eq('id', characterId)
+      .eq('user_id', authenticatedReq.user.id)
+      .single();
+
+    if (!character) {
+      res.status(404).json({ error: 'Character not found' });
+      return;
+    }
+
+    const status = await checkIdleTaskStatus(characterId);
+    res.json(status);
   }
+);
 
-  res.json(data as IdleTaskRecord[]);
-});
+// POST /api/idle/:id/resolve - Complete an idle task
+router.post(
+  '/:id/resolve',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authenticatedReq = req as AuthenticatedRequest;
+    const { id: characterId } = req.params;
 
-router.get('/:id/idle-task/status', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { data, error } = await supabaseServiceClient
-    .from('characters')
-    .select('idle_task, idle_task_started_at')
-    .eq('id', id)
-    .single();
+    // Verify ownership
+    const { data: character } = await supabaseServiceClient
+      .from('characters')
+      .select('id')
+      .eq('id', characterId)
+      .eq('user_id', authenticatedReq.user.id)
+      .single();
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
+    if (!character) {
+      res.status(404).json({ error: 'Character not found' });
+      return;
+    }
+
+    const result = await resolveIdleTask(characterId);
+
+    if ('error' in result) {
+      res.status(400).json(result);
+      return;
+    }
+
+    res.json(result);
   }
+);
 
-  if (!data) {
-    return res.status(404).json({ error: 'Character not found' });
+// POST /api/idle/:id/cancel - Cancel an idle task
+router.post(
+  '/:id/cancel',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authenticatedReq = req as AuthenticatedRequest;
+    const { id: characterId } = req.params;
+
+    // Verify ownership
+    const { data: character } = await supabaseServiceClient
+      .from('characters')
+      .select('id')
+      .eq('id', characterId)
+      .eq('user_id', authenticatedReq.user.id)
+      .single();
+
+    if (!character) {
+      res.status(404).json({ error: 'Character not found' });
+      return;
+    }
+
+    const { error } = await supabaseServiceClient
+      .from('characters')
+      .update({
+        idle_task: null,
+        idle_task_started_at: null,
+      })
+      .eq('id', characterId);
+
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+
+    res.json({ success: true, message: 'Idle task cancelled' });
   }
-
-  res.json(data as IdleTaskRecord);
-});
-
-router.post('/:id/idle-task/resolve', async (req: Request, res: Response) => {
-  const { id } = req.params;
-
-  const { data, error } = await supabaseServiceClient
-    .from('characters')
-    .update({
-      idle_task: null,
-      idle_task_started_at: null
-    })
-    .eq('id', id)
-    .select('idle_task, idle_task_started_at');
-
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
-
-  res.json(data as IdleTaskRecord[]);
-});
+);
 
 export default router;

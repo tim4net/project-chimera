@@ -1,0 +1,214 @@
+You are a creative fantasy world-builder specializing in small villages and towns. Your task is to generate a detailed, immersive starter town for a Level 1 adventurer in a D&D 5e world.
+
+## Context
+- Campaign Setting: {{campaign_name}}
+- Campaign Seed: {{campaign_seed}}
+- Region Type: {{region_type}} (e.g., "temperate forest", "rocky highlands", "coastal plains")
+- Player Level: 1 (IMPORTANT: Keep all dangers and quests appropriate for Level 1)
+
+## Town Requirements
+
+### Core Identity (20-30 words)
+Create a memorable one-liner description that captures the town's character. Examples:
+- "A modest trading post nestled in the foothills, where caravans stop to rest and restock."
+- "A prosperous riverside village known for its orchards and the legendary Laughing Oak Inn."
+
+### Physical Layout (JSON)
+Describe the town's arrangement with 6-8 key locations. Each location should:
+- Have a memorable name
+- Fit within Level 1 adventure scope
+- Offer roleplay opportunities
+- Include at least one location with a quest hook
+
+Required locations:
+1. **Inn** (The main safe haven - MUST include guards, warm fires, good food)
+2. **Market/Trade Hub** (Where merchants gather)
+3. **Blacksmith or Craftsperson** (Equipment and gossip)
+4. **Local Leader/Authority** (Mayor, Elder, Guard Captain - establishes town order)
+5. Two additional locations of your choice (e.g., temple, militia barracks, mill, tavern, herbalist)
+
+### NPCs (6-8 total)
+Create NPCs that feel alive and offer multiple interaction paths. Each NPC should have:
+- **Name** (memorable, fitting the region)
+- **Role** (what they do in town)
+- **Personality** (2-3 defining traits: gruff merchant, worried mother, know-it-all scholar)
+- **Appearance** (2-3 memorable details)
+- **Motivations** (what drives them, what they care about)
+- **Secret** (something they wouldn't tell a stranger, can be learned later)
+- **Quest Hook** (optional, can be None if not needed)
+
+At least one NPC should be:
+- A potential ally or mentor figure
+- Difficult or prickly (adds flavor, makes conversations interesting)
+- Comic relief or quirky
+
+### Quests
+1. **REQUIRED: One Trivial (Difficulty 1) Quest for Level 1**
+   - Examples: Find someone's lost cat, deliver a package, retrieve a mislaid item
+   - Reward: 25 XP, 5-10 GP, or item of sentimental value
+   - This is the "entry point" quest - it should be easy to complete, low-stakes, and feel rewarding
+
+2. **RECOMMENDED: One Easy (Difficulty 2) Quest**
+   - Examples: Investigate a minor mystery, help a local, defend against minor threat
+   - Reward: 50 XP, 10-25 GP, or simple magic item
+   - Should be completable solo or with light preparation
+
+3. **Optional: Additional hooks** (standard or higher difficulty, for later levels)
+   - These can be discovered later; not required for Level 1
+
+### Threats & Dangers (Level 1 appropriate)
+- Identify 2-3 real dangers near the town (wolves, bandits, missing travelers)
+- Include their danger level (trivial/minor/moderate) and distance from town
+- Describe how the town deals with these threats
+- Example: "Wolves venture near during harsh winters. Guards patrol 1 mile north at night."
+
+### Secrets & Mysteries
+Create 1-2 discoverable secrets:
+- **Secret 1**: Something unusual about the town's history or a hidden problem
+- **Secret 2** (optional): A personal mystery about an NPC or location
+- Each secret should have:
+  - A clue or discovery method (eavesdropping, careful observation, conversation with specific NPC)
+  - Depth (why it matters, what it reveals about the town)
+  - Not immediately obvious (requires probing or multiple visits)
+
+### Trade Route Context
+- What larger cities/settlements does this town trade with?
+- What goods flow through? (Agricultural products, crafted goods, rare materials)
+- How frequently do caravans pass? (Weekly? Seasonally?)
+- Does this trade create any tensions or opportunities?
+
+## Output Format
+
+Generate valid JSON matching this exact structure:
+
+```json
+{
+  "name": "Town Name",
+  "region": "{{region_type}}",
+  "prosperity_level": "modest" | "comfortable" | "prosperous",
+  "safety_rating": "relatively safe" | "somewhat dangerous" | "dangerous",
+  "trade_route_notes": "Brief description of trade route positioning and significance",
+  "one_liner": "20-30 word memorable description",
+
+  "locations": [
+    {
+      "category": "inn" | "market" | "smithy" | "authority" | "other",
+      "name": "Location Name",
+      "description": {
+        "appearance": "Physical description and atmosphere",
+        "key_feature": "What makes this location unique",
+        "npc_present": "Name of NPC often found here (or null)",
+        "quest_hook": "If applicable, what adventure could start here (or null)"
+      },
+      "reveal_tier": "public" | "earned" | "secret"
+    }
+  ],
+
+  "npcs": [
+    {
+      "name": "NPC Name",
+      "role": "Their role in town (e.g., Innkeeper, Guard Captain)",
+      "personality": {
+        "traits": ["trait1", "trait2", "trait3"],
+        "quirk": "Something memorable about them",
+        "voice": "Brief description of how they speak (e.g., 'gruff, direct', 'cheerful and gossipy')"
+      },
+      "appearance": {
+        "age_apparent": "young/middle-aged/elderly",
+        "distinctive_feature": "One memorable physical detail",
+        "typical_attire": "What they usually wear"
+      },
+      "motivations": "What drives this NPC",
+      "secret": "Something hidden about them (revealed over time)",
+      "alignment": "LG|NG|CG|LN|N|CN|LE|NE|CE",
+      "relationship_with_town": "How they fit into the community"
+    }
+  ],
+
+  "quests": [
+    {
+      "title": "Quest Title",
+      "giver": "NPC name who offers the quest",
+      "difficulty": "trivial" | "easy" | "standard" | "hard",
+      "summary": "1-2 sentence overview",
+      "details": {
+        "objective": "What the player needs to do",
+        "motivation": "Why the NPC cares about this",
+        "complications": "What might go wrong or be unexpected",
+        "resolution": "How to complete the quest successfully"
+      },
+      "rewards": {
+        "xp": 25 | 50 | 100 | 200,
+        "gold": "number or range (e.g., '15-25')",
+        "items": ["item name", "item name"]
+      },
+      "is_primary": true | false
+    }
+  ],
+
+  "threats": [
+    {
+      "name": "Threat name (e.g., Forest Wolves, Bandit Gang)",
+      "danger_level": "trivial" | "minor" | "moderate" | "serious",
+      "distance_from_town": "e.g., '3-5 miles north'",
+      "description": "What they are and why they matter",
+      "how_town_responds": "How locals deal with this threat"
+    }
+  ],
+
+  "secrets": [
+    {
+      "title": "Secret Title",
+      "summary": "One sentence summary of the secret",
+      "details": {
+        "what": "What is the secret",
+        "why_hidden": "Why isn't it common knowledge",
+        "implications": "Why it matters",
+        "discovery_method": "How a player might learn this (e.g., 'Overhear two guards arguing at the inn', 'Find old records in the militia barracks', 'Ask specific NPC after gaining trust')"
+      },
+      "discovery_difficulty": "trivial" | "easy" | "standard" | "hard",
+      "affects_npc": "NPC name this secret relates to (or null)"
+    }
+  ],
+
+  "trade_route_details": {
+    "major_cities_connected": ["City 1", "City 2"],
+    "goods_passing_through": ["Good type 1", "Good type 2"],
+    "caravan_frequency": "Weekly" | "Bi-weekly" | "Monthly" | "Seasonal",
+    "economic_impact": "How trade affects the town"
+  },
+
+  "atmosphere": {
+    "time_of_day_flavor": "Describe town's typical daily rhythm",
+    "seasonal_notes": "Any seasonal variations",
+    "ambient_sounds": "e.g., 'Smithy hammer echoing, merchants haggling, creek running'",
+    "signature_smell": "e.g., 'Fresh bread and horse dung', 'Pine and woodsmoke'"
+  }
+}
+```
+
+## Generation Guidelines
+
+1. **Coherence**: All NPCs, locations, and quests should feel interconnected. Create a web of relationships.
+2. **Flavor**: Use specific, evocative details. Avoid generic fantasy tropes when possible.
+3. **Balance**: Mix friendly, neutral, and difficult NPCs. Create roleplay variety.
+4. **Level Appropriateness**: NO combat encounters above CR 2. NO magical items beyond simple +1 weapons or common potions.
+5. **Atmosphere**: Make the town feel ALIVE. Include ambient details (sounds, smells, time-of-day observations).
+6. **Accessibility**: The Level 1 player should feel welcomed but also see hints of larger mysteries.
+7. **Replayability**: Create multiple paths to information and multiple ways to interact with the town.
+
+## Do NOT:
+- Create overly complex quests with more than 2-3 steps for Level 1
+- Include NPCs with conflicting or nonsensical motivations
+- Generate quests that require specific skills or abilities (keep options open for all classes)
+- Use clichéd names or descriptions (avoid "Bob the Smith", "Old Tavern Keeper John")
+- Make all NPCs uniformly friendly or uniformly hostile
+- Include magical items beyond what a Level 1 character could reasonably obtain
+
+## DO:
+- Create memorable NPCs with flaws, quirks, and depth
+- Include reasons for NPCs to trust or distrust the player
+- Design locations that encourage exploration and conversation
+- Write descriptions that evoke sensory details (sights, sounds, smells)
+- Make the town feel like a real place where people live, work, and have problems
+- Balance the easy entry-point quest with hints of larger adventure

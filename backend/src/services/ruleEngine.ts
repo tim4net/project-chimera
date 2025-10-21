@@ -40,6 +40,7 @@ import {
   isSpellcaster,
 } from './spellValidator';
 import { executeSkipInterview, executeContinueInterview, executeEnterWorld } from './interviewExecutors';
+import { executeReviewDMResponse } from './reviewExecutor';
 
 const RULE_ENGINE_VERSION = '1.0.0';
 
@@ -844,6 +845,9 @@ export async function executeAction(
 
     case 'ENTER_WORLD':
       return executeEnterWorld(action, character);
+
+    case 'REVIEW_DM_RESPONSE':
+      return executeReviewDMResponse(action, character);
 
     // TODO: Implement remaining action types (CAST_SPELL, RANGED_ATTACK, etc.)
     default:

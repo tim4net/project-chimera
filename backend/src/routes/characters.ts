@@ -5,6 +5,7 @@ import { getStartingEquipment, getStartingGold } from '../game/equipment';
 import { generateOnboardingScene } from '../services/gemini';
 import { generateImage } from '../services/imageGeneration';
 import { buildCharacterPortraitPrompt } from '../services/characterPortraitPrompts';
+import { TownGenerationService } from '../services/townGenerationService';
 import { supabaseServiceClient } from '../services/supabaseClient';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth';
 import type { AbilityScores, CharacterRecord, NewCharacterRecord, TutorialState } from '../types';
@@ -35,6 +36,9 @@ interface CharacterCreationBody {
 
 const router = Router();
 
+// Global campaign seed - all players share this world
+const GLOBAL_CAMPAIGN_SEED = 'nuaibria-shared-world-v1';
+
 // Spellcaster class detection
 const SPELLCASTING_CLASSES = ['Bard', 'Wizard', 'Cleric', 'Sorcerer', 'Warlock', 'Druid'];
 const HALF_CASTERS = ['Paladin', 'Ranger']; // Get spells at level 2
@@ -45,6 +49,35 @@ const handleSupabaseError = (res: Response, error: AuthError | null | undefined,
   }
 
   return res.status(status).json({ error: error.message });
+};
+
+/**
+ * Verify character ownership - ensures authenticated user owns the character
+ * Returns true if ownership is verified, false otherwise
+ * Also handles response error sending
+ */
+const verifyCharacterOwnership = async (
+  characterId: string,
+  userId: string,
+  res: Response
+): Promise<boolean> => {
+  const { data: character, error } = await supabaseServiceClient
+    .from('characters')
+    .select('user_id')
+    .eq('id', characterId)
+    .single();
+
+  if (error || !character) {
+    res.status(404).json({ error: 'Character not found' });
+    return false;
+  }
+
+  if (character.user_id !== userId) {
+    res.status(403).json({ error: 'Forbidden: You do not own this character' });
+    return false;
+  }
+
+  return true;
 };
 
 /**
@@ -122,10 +155,17 @@ const generateWelcomeMessage = (
   return `Greetings, ${name}, brave ${race} ${characterClass}. I am The Chronicler, keeper of tales and witness to your journey. ${selectedLore} ${selectedEvent} ${backgroundText} You stand at coordinates (${position.x}, ${position.y})—a threshold between the known and the unknown. What path will you choose, adventurer?`;
 };
 
-router.get('/', async (_req: Request, res: Response) => {
+/**
+ * GET /api/characters
+ * List characters for the authenticated user only
+ */
+router.get('/', requireAuth, async (req: Request, res: Response) => {
+  const userId = (req as AuthenticatedRequest).user.id;
+
   const { data, error } = await supabaseServiceClient
     .from('characters')
-    .select('*');
+    .select('*')
+    .eq('user_id', userId);
 
   if (error) {
     return res.status(500).json({ error: error.message });
@@ -134,33 +174,28 @@ router.get('/', async (_req: Request, res: Response) => {
   res.json(data as CharacterRecord[]);
 });
 
-// Get characters by user email (for CLI --user flag)
-router.get('/user/:email', async (req: Request, res: Response) => {
+/**
+ * GET /api/characters/user/:email
+ * Get characters by user email - restricted to authenticated user's own email only
+ */
+router.get('/user/:email', requireAuth, async (req: Request, res: Response) => {
   const { email } = req.params;
+  const authenticatedUser = (req as AuthenticatedRequest).user;
 
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
 
+  // SECURITY: Only allow users to query their own email
+  if (authenticatedUser.email !== email) {
+    return res.status(403).json({ error: 'Forbidden: You can only view your own characters' });
+  }
+
   try {
-    // First, get the user ID from the email
-    const { data: userData, error: userError } = await supabaseServiceClient.auth.admin.listUsers();
-
-    if (userError) {
-      return res.status(500).json({ error: userError.message });
-    }
-
-    const user = userData.users.find(u => u.email === email);
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Now get all characters for this user
     const { data, error } = await supabaseServiceClient
       .from('characters')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', authenticatedUser.id);
 
     if (error) {
       return res.status(500).json({ error: error.message });
@@ -240,7 +275,8 @@ router.post('/', requireAuth, async (req, res) => {
 
     // Use racial trait system for speed
     const speed = getRacialSpeed(race);
-    const campaignSeed = `${user.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    // All players share the same global campaign (world)
+    const campaignSeed = GLOBAL_CAMPAIGN_SEED;
     // Start at (500,500) but character won't be "in world" until tutorial_state is null
     const startingPosition = { x: 500, y: 500 } as const;
 
@@ -273,7 +309,7 @@ router.post('/', requireAuth, async (req, res) => {
     const subclassLevel = getSubclassSelectionLevel(characterClass);
     const isSpellcaster = SPELLCASTING_CLASSES.includes(characterClass);
 
-    let tutorialState: TutorialState | null = null;  // No tutorial state by default
+    let tutorialState: TutorialState | undefined = undefined;  // No tutorial state by default
     let startingLevel: number = 1;  // Start at Level 1
 
     // Special case: if class needs subclass at level 1, mark it
@@ -284,7 +320,7 @@ router.post('/', requireAuth, async (req, res) => {
     const startingHp = maxHp; // Use proper HP from the start
 
     // Give spellcasters their Level 1 spell slots
-    const spellSlots = isSpellcaster
+    const spellSlots: Record<string, number> = isSpellcaster
       ? { '1': characterClass === 'Warlock' ? 1 : 2 }
       : {};
 
@@ -373,6 +409,17 @@ router.post('/', requireAuth, async (req, res) => {
       console.info(`[Characters] ${createdCharacter.name} would receive ${startingEquipment.length} starting items (skipped for now, gold given instead)`);
     }
 
+    // Generate shared starter town for the global world (async, non-blocking)
+    // This only generates once - subsequent characters reuse the same town
+    void TownGenerationService.getOrGenerateTown({
+      campaignSeed: GLOBAL_CAMPAIGN_SEED,
+      campaignName: 'Nuaibria - Shared World',
+      regionType: 'temperate forest'
+    }).catch((townError: unknown) => {
+      console.error('[Characters] town generation failed (non-fatal):', townError);
+      // Character creation succeeds even if town generation fails
+    });
+
     // Placeholder hook for future onboarding features
     void generateOnboardingScene({
       name: createdCharacter.name,
@@ -456,9 +503,19 @@ router.get('/:id', async (req: Request, res: Response) => {
   res.json(data as CharacterRecord);
 });
 
-router.patch('/:id', async (req: Request, res: Response) => {
+/**
+ * PATCH /api/characters/:id
+ * Update a character - requires authentication and ownership
+ */
+router.patch('/:id', requireAuth, async (req: Request, res: Response) => {
   const { id } = req.params;
+  const userId = (req as AuthenticatedRequest).user.id;
   const payload = req.body as Partial<NewCharacterRecord>;
+
+  // Verify ownership
+  if (!(await verifyCharacterOwnership(id, userId, res))) {
+    return;
+  }
 
   const { data, error } = await supabaseServiceClient
     .from('characters')
@@ -477,15 +534,21 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
 /**
  * POST /api/characters/:characterId/learn-spells
- * Learn spells for a character (stores spell names in known_spells JSONB field)
+ * Learn spells for a character - requires ownership verification
  */
 router.post('/:characterId/learn-spells', requireAuth, async (req, res) => {
   try {
     const { characterId } = req.params;
+    const userId = (req as AuthenticatedRequest).user.id;
     const { spells } = req.body as { spells: string[] };
 
     if (!spells || !Array.isArray(spells)) {
       return res.status(400).json({ error: 'spells array is required' });
+    }
+
+    // Verify ownership first
+    if (!(await verifyCharacterOwnership(characterId, userId, res))) {
+      return;
     }
 
     // Get current character data

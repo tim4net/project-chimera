@@ -199,6 +199,11 @@ export interface EnterWorldAction extends BaseActionSpec {
   // Sets starting position (500,500) and completes interview
 }
 
+export interface ReviewDMResponseAction extends BaseActionSpec {
+  type: 'REVIEW_DM_RESPONSE';
+  playerFeedback?: string; // Optional player comment about what's wrong
+}
+
 // ============================================================================
 // UNION TYPE
 // ============================================================================
@@ -225,7 +230,8 @@ export type ActionSpec =
   | CompleteTutorialAction
   | SkipInterviewAction
   | ContinueInterviewAction
-  | EnterWorldAction;
+  | EnterWorldAction
+  | ReviewDMResponseAction;
 
 // ============================================================================
 // ACTION RESULT (from Rule Engine)

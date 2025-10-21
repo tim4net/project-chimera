@@ -32,6 +32,7 @@ type WizardStep =
   | 'class'
   | 'abilities'
   | 'background'
+  | 'alignment'
   | 'skills'
   | 'spells'
   | 'confirm'
@@ -156,6 +157,9 @@ export class CharacterCreationWizard {
         break;
       case 'background':
         this.showBackgroundStep();
+        break;
+      case 'alignment':
+        this.showAlignmentStep();
         break;
       case 'skills':
         this.showSkillsStep();
@@ -297,8 +301,27 @@ Choose your background:
     `);
   }
 
+  private showAlignmentStep(): void {
+    this.titleBox.setContent('Step 6: Choose Your Alignment');
+    this.contentBox.setContent(`
+Choose your alignment (your moral compass):
+
+{cyan-fg}[1]{/cyan-fg} Lawful Good    - Honor, compassion, and duty
+{cyan-fg}[2]{/cyan-fg} Neutral Good   - Kindness without bias toward law or chaos
+{cyan-fg}[3]{/cyan-fg} Chaotic Good   - Freedom and goodwill
+{cyan-fg}[4]{/cyan-fg} Lawful Neutral - Order and tradition above all
+{cyan-fg}[5]{/cyan-fg} True Neutral   - Balance and natural order
+{cyan-fg}[6]{/cyan-fg} Chaotic Neutral- Freedom and independence
+{cyan-fg}[7]{/cyan-fg} Lawful Evil    - Tyranny and control
+{cyan-fg}[8]{/cyan-fg} Neutral Evil   - Selfish and amoral
+{cyan-fg}[9]{/cyan-fg} Chaotic Evil   - Destruction and mayhem
+
+{yellow-fg}Enter the number of your choice (1-9):{/yellow-fg}
+    `);
+  }
+
   private showSkillsStep(): void {
-    this.titleBox.setContent('Step 6: Choose Skills');
+    this.titleBox.setContent('Step 7: Choose Skills');
     this.contentBox.setContent(`
 Your class and background grant you proficiency in certain skills.
 
@@ -317,7 +340,7 @@ Your class and background grant you proficiency in certain skills.
       return;
     }
 
-    this.titleBox.setContent('Step 7: Choose Starting Spells');
+    this.titleBox.setContent('Step 8: Choose Starting Spells');
     this.contentBox.setContent(`
 As a ${this.data.class}, you can cast spells!
 
@@ -344,6 +367,7 @@ first enter the world.
 {cyan-fg}Race:{/cyan-fg}       ${raceName}
 {cyan-fg}Class:{/cyan-fg}      ${className}
 {cyan-fg}Background:{/cyan-fg} ${backgroundName}
+{cyan-fg}Alignment:{/cyan-fg}  ${this.data.alignment || 'Neutral Good'}
 
 {cyan-fg}Ability Scores:{/cyan-fg}
   STR: ${this.data.abilityScores?.strength || 10}
@@ -427,6 +451,23 @@ first enter the world.
       this.data.background = bgMap[input];
       if (!this.data.background) {
         this.contentBox.setContent('Invalid choice. Please enter 1-6.');
+        this.screen.render();
+        return;
+      }
+      this.currentStep = 'alignment';
+      this.showStep();
+      return;
+    }
+
+    if (this.currentStep === 'alignment') {
+      const alignmentMap: Record<string, string> = {
+        '1': 'Lawful Good', '2': 'Neutral Good', '3': 'Chaotic Good',
+        '4': 'Lawful Neutral', '5': 'True Neutral', '6': 'Chaotic Neutral',
+        '7': 'Lawful Evil', '8': 'Neutral Evil', '9': 'Chaotic Evil',
+      };
+      this.data.alignment = alignmentMap[input];
+      if (!this.data.alignment) {
+        this.contentBox.setContent('Invalid choice. Please enter 1-9.');
         this.screen.render();
         return;
       }

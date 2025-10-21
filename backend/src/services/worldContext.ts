@@ -6,6 +6,8 @@
  */
 
 import type { CharacterRecord } from '../types';
+import { generateTile } from '../game/map';
+import { supabaseServiceClient } from './supabaseClient';
 
 // ============================================================================
 // GET WORLD CONTEXT FOR DM
@@ -17,28 +19,53 @@ import type { CharacterRecord } from '../types';
 export async function getWorldContext(character: CharacterRecord): Promise<string> {
   let context = '\nWORLD CONTEXT:\n';
 
-  // Get current biome (simplified for MVP)
-  const biome = getBiomeAtPosition(character.position.x, character.position.y);
+  // Get ACTUAL biome from procedural generation (same as map uses)
+  const currentTile = generateTile(character.position.x, character.position.y, character.campaign_seed);
+  const biome = currentTile.biome;
+  const elevation = currentTile.elevation ?? 0;
+
   context += `- Current Location: (${character.position.x}, ${character.position.y})\n`;
   context += `- Biome: ${biome}\n`;
+  context += `- Elevation: ${Math.round(elevation * 100)}m\n`;
   context += `- ${getBiomeDescription(biome)}\n`;
 
-  // TODO: Query actual POIs from database
-  // For now, provide general context
+  // Query actual nearby POIs from database using spatial proximity function
+  // Only returns POIs within 50-mile radius, ordered by distance
+  const { data: nearbyPOIs } = await supabaseServiceClient
+    .rpc('find_nearby_pois', {
+      p_campaign_seed: character.campaign_seed,
+      p_x: character.position.x,
+      p_y: character.position.y,
+      p_radius: 50, // 50-mile radius
+      p_limit: 5
+    });
+
+  if (nearbyPOIs && nearbyPOIs.length > 0) {
+    context += `\nNearby Points of Interest:\n`;
+    nearbyPOIs.forEach((poi: any) => {
+      // Type guard for position safety (column is renamed to poi_position to avoid SQL reserved word)
+      if (poi.poi_position && typeof poi.poi_position.x === 'number' && typeof poi.distance === 'number') {
+        context += `- ${poi.name} (${poi.type}) - ${Math.round(poi.distance)} miles away\n`;
+      }
+    });
+  }
+
+  // Get surrounding tiles for directional awareness
+  const north = generateTile(character.position.x, character.position.y - 10, character.campaign_seed);
+  const south = generateTile(character.position.x, character.position.y + 10, character.campaign_seed);
+  const east = generateTile(character.position.x + 10, character.position.y, character.campaign_seed);
+  const west = generateTile(character.position.x - 10, character.position.y, character.campaign_seed);
+
+  context += `\nSurrounding Terrain (10 miles in each direction):\n`;
+  context += `- North: ${north.biome} (elevation ${Math.round((north.elevation ?? 0) * 100)}m)\n`;
+  context += `- South: ${south.biome} (elevation ${Math.round((south.elevation ?? 0) * 100)}m)\n`;
+  context += `- East: ${east.biome} (elevation ${Math.round((east.elevation ?? 0) * 100)}m)\n`;
+  context += `- West: ${west.biome} (elevation ${Math.round((west.elevation ?? 0) * 100)}m)\n`;
+
   context += `\nDescribe the ${biome} environment in your narrative. `;
-  context += `Reference the terrain, weather, and atmosphere appropriate to this biome.`;
+  context += `When players ask about surroundings, use the terrain data above for accurate descriptions.`;
 
   return context;
-}
-
-/**
- * Determine biome at position (simplified procedural generation)
- */
-function getBiomeAtPosition(x: number, y: number): string {
-  // Simple hash-based biome selection for MVP
-  const hash = (x * 73856093) ^ (y * 19349663);
-  const biomes = ['forest', 'plains', 'mountains', 'desert', 'swamp'];
-  return biomes[Math.abs(hash) % biomes.length];
 }
 
 /**

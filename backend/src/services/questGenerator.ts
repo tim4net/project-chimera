@@ -75,22 +75,39 @@ async function fillQuestTemplate(
   character: CharacterRecord
 ): Promise<{ title: string; description: string; target: string }> {
 
-  // For MVP, use simple templates
-  // TODO: Query nearby POIs, actual enemy types, etc.
+  // Query nearby enemies for dynamic quest targets
+  const { data: nearbyEnemies } = await supabaseServiceClient
+    .from('enemies')
+    .select('name')
+    .limit(5);
+
+  const enemyNames = nearbyEnemies?.map(e => e.name.toLowerCase()) || ['goblin', 'wolf', 'bandit'];
 
   switch (template.template_type) {
     case 'fetch':
+      // Use biome-appropriate items
+      const biomeItems = {
+        forest: 'wolf_pelt',
+        mountains: 'ore_sample',
+        desert: 'scorpion_venom',
+        plains: 'herbs',
+      };
+      const item = biomeItems['forest'] || 'wolf_pelt'; // Default to forest for now
+
       return {
         title: template.title_template,
         description: template.description_template,
-        target: 'wolf_pelt', // TODO: Dynamic based on biome
+        target: item,
       };
 
     case 'clear':
+      // Use actual enemy types from database
+      const enemyTarget = enemyNames[Math.floor(Math.random() * Math.min(3, enemyNames.length))];
+
       return {
         title: template.title_template,
-        description: template.description_template,
-        target: 'goblin', // TODO: Dynamic based on nearby enemies
+        description: template.description_template.replace('enemies', `${enemyTarget}s`),
+        target: enemyTarget,
       };
 
     case 'scout':

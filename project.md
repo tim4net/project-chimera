@@ -462,3 +462,223 @@ We will use the official, open-source, self-hosted version of Supabase, running 
 
   - **Increased Maintenance Overhead:** We are responsible for the maintenance, updates, and security of the Supabase container.
   - **Resource Consumption:** Running the full Supabase stack locally will consume more system resources (RAM, CPU) than connecting to a remote database.
+
+**ADR-015: AI-Generated POI Content and Dynamic Discovery**
+
+**Status:** Proposed (Post-MVP Enhancement)
+
+**Context**
+
+The current POI (Point of Interest) system procedurally generates locations (dungeons, ruins, villages, shrines) with coordinates and generic names, but these locations are empty shells. When a player discovers a dungeon, there is no system to determine what creatures inhabit it, what treasures it holds, or what quests might be available there. This creates several problems:
+
+1. **Immersion Breaking:** Players discover "Ancient Dungeon" but there's nothing actually there.
+2. **Missed Storytelling Opportunities:** Major narrative moments (sneaking past a dragon, awakening an ancient evil) exist only in The Chronicler's ephemeral memory and are lost when they fall outside the conversation history window.
+3. **No Persistence:** If a player leaves and returns to a location, the AI has no memory of what was there before, leading to inconsistencies.
+4. **Empty World Syndrome:** The procedurally generated world feels lifeless without inhabitants, dangers, or objectives.
+
+**Decision**
+
+We will implement a **Dynamic POI Discovery System** where The Chronicler (via Gemini Flash) generates unique, persistent content for each Point of Interest upon first discovery.
+
+**Implementation:**
+
+1. **Discovery Trigger:**
+   - When a player's movement brings them within interaction range of an undiscovered POI, the system detects this.
+   - A flag `discovered: false` in the `world_pois` table tracks discovery state per character.
+
+2. **AI Content Generation (First Visit):**
+   - **Gemini Flash** is called with a context-aware prompt including:
+     - POI type (dungeon, village, ruin, shrine, etc.)
+     - Biome (forest, mountains, desert, etc.)
+     - Character level (to scale danger appropriately)
+     - Nearby world context (other POIs, active quests, faction territories)
+   - The AI generates a structured response containing:
+     - **Detailed Description:** Evocative 2-3 sentence description
+     - **Inhabitants:** NPCs present (merchants, quest-givers, friendly or hostile)
+     - **Creatures/Enemies:** Monsters or dangers (if applicable)
+     - **Available Quests:** 0-2 location-specific quests
+     - **Hidden Secrets:** Lore, treasures, or special encounters (optional)
+     - **Atmosphere:** Mood, sounds, environmental details
+
+3. **Persistent Storage:**
+   - Generated content is stored in `world_pois.generated_content` (JSONB field)
+   - NPCs are inserted into `npcs` table with `location_id` reference
+   - Potential encounters are logged in `encounters` table
+   - Available quests are created in `character_quests` table with `location_id`
+   - `discovered: true` and `discovered_at: timestamp` are set
+
+4. **Subsequent Visits:**
+   - Load content from database (no additional AI call)
+   - Update state based on player actions (e.g., if dragon was defeated, mark `is_alive: false`)
+
+5. **Integration with Existing Systems:**
+   - **Failed Stealth Checks:** If a player fails a stealth check near a creature-inhabited POI, trigger Active Phase combat
+   - **Quest Givers:** NPCs at POIs can offer their pre-generated quests
+   - **Journal Entries:** Significant discoveries (first time entering a dragon's lair) automatically trigger journal entries via the AI significance detection system (ADR-016)
+
+**Database Schema Changes:**
+
+```sql
+-- Add to world_pois table
+ALTER TABLE world_pois ADD COLUMN generated_content JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE world_pois ADD COLUMN discovered_by_characters UUID[] DEFAULT '{}';
+ALTER TABLE world_pois ADD COLUMN first_discovered_at TIMESTAMPTZ;
+
+-- Link NPCs to POIs (already exists via location_id)
+-- Link encounters to POIs
+ALTER TABLE encounters ADD COLUMN poi_id UUID REFERENCES world_pois(id);
+```
+
+**Example Flow:**
+
+Player: "I approach the Ancient Dungeon"
+
+1. System detects POI at coordinates, checks `discovered: false`
+2. Calls Gemini Flash:
+   ```
+   Generate content for: Ancient Dungeon in forest biome
+   Character: Level 3 Bard
+   Nearby: Village (north), Ruins (east)
+   ```
+3. Gemini responds:
+   ```json
+   {
+     "description": "Crumbling stone steps descend into darkness. Faint growling echoes from below.",
+     "inhabitants": [],
+     "creatures": [
+       {"type": "Giant Spider", "count": 3, "cr": 1}
+     ],
+     "quests": [
+       {"title": "Clear the Spider Nest", "reward_xp": 150, "reward_gold": 50}
+     ],
+     "secrets": ["Ancient runes on the walls hint at a sealed chamber deeper within"],
+     "atmosphere": "Damp, webbed corridors. The air smells of decay."
+   }
+   ```
+4. System stores this permanently, creates NPC/encounter records
+5. The Chronicler narrates the discovery
+6. Player can now interact with this persistent content
+
+**Consequences**
+
+**Positive:**
+
+  - **Living World:** Every location feels unique and purposeful.
+  - **Narrative Persistence:** Major discoveries (dragons, treasures, secrets) are permanently recorded and remembered.
+  - **Consistent Revisits:** Returning to a location shows the same content (unless player actions changed it).
+  - **Scalable Storytelling:** Gemini generates unlimited unique content on-demand.
+  - **Quest Integration:** POIs become natural quest hubs with location-specific objectives.
+  - **Cost Optimized:** One-time Gemini Flash call per POI (~$0.0001 per generation).
+
+**Negative:**
+
+  - **Increased Complexity:** Requires coordination between POI generation, NPC spawning, encounter creation, and quest systems.
+  - **Database Size:** Each POI stores generated content (mitigated by JSONB compression).
+  - **Generation Latency:** First visit to a POI adds ~2 seconds for AI generation (acceptable for discovery moments).
+  - **Consistency Challenges:** Must ensure generated content doesn't contradict existing world lore or quests.
+
+**Implementation Priority:**
+
+**Post-MVP (Phase 2)** - This feature significantly enhances exploration but is not critical for the core gameplay loop. It should be implemented after:
+- MVP chat interface is stable
+- Quest system Layer 1 is functional
+- Basic combat/Active Phase is working
+
+**Future Enhancements:**
+
+- **Faction-Aware Generation:** POIs in faction territories generate appropriate NPCs and quests
+- **Story Arc Integration:** Layer 3 story arcs can place specific clues or NPCs at designated POIs
+- **Dynamic Evolution:** POI content can change over time (merchants restock, dungeons repopulate, ruins get reclaimed)
+- **Player Reputation:** NPC dispositions at POIs reflect character reputation tags
+
+**ADR-016: AI-Powered Journal Significance Detection**
+
+**Status:** Active (Implemented)
+
+**Context**
+
+The game stores conversation history in the `dm_conversations` table, but only the most recent 50 messages are sent to The Chronicler for context (to manage token costs and latency). This creates a critical problem: major narrative events that occur in CONVERSATION actions (free-form player input) are forgotten once they fall outside the 50-message window.
+
+**Examples of Lost Events:**
+- "I awaken the ancient dragon"
+- "The king declares me his heir"
+- "I make a pact with the demon lord"
+- "I discover the forbidden library"
+
+The Rule Engine's `createJournalEntry` flag only triggers for recognized action types (TRAVEL, COMBAT, SKILL_CHECK, etc.). Free-form narrative events, which are categorized as CONVERSATION actions, default to `createJournalEntry: false`, meaning they are never permanently recorded.
+
+**Decision**
+
+We will implement an **AI-Powered Significance Detection System** that analyzes every CONVERSATION action's narrative outcome to determine if it represents a journal-worthy event.
+
+**Implementation:**
+
+1. **Post-Narrative Analysis:**
+   - After The Chronicler generates narrative for a CONVERSATION action
+   - Before storing the response in `dm_conversations`
+   - Call Gemini Flash with a lightweight significance evaluation prompt
+
+2. **Significance Criteria:**
+   The AI evaluates against these criteria:
+   - Meeting major NPCs (kings, dragons, legendary figures, faction leaders)
+   - Discovering important locations, secrets, or lore
+   - Making life-changing decisions, pacts, or commitments
+   - Witnessing or causing major world events (awakening, destroying, saving)
+   - Starting or completing major story arcs
+   - Gaining or losing extremely valuable/important items or abilities
+
+3. **Automatic Journal Creation:**
+   - If `isSignificant: true`, create entry in `journal_entries` table
+   - Store full narrative context and player message
+   - Tag with `metadata.detectedBy: 'ai_significance'`
+   - Include significance reason for debugging
+
+4. **Dual-Source Journal System:**
+   ```typescript
+   const shouldCreateJournal =
+     actionResult.createJournalEntry ||  // Rule Engine flagged
+     aiDetectedSignificance;              // AI flagged
+   ```
+
+**Code Implementation:**
+
+```typescript
+// In narratorLLM.ts
+export async function isSignificantEvent(
+  playerMessage: string,
+  narrative: string,
+  actionType: string
+): Promise<{ isSignificant: boolean; reason: string }>;
+
+// In dmChatSecure.ts (after narrative generation)
+if (primaryActionType === 'CONVERSATION') {
+  const significance = await isSignificantEvent(message, narrative, primaryActionType);
+  if (significance.isSignificant) {
+    console.log(`📔 AI detected significant event: ${significance.reason}`);
+    // Create journal entry with full narrative
+  }
+}
+```
+
+**Consequences**
+
+**Positive:**
+
+  - **Narrative Permanence:** Major plot moments are never lost, even 100 messages later
+  - **Intelligent Detection:** AI adapts to unexpected player creativity (doesn't require hardcoded keywords)
+  - **Rich Journal:** Journal becomes a true chronicle of the character's epic moments
+  - **Context Retrieval:** Future feature could inject relevant journal entries into The Chronicler's context
+  - **Low Cost:** Gemini Flash evaluation adds ~$0.00005 per message (~2 cents per 400 messages)
+
+**Negative:**
+
+  - **Minor Latency:** Adds ~0.5-1 second per CONVERSATION action for significance check
+  - **False Positives:** AI might occasionally flag mundane events (mitigated by clear criteria)
+  - **False Negatives:** AI might miss subtle but important moments (can be manually added later)
+
+**Future Enhancements:**
+
+- **Context Injection:** When detecting significance, inject related past journal entries into The Chronicler's prompt
+- **Quest Chain Detection:** If multiple related significant events occur, suggest creating a quest chain
+- **NPC Memory:** Major NPCs remember significant events the player was involved in
+- **Reputation Auto-Tagging:** Extremely significant events automatically add reputation tags to character

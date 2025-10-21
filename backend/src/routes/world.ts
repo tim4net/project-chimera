@@ -1,5 +1,8 @@
 import { Router, type Request, type Response } from 'express';
+import { requireAuth, type AuthenticatedRequest } from '../middleware/auth';
+import { supabaseServiceClient } from '../services/supabaseClient';
 import { generateMapTiles, generatePOIsInRadius, generateTile, generatePOI } from '../game/map';
+import { discoverPOI } from '../services/poiDiscoveryService';
 
 const router = Router();
 
@@ -99,5 +102,44 @@ router.get('/:seed/tile/:x/:y', async (req: Request, res: Response) => {
     });
   }
 });
+
+// POST /api/world/poi/:poiId/discover - Discover and generate content for a POI
+router.post(
+  '/poi/:poiId/discover',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authenticatedReq = req as AuthenticatedRequest;
+    const { poiId } = req.params;
+    const { characterId, poiType, poiName, biome } = req.body as {
+      characterId: string;
+      poiType: string;
+      poiName: string;
+      biome: string;
+    };
+
+    try {
+      // Verify ownership
+      const { data: character } = await supabaseServiceClient
+        .from('characters')
+        .select('id')
+        .eq('id', characterId)
+        .eq('user_id', authenticatedReq.user.id)
+        .single();
+
+      if (!character) {
+        res.status(404).json({ error: 'Character not found' });
+        return;
+      }
+
+      // Discover POI
+      const result = await discoverPOI(characterId, poiId, poiType, poiName, biome);
+
+      res.json(result);
+    } catch (error) {
+      console.error('[World] POI discovery error:', error);
+      res.status(500).json({ error: 'Failed to discover POI' });
+    }
+  }
+);
 
 export default router;

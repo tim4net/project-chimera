@@ -15,6 +15,26 @@ import { detectSocialClaim } from './socialClaimDetector';
 import { detectSpellSelection } from './spellSelectionDetector';
 
 /**
+ * Detect meta-commands like @claudecode
+ */
+function detectMetaCommand(text: string, context: GameContext): ActionSpec | null {
+  const trimmed = text.trim();
+
+  // @claudecode command - review last DM response
+  if (trimmed.toLowerCase().startsWith('@claudecode')) {
+    return {
+      type: 'REVIEW_DM_RESPONSE' as any,
+      actionId: uuidv4(),
+      actorId: context.characterId,
+      timestamp: Date.now(),
+      playerFeedback: trimmed.substring(11).trim() // Everything after "@claudecode"
+    } as any;
+  }
+
+  return null;
+}
+
+/**
  * Detect interview-specific intents
  */
 function detectInterviewIntent(text: string, context: GameContext): ActionSpec | null {
@@ -82,6 +102,7 @@ export interface GameContext {
   nearbyEnemies?: Array<{ id: string; name: string }>;
   nearbyNPCs?: Array<{ id: string; name: string }>;
   nearbyLoot?: Array<{ id: string; name: string }>;
+  nearbyPOIs?: Array<{ name: string; type: string; position: any }>;
   inShop?: boolean;
   currentTurnId?: string;
 }
@@ -434,6 +455,13 @@ export function detectIntent(
   for (const part of parts) {
     // Try each detector in order of priority
     let action: ActionSpec | null = null;
+
+    // PRIORITY 0: Meta-commands (@claudecode, etc.)
+    action = detectMetaCommand(part, context);
+    if (action) {
+      actions.push(action);
+      continue;
+    }
 
     // PRIORITY 1: Interview intents (Session 0)
     action = detectInterviewIntent(part, context);

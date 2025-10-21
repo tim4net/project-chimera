@@ -21,7 +21,7 @@ import { supabaseServiceClient } from '../services/supabaseClient';
 import { detectIntent, type GameContext } from '../services/intentDetector';
 import { validateAction, formatValidationFailure } from '../services/actionValidator';
 import { executeAction } from '../services/ruleEngine';
-import { generateNarrative, generateNarrativeWithGemini } from '../services/narratorLLM';
+import { generateNarrative, generateNarrativeWithGemini, isSignificantEvent } from '../services/narratorLLM';
 import { maybeOfferQuest, buildQuestOfferPrompt } from '../services/questIntegration';
 import { updateQuestProgress } from '../services/questGenerator';
 import { generateCombatLoot, awardLoot, formatLootForNarrative } from '../services/lootGenerator';
@@ -30,6 +30,107 @@ import type { CharacterRecord } from '../types';
 import type { ActionResult, StateChange } from '../types/actions';
 
 const router = Router();
+
+// ============================================================================
+// COST TRACKING
+// ============================================================================
+
+// Gemini Flash pricing (as of 2025-01)
+const GEMINI_FLASH_INPUT_COST_PER_1M = 0.075; // $0.075 per 1M input tokens
+const GEMINI_FLASH_OUTPUT_COST_PER_1M = 0.30;  // $0.30 per 1M output tokens
+
+interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  inputCost: number;
+  outputCost: number;
+  totalCost: number;
+}
+
+/**
+ * Estimate token count (rough approximation: 1 token ≈ 4 characters)
+ * @param textOrLength - Either the text string itself, or the character count as a number
+ */
+function estimateTokens(textOrLength: string | number): number {
+  const charCount = typeof textOrLength === 'string' ? textOrLength.length : textOrLength;
+  return Math.ceil(charCount / 4);
+}
+
+/**
+ * Calculate cost for this request
+ */
+function calculateCost(inputTokens: number, outputTokens: number): TokenUsage {
+  const inputCost = (inputTokens / 1_000_000) * GEMINI_FLASH_INPUT_COST_PER_1M;
+  const outputCost = (outputTokens / 1_000_000) * GEMINI_FLASH_OUTPUT_COST_PER_1M;
+
+  return {
+    inputTokens,
+    outputTokens,
+    inputCost,
+    outputCost,
+    totalCost: inputCost + outputCost,
+  };
+}
+
+// Track cumulative costs per session (with TTL to prevent memory leak)
+const sessionCosts: Map<string, { cost: number; lastUpdated: number }> = new Map();
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Log cost tracking information
+ */
+function logCostTracking(characterId: string, usage: TokenUsage): void {
+  const now = Date.now();
+  const currentSession = sessionCosts.get(characterId);
+  const cumulative = (currentSession?.cost || 0) + usage.totalCost;
+
+  sessionCosts.set(characterId, { cost: cumulative, lastUpdated: now });
+
+  console.log('[Cost Tracking]', {
+    characterId,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    inputCost: `$${usage.inputCost.toFixed(6)}`,
+    outputCost: `$${usage.outputCost.toFixed(6)}`,
+    requestCost: `$${usage.totalCost.toFixed(6)}`,
+    cumulativeCost: `$${cumulative.toFixed(6)}`,
+  });
+}
+
+/**
+ * Clean up old session cost data
+ */
+function cleanupOldSessionCosts(): void {
+  const now = Date.now();
+  let cleaned = 0;
+
+  for (const [characterId, session] of sessionCosts.entries()) {
+    if (now - session.lastUpdated > SESSION_TTL) {
+      sessionCosts.delete(characterId);
+      cleaned++;
+    }
+  }
+
+  if (cleaned > 0) {
+    console.log(`[Cost Tracking] Cleaned up ${cleaned} old session(s)`);
+  }
+}
+
+// Run cleanup periodically (every hour)
+let costCleanupInterval: NodeJS.Timeout | null = null;
+
+export function startCostTracking(): void {
+  if (costCleanupInterval) return;
+  costCleanupInterval = setInterval(cleanupOldSessionCosts, 60 * 60 * 1000);
+  console.log('[Cost Tracking] Started session cost cleanup (hourly)');
+}
+
+export function stopCostTracking(): void {
+  if (costCleanupInterval) {
+    clearInterval(costCleanupInterval);
+    costCleanupInterval = null;
+  }
+}
 
 // ============================================================================
 // TYPES
@@ -166,62 +267,7 @@ router.post(
         return;
       }
 
-      // ======================================================================
-      // STEP 1.5: CHECK FOR INCOMPLETE TUTORIAL (Auto-fix legacy characters)
-      // ======================================================================
-
-      // If character is a spellcaster at level 1+ but has no spells, reset to Level 0 tutorial
-      const SPELLCASTING_CLASSES = ['Bard', 'Wizard', 'Cleric', 'Sorcerer', 'Warlock', 'Druid'];
-      const isSpellcaster = SPELLCASTING_CLASSES.includes(character.class);
-      const hasSpells = character.selected_spells && character.selected_spells.length > 0;
-      const needsTutorial = isSpellcaster && !hasSpells && (!character.tutorial_state || character.tutorial_state === 'complete');
-
-      if (needsTutorial) {
-        console.log(`[DM Chat Secure] Detected incomplete spellcaster (${character.class}). Resetting to Level 0 tutorial.`);
-
-        // Reset character to Level 0 Session 0 interview
-        await supabaseServiceClient
-          .from('characters')
-          .update({
-            level: 0,
-            tutorial_state: 'interview_welcome', // Start at beginning of Session 0
-            hp_max: 10, // Temporary HP during tutorial
-            position_x: null, // Not in world yet
-            position_y: null,
-          })
-          .eq('id', characterId);
-
-        // Send tutorial welcome message
-        const tutorialWelcome = `I notice you haven't completed your ${character.class} training yet! Before we begin your adventure, we must prepare your magic.
-
-As a ${character.class}, you wield powerful spells. Let's start by selecting your cantrips - simple spells you can cast unlimited times.
-
-When you're ready, say "I'm ready to choose my spells" and I'll guide you through the selection process.`;
-
-        await supabaseServiceClient
-          .from('dm_conversations')
-          .insert({
-            character_id: characterId,
-            role: 'dm',
-            content: tutorialWelcome,
-            metadata: {
-              tutorial_reset: true,
-              timestamp: new Date().toISOString(),
-            },
-          });
-
-        // Return tutorial message
-        res.status(200).json({
-          response: tutorialWelcome,
-          actionResults: [],
-          stateChanges: [
-            { field: 'level', oldValue: character.level, newValue: 0 },
-            { field: 'tutorial_state', oldValue: null, newValue: 'needs_cantrips' },
-          ],
-          triggerActivePhase: false,
-        });
-        return;
-      }
+      // Session 0 system has been removed - spell selection now happens during character creation
 
       // ======================================================================
       // STEP 2: STORE PLAYER MESSAGE
@@ -246,11 +292,27 @@ When you're ready, say "I'm ready to choose my spells" and I'll guide you throug
       // STEP 3: INTENT DETECTION
       // ======================================================================
 
+      // Check for active combat
+      const { data: activeEncounter } = await supabaseServiceClient
+        .from('active_encounters')
+        .select('id')
+        .eq('character_id', characterId)
+        .eq('status', 'active')
+        .single();
+
+      // Get nearby POIs for context (POIs are world entities, not owned by characters)
+      // For now, just get POIs from the same campaign
+      const { data: nearbyPOIs } = await supabaseServiceClient
+        .from('world_pois')
+        .select('name, type, position')
+        .eq('campaign_seed', character.campaign_seed)
+        .limit(10);
+
       const gameContext: GameContext = {
         characterId,
         character: character as CharacterRecord,
-        inCombat: false, // TODO: Query actual combat state
-        // TODO: Add nearby enemies, NPCs, loot from database
+        inCombat: !!activeEncounter,
+        nearbyPOIs: nearbyPOIs || [],
       };
 
       const intentResult = detectIntent(message, gameContext);
@@ -287,6 +349,7 @@ When you're ready, say "I'm ready to choose my spells" and I'll guide you throug
 
       // Validate CONVERSATION-type actions (unrecognized patterns)
       // Recognized actions (ATTACK, TRAVEL, etc.) are validated by Rule Engine
+      // Skip validation for meta-commands like REVIEW_DM_RESPONSE
       for (const action of intentResult.actions) {
         if (action.type === 'CONVERSATION') {
           console.log('[DM Chat Secure] Validating unrecognized action...');
@@ -309,6 +372,10 @@ When you're ready, say "I'm ready to choose my spells" and I'll guide you throug
           }
 
           console.log('[DM Chat Secure] Action validated successfully');
+        }
+        // Skip validation for meta-commands
+        if (action.type === 'REVIEW_DM_RESPONSE') {
+          console.log('[DM Chat Secure] Meta-command detected, skipping validation');
         }
       }
 
@@ -373,7 +440,8 @@ When you're ready, say "I'm ready to choose my spells" and I'll guide you throug
         // Check if action contributes to quest objectives
         if (result.success && result.source.action.type === 'MELEE_ATTACK') {
           // Track enemy kills for "kill_enemies" quests
-          await updateQuestProgress(characterId, 'kill_enemy', 'goblin');
+          // For now use generic 'enemy' - TODO: add enemyType to narrativeContext type
+          await updateQuestProgress(characterId, 'kill_enemy', 'enemy');
         }
 
         if (result.source.action.type === 'TRAVEL') {
@@ -447,23 +515,30 @@ When you're ready, say "I'm ready to choose my spells" and I'll guide you throug
           primaryResult,
           questOfferData
         );
-        console.log('[DM Chat Secure] Narrative from Local LLM');
-      } catch (localError) {
-        console.warn('[DM Chat Secure] Local LLM failed, trying Gemini:', localError);
-        try {
-          narrative = await generateNarrativeWithGemini(
-            character as CharacterRecord,
-            conversationHistory,
-            message,
-            primaryResult,
-            questOfferData
-          );
-          console.log('[DM Chat Secure] Narrative from Gemini');
-        } catch (geminiError) {
-          console.error('[DM Chat Secure] Gemini fallback failed:', geminiError);
-          // Ultimate fallback: use action summary
-          narrative = primaryResult.narrativeContext.summary;
-        }
+
+        // ======================================================================
+        // COST TRACKING
+        // ======================================================================
+
+        // Estimate input tokens (system prompt + character sheet + history + message)
+        const systemPromptLength = 1500; // Approximate character count
+        const characterSheetLength = 500; // Approximate character count
+        const historyLength = conversationHistory.slice(-10).reduce((sum, msg) => sum + msg.content.length, 0);
+        const messageLength = message.length;
+
+        // Sum total character count and estimate tokens
+        const totalInputCharCount = systemPromptLength + characterSheetLength + historyLength + messageLength;
+        const estimatedInputTokens = estimateTokens(totalInputCharCount);
+        const estimatedOutputTokens = estimateTokens(narrative);
+
+        const usage = calculateCost(estimatedInputTokens, estimatedOutputTokens);
+        logCostTracking(characterId, usage);
+
+        console.log('[DM Chat Secure] Narrative generated with Gemini Flash');
+      } catch (error) {
+        console.error('[DM Chat Secure] Error generating narrative:', error);
+        // Fallback to action summary
+        narrative = primaryResult.narrativeContext.summary + " (The Chronicler's connection wavers...)";
       }
 
       // ======================================================================
@@ -480,16 +555,34 @@ When you're ready, say "I'm ready to choose my spells" and I'll guide you throug
       }
 
       // ======================================================================
-      // STEP 7: CREATE JOURNAL ENTRIES
+      // STEP 7: CREATE JOURNAL ENTRIES (with AI significance detection)
       // ======================================================================
 
-      const shouldCreateJournal = actionResults.some(r => r.createJournalEntry);
+      // Check if rule engine flagged this for journal entry
+      const ruleEngineFlagged = actionResults.some(r => r.createJournalEntry);
+
+      // For CONVERSATION actions, use AI to detect significance
+      const primaryActionType = actionResults[0]?.source?.action?.type || 'CONVERSATION';
+      let aiDetectedSignificance = false;
+
+      if (!ruleEngineFlagged && primaryActionType === 'CONVERSATION') {
+        const significance = await isSignificantEvent(message, narrative, primaryActionType);
+        aiDetectedSignificance = significance.isSignificant;
+
+        if (significance.isSignificant) {
+          console.log(`[DM Chat Secure] 📔 AI detected significant event: ${significance.reason}`);
+        }
+      }
+
+      const shouldCreateJournal = ruleEngineFlagged || aiDetectedSignificance;
 
       if (shouldCreateJournal) {
-        const journalContent = actionResults
-          .filter(r => r.createJournalEntry)
-          .map(r => r.narrativeContext.summary)
-          .join(' ');
+        const journalContent = ruleEngineFlagged
+          ? actionResults
+              .filter(r => r.createJournalEntry)
+              .map(r => r.narrativeContext.summary)
+              .join(' ')
+          : narrative; // Use full narrative for AI-detected events
 
         const { error: journalError } = await supabaseServiceClient
           .from('journal_entries')
@@ -501,6 +594,7 @@ When you're ready, say "I'm ready to choose my spells" and I'll guide you throug
               actionIds: actionResults.map(r => r.actionId),
               playerMessage: message,
               dmResponse: narrative,
+              detectedBy: aiDetectedSignificance ? 'ai_significance' : 'rule_engine',
             },
           });
 
@@ -522,6 +616,7 @@ When you're ready, say "I'm ready to choose my spells" and I'll guide you throug
           metadata: {
             timestamp: new Date().toISOString(),
             actionIds: actionResults.map(r => r.actionId),
+            actionResults, // Store for @claudecode review
             executionTimeMs: Date.now() - startTime,
           },
         });

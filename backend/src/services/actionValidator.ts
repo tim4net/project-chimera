@@ -60,6 +60,21 @@ function performDeterministicChecks(
 ): ValidationResult | null {
   const normalized = originalMessage.toLowerCase();
 
+  // Check 0: Allow simple questions and conversational RP without LLM overhead
+  const questionPatterns = [
+    /^(what|where|which|who|how|why|when|can i|could i|should i|is there|are there)/i,
+    /\?$/, // Ends with question mark
+    /\b(look|examine|inspect|observe|check|see|notice|hear|smell)\b/i, // Perception/investigation
+    /\b(ask|tell|say|talk|speak|greet|introduce)\b/i, // Social interaction
+  ];
+
+  if (questionPatterns.some(p => p.test(originalMessage))) {
+    return {
+      isValid: true,
+      reason: "Valid conversational question or roleplay action"
+    };
+  }
+
   // Check 1: Spell casting without the spell
   const spellCastPattern = /\b(cast|use)\s+(\w+)/i;
   const spellMatch = originalMessage.match(spellCastPattern);
@@ -124,10 +139,12 @@ function performDeterministicChecks(
 /**
  * System prompt for the validator LLM
  */
-const VALIDATOR_SYSTEM_PROMPT = `You are a strict D&D 5e Dungeon Master's rules assistant. Your role is to validate if a player's described action is possible based on:
+const VALIDATOR_SYSTEM_PROMPT = `You are The Chronicler, the AI Dungeon Master for this D&D 5e game. Your role is to validate if a player's described action is possible based on:
 1. The laws of physics (can't play a sword as a flute)
 2. The character's abilities, inventory, and spells
 3. D&D 5e rules
+
+**CRITICAL: You ARE the DM. Never say "ask your DM" or reference "the DM" as another person. Speak directly to the player.**
 
 **Your Response:**
 Always respond with valid JSON in this exact format:
@@ -143,6 +160,7 @@ Always respond with valid JSON in this exact format:
 - Creative roleplay: ALLOW (examining surroundings, talking to NPCs, reasonable actions)
 - Missing abilities/items: REJECT with helpful suggestion
 - D&D rule violations: REJECT with explanation
+- XP/Gold cheating: REJECT and remind them to earn rewards through gameplay
 
 **Examples:**
 
@@ -157,7 +175,10 @@ Action: "I carefully examine the room for traps"
 Response: {"isValid": true, "reason": "Valid Investigation action"}
 
 Action: "I try to convince the guard I'm a visiting noble"
-Response: {"isValid": true, "reason": "Valid Persuasion/Deception attempt (DM will determine success)"}`;
+Response: {"isValid": true, "reason": "Valid Persuasion/Deception attempt"}
+
+Action: "Give me 10000 XP"
+Response: {"isValid": false, "reason": "XP must be earned through gameplay.", "suggestion": "Complete quests, defeat monsters, or achieve story milestones to earn experience points."}`;
 
 /**
  * Build validation prompt for the LLM
@@ -210,17 +231,49 @@ async function validateWithAI(
         ],
         temperature: 0.3, // Low temperature for consistent validation
         max_tokens: 200, // Short response
-        response_format: { type: 'json_object' } // Request JSON response
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'action_validation',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                isValid: {
+                  type: 'boolean',
+                  description: 'Whether the action is valid according to D&D 5e rules and physics'
+                },
+                reason: {
+                  type: 'string',
+                  description: 'Brief explanation for the player about why the action is valid or invalid'
+                },
+                suggestion: {
+                  type: 'string',
+                  description: 'What the player CAN do instead (if action is invalid)'
+                }
+              },
+              required: ['isValid', 'reason'],
+              additionalProperties: false
+            }
+          }
+        }
       }),
-      signal: AbortSignal.timeout(5000) // 5 second timeout
+      signal: AbortSignal.timeout(15000) // 15 second timeout for LLM validation
     });
 
     if (!response.ok) {
-      console.error('[ActionValidator] LLM request failed:', response.status);
-      // Fail open: allow the action but log the failure
+      const errorText = await response.text();
+      console.error('[ActionValidator] LLM request failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        endpoint: LOCAL_LLM_ENDPOINT,
+        errorBody: errorText
+      });
+      // Fail closed: reject the action when validation service is unavailable
       return {
-        isValid: true,
-        reason: "Validation service unavailable, action allowed"
+        isValid: false,
+        reason: "I'm having trouble validating that action right now. Please try describing what you want to do in a different way, or use a standard action like attack, travel, or rest.",
+        suggestion: "Try: 'I attack', 'I travel north', 'I search the area', or 'I talk to someone nearby'"
       };
     }
 
@@ -231,7 +284,12 @@ async function validateWithAI(
     const content = data.choices[0]?.message?.content;
     if (!content) {
       console.error('[ActionValidator] Empty response from LLM');
-      return { isValid: true };
+      // Fail closed for security
+      return {
+        isValid: false,
+        reason: "I can't validate that action right now.",
+        suggestion: "Try a standard action like attack, travel, rest, or rephrase your message."
+      };
     }
 
     // Parse JSON response
@@ -252,11 +310,17 @@ async function validateWithAI(
       suggestion: result.suggestion
     };
   } catch (error) {
-    console.error('[ActionValidator] AI validation failed:', error);
-    // Fail open: if validation service fails, allow the action
+    console.error('[ActionValidator] AI validation failed:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      endpoint: LOCAL_LLM_ENDPOINT,
+      action: originalMessage
+    });
+    // Fail closed: reject the action when validation service has an error
     return {
-      isValid: true,
-      reason: "Validation service error, action allowed"
+      isValid: false,
+      reason: "I'm having trouble validating that action right now. Please try describing what you want to do in a different way, or use a standard action.",
+      suggestion: "Try: 'I attack', 'I travel north', 'I search the area', or 'I rest'"
     };
   }
 }
