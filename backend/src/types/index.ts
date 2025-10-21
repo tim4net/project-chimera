@@ -192,6 +192,31 @@ export interface StyleConfig {
   textStyle?: TextStyleConfig;
 }
 
+export interface GameEvent {
+  type:
+    | 'LANDMARK_DISCOVERY'
+    | 'ENCOUNTER'
+    | 'NPC_DISCOVERY'
+    | 'NPC_ENCOUNTER'
+    | 'TRAVEL_STARTED'
+    | 'LOCATION_CHANGED'
+    | 'REPUTATION_CHANGE';
+  landmark_id?: string;
+  landmark_name?: string;
+  encounter_type?: string;
+  encounter_name?: string;
+  npc_id?: string;
+  npc_name?: string;
+  new_position?: { x: number; y: number };
+  reputation_delta?: number;
+}
+
+export interface DmResponse {
+  narrative: string;
+  action_result?: Record<string, unknown>;
+  events: GameEvent[];
+}
+
 export interface LootItem {
   name: string;
   type: string;
@@ -212,3 +237,27 @@ export interface SubclassFeatureGrant {
   description: string;
   grantedAt: string; // ISO timestamp
 }
+
+export type {
+  LandmarkType,
+  LandmarkRecord,
+  LandmarkSummary,
+  LandmarkDiscoveryResult,
+  LandmarkDiscoveryState
+} from './landmark-types';
+
+export type {
+  EncounterType,
+  EncounterSeverity,
+  GeneratedEncounter,
+  EncounterOutcome,
+  TravelEncounterContext
+} from './encounter-types';
+
+export type {
+  NpcState,
+  WorldNpcRecord,
+  CharacterNpcReputation,
+  NpcMovementPlan,
+  NpcMovementOptions
+} from './npc-types';

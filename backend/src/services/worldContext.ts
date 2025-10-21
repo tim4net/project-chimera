@@ -9,6 +9,8 @@ import type { CharacterRecord } from '../types';
 import { generateTile } from '../game/map';
 import { supabaseServiceClient } from './supabaseClient';
 import { LocationService } from './locationService';
+import { landmarkService } from './landmarkService';
+import { npcService } from './npcService';
 import type { LocationContext } from '../types/road-types';
 
 const locationService = new LocationService();
@@ -40,8 +42,39 @@ export async function getWorldContext(
   context += `- Elevation: ${Math.round(elevation * 100)}m\n`;
   context += `- ${getBiomeDescription(biome)}\n`;
 
+  // Ensure landmarks generated near current position, then record discovery state
+  try {
+    await landmarkService.ensureLandmarksAroundPosition(character.campaign_seed, character.position, 4);
+  } catch (error) {
+    console.error('[WorldContext] Failed to ensure landmarks:', error);
+  }
+
+  let landmarkDiscoverySummary: string | null = null;
+
+  try {
+    const discoveries = await landmarkService.recordNearbyDiscoveries(character, 8);
+    const lines: string[] = [];
+
+    if (discoveries.newlyDiscovered.length > 0) {
+      discoveries.newlyDiscovered.forEach(landmark => {
+        lines.push(`- NEW: ${landmark.name} (${landmark.type}) ${landmark.distance.toFixed(1)} miles ${landmark.bearing}`);
+      });
+    }
+
+    if (discoveries.alreadyKnown.length > 0) {
+      discoveries.alreadyKnown.slice(0, 5).forEach(landmark => {
+        lines.push(`- ${landmark.name} (${landmark.type}) ${landmark.distance.toFixed(1)} miles ${landmark.bearing}`);
+      });
+    }
+
+    if (lines.length > 0) {
+      landmarkDiscoverySummary = lines.join('\n');
+    }
+  } catch (error) {
+    console.error('[WorldContext] Failed to record landmark discoveries:', error);
+  }
+
   // Query actual nearby POIs from database using spatial proximity function
-  // Only returns POIs within 50-mile radius, ordered by distance
   const { data: nearbyPOIs } = await supabaseServiceClient
     .rpc('find_nearby_pois', {
       p_campaign_seed: character.campaign_seed,
@@ -59,6 +92,10 @@ export async function getWorldContext(
         context += `- ${poi.name} (${poi.type}) - ${Math.round(poi.distance)} miles away\n`;
       }
     });
+  }
+
+  if (landmarkDiscoverySummary) {
+    context += `\nNearby Landmarks:\n${landmarkDiscoverySummary}\n`;
   }
 
   // Get surrounding tiles for directional awareness
@@ -114,6 +151,24 @@ export async function getWorldContext(
         .map(settlement => `${settlement.name} (${settlement.type}, ${settlement.distance.toFixed(1)} mi)`)
         .join(', ');
       context += '\n';
+    }
+
+    if (locationContext.nearestSettlement) {
+      try {
+        const npcSummaries = await npcService.describeNpcPresence(
+          character.id,
+          'settlement',
+          locationContext.nearestSettlement.id
+        );
+        if (npcSummaries.length > 0) {
+          context += '\nLocal NPCs:\n';
+          npcSummaries.forEach(line => {
+            context += `- ${line}\n`;
+          });
+        }
+      } catch (error) {
+        console.error('[WorldContext] Failed to describe NPC presence:', error);
+      }
     }
   } else {
     context += '- Location services unavailable; unable to resolve travel network.\n';

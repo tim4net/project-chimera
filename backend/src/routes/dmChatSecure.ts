@@ -34,7 +34,7 @@ import { maybeOfferQuest } from '../services/questIntegration';
 import { updateQuestProgress } from '../services/questGenerator';
 import { generateCombatLoot, awardLoot, formatLootForNarrative } from '../services/lootGenerator';
 import { checkAndProcessLevelUp } from '../services/levelingSystem';
-import type { CharacterRecord } from '../types';
+import type { CharacterRecord, GameEvent, DmResponse } from '../types';
 import type { ActionResult, StateChange } from '../types/actions';
 import { LocationService } from '../services/locationService';
 import type { LocationContext } from '../types/road-types';
@@ -159,11 +159,168 @@ interface ChatRequest {
   conversationHistory?: ChatMessage[];
 }
 
-interface ChatResponse {
+interface ChatResponse extends DmResponse {
   response: string; // Narrative from LLM
   actionResults: ActionResult[]; // What actually happened (for UI to display dice, etc.)
   stateChanges: StateChange[]; // Consolidated state changes
   triggerActivePhase: boolean;
+}
+
+interface PositionChange {
+  oldPosition: { x: number; y: number };
+  newPosition: { x: number; y: number };
+}
+
+function getPositionChange(
+  stateChanges: StateChange[],
+  fallbackPosition: { x: number; y: number }
+): PositionChange | null {
+  const xChange = stateChanges.find(change => change.field === 'position_x');
+  const yChange = stateChanges.find(change => change.field === 'position_y');
+
+  if (!xChange && !yChange) {
+    return null;
+  }
+
+  const oldPosition = {
+    x: typeof xChange?.oldValue === 'number' ? xChange.oldValue : fallbackPosition.x,
+    y: typeof yChange?.oldValue === 'number' ? yChange.oldValue : fallbackPosition.y,
+  };
+
+  const newPosition = {
+    x: typeof xChange?.newValue === 'number' ? xChange.newValue : fallbackPosition.x,
+    y: typeof yChange?.newValue === 'number' ? yChange.newValue : fallbackPosition.y,
+  };
+
+  if (oldPosition.x === newPosition.x && oldPosition.y === newPosition.y) {
+    return null;
+  }
+
+  return { oldPosition, newPosition };
+}
+
+function summarizeActionResults(actionResults: ActionResult[], triggerActivePhase: boolean): Record<string, unknown> | undefined {
+  if (actionResults.length === 0) {
+    return undefined;
+  }
+
+  return {
+    actions: actionResults.map(result => ({
+      actionId: result.actionId,
+      type: result.source.action.type,
+      success: result.success,
+      outcome: result.outcome,
+      stateChanges: result.stateChanges.map(change => ({
+        entityId: change.entityId,
+        field: change.field,
+        newValue: change.newValue,
+        delta: change.delta ?? null,
+      })),
+    })),
+    triggerActivePhase,
+  };
+}
+
+function buildGameEvents(
+  actionResults: ActionResult[],
+  allStateChanges: StateChange[],
+  startingPosition: { x: number; y: number }
+): GameEvent[] {
+  const events: GameEvent[] = [];
+  const aggregatePositionChange = getPositionChange(allStateChanges, startingPosition);
+
+  if (aggregatePositionChange) {
+    events.push({
+      type: 'LOCATION_CHANGED',
+      new_position: aggregatePositionChange.newPosition,
+    });
+  }
+
+  for (const result of actionResults) {
+    const actionType = result.source.action.type;
+    const actionPositionChange = getPositionChange(
+      result.stateChanges,
+      aggregatePositionChange?.oldPosition ?? startingPosition
+    );
+    const resolvedPosition = actionPositionChange?.newPosition ?? aggregatePositionChange?.newPosition;
+
+    if (actionType === 'TRAVEL') {
+      const travelEvent: GameEvent = { type: 'TRAVEL_STARTED' };
+      if (resolvedPosition) {
+        travelEvent.new_position = resolvedPosition;
+      }
+      events.push(travelEvent);
+    }
+
+    if (actionType === 'CONVERSATION') {
+      const npcId = (result.source.action as any)?.npcId;
+      if (npcId) {
+        const npcEvent: GameEvent = {
+          type: 'NPC_ENCOUNTER',
+          npc_id: npcId,
+        };
+        events.push(npcEvent);
+      }
+    }
+
+    if (result.narrativeContext) {
+      const context = result.narrativeContext as Record<string, any>;
+      const travelEncounter = context.travelEncounter;
+
+      if (travelEncounter) {
+        const encounterIsNpc = travelEncounter.type === 'npc_encounter';
+        const encounterEvent: GameEvent = {
+          type: encounterIsNpc ? 'NPC_ENCOUNTER' : 'ENCOUNTER',
+          encounter_type: travelEncounter.type,
+          encounter_name: travelEncounter.name,
+        };
+
+        if (encounterIsNpc) {
+          encounterEvent.npc_name = travelEncounter.name;
+        }
+
+        events.push(encounterEvent);
+      }
+
+      if (context.threatType) {
+        events.push({
+          type: 'ENCOUNTER',
+          encounter_type: String(context.threatType),
+          encounter_name: context.threatVariant ? String(context.threatVariant) : String(context.threatType),
+        });
+      }
+
+      const landmarkDiscoveries = context.landmarkDiscoveries?.newlyDiscovered;
+      if (Array.isArray(landmarkDiscoveries)) {
+        for (const discovery of landmarkDiscoveries) {
+          const landmarkEvent: GameEvent = {
+            type: 'LANDMARK_DISCOVERY',
+            landmark_id: discovery.id,
+            landmark_name: discovery.name,
+          };
+
+          if (resolvedPosition) {
+            landmarkEvent.new_position = resolvedPosition;
+          } else if (aggregatePositionChange) {
+            landmarkEvent.new_position = aggregatePositionChange.newPosition;
+          }
+
+          events.push(landmarkEvent);
+        }
+      }
+    }
+
+    for (const change of result.stateChanges) {
+      if (change.field === 'reputation_scores' && typeof change.delta === 'number') {
+        events.push({
+          type: 'REPUTATION_CHANGE',
+          reputation_delta: change.delta,
+        });
+      }
+    }
+  }
+
+  return events;
 }
 
 // ============================================================================
@@ -365,6 +522,7 @@ router.post(
       }
 
       const typedCharacter = normalizeCharacterRecord(character as CharacterRecord);
+      const initialPosition = { ...typedCharacter.position };
 
       // Session 0 system has been removed - spell selection now happens during character creation
 
@@ -435,11 +593,15 @@ router.post(
 
       // Handle clarification needed
       if (intentResult.flags.requiresClarification) {
+        const clarification = intentResult.clarificationPrompt || 'Could you clarify what you want to do?';
         res.status(200).json({
-          response: intentResult.clarificationPrompt || 'Could you clarify what you want to do?',
+          response: clarification,
+          narrative: clarification,
           actionResults: [],
           stateChanges: [],
           triggerActivePhase: false,
+          events: [],
+          action_result: undefined,
         } as ChatResponse);
         return;
       }
@@ -465,9 +627,12 @@ router.post(
 
             res.status(200).json({
               response: correctionMessage,
+              narrative: correctionMessage,
               actionResults: [],
               stateChanges: [],
               triggerActivePhase: false,
+              events: [],
+              action_result: undefined,
             } as ChatResponse);
             return;
           }
@@ -514,6 +679,11 @@ router.post(
       if (allStateChanges.length > 0) {
         console.log(`[DM Chat Secure] Applying ${allStateChanges.length} state changes`);
         await applyStateChanges(allStateChanges, characterId);
+      }
+
+      const updatedPositionAfterActions = getPositionChange(allStateChanges, typedCharacter.position);
+      if (updatedPositionAfterActions) {
+        typedCharacter.position = updatedPositionAfterActions.newPosition;
       }
 
       // ======================================================================
@@ -744,6 +914,10 @@ router.post(
       // STEP 8: STORE DM RESPONSE
       // ======================================================================
 
+      const triggerActivePhase = actionResults.some(r => r.triggerActivePhase);
+      const events = buildGameEvents(actionResults, allStateChanges, initialPosition);
+      const actionResultSummary = summarizeActionResults(actionResults, triggerActivePhase);
+
       const { error: dmMessageError } = await supabaseServiceClient
         .from('dm_conversations')
         .insert({
@@ -754,6 +928,8 @@ router.post(
             timestamp: new Date().toISOString(),
             actionIds: actionResults.map(r => r.actionId),
             actionResults, // Store for @claudecode review
+            events,
+            actionResultSummary,
             executionTimeMs: Date.now() - startTime,
           },
         });
@@ -766,13 +942,14 @@ router.post(
       // STEP 9: RETURN RESPONSE
       // ======================================================================
 
-      const triggerActivePhase = actionResults.some(r => r.triggerActivePhase);
-
       res.status(200).json({
         response: narrative,
+        narrative,
+        action_result: actionResultSummary,
         actionResults,
         stateChanges: allStateChanges,
         triggerActivePhase,
+        events,
       } as ChatResponse);
 
       console.log(`[DM Chat Secure] Request completed in ${Date.now() - startTime}ms`);

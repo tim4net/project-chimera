@@ -22,6 +22,7 @@ import spellsRoutes from './routes/spells';
 import partyRoutes from './routes/party';
 // import dmChatRoutes from './routes/dmChat'; // OLD insecure version
 import dmChatSecureRoutes from './routes/dmChatSecure'; // NEW secure architecture
+import verificationRoutes from './routes/verification';
 
 export const app = express();
 
@@ -85,6 +86,7 @@ app.use('/api/names', nameGenerationRoutes); // Fantasy name generation
 app.use('/api/spells', spellsRoutes); // D&D 5e spells database
 app.use('/api/party', partyRoutes); // Party system for multiplayer (ADR-003, ADR-004)
 app.use('/api/chat/dm', dmChatSecureRoutes); // PRIMARY GAMEPLAY INTERFACE (secure architecture)
+app.use('/api', verificationRoutes);
 
 const port = Number(process.env.PORT ?? 3001);
 

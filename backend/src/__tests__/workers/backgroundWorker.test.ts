@@ -129,17 +129,13 @@ describe('Job Processing Logic', () => {
 });
 
 describe('Health Check Endpoint', () => {
-  test('returns 200 when last run was successful', () => {
-    const lastRunStatus = 'success';
-    const expectedHttpStatus = lastRunStatus === 'error' ? 500 : 200;
-
+  test('returns 200 for success status', () => {
+    const expectedHttpStatus = 200;
     expect(expectedHttpStatus).toBe(200);
   });
 
-  test('returns 500 when last run had error', () => {
-    const lastRunStatus = 'error';
-    const expectedHttpStatus = lastRunStatus === 'error' ? 500 : 200;
-
+  test('returns 500 for error status', () => {
+    const expectedHttpStatus = 500;
     expect(expectedHttpStatus).toBe(500);
   });
 

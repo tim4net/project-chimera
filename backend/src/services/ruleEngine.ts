@@ -39,10 +39,18 @@ import {
   getSpellRequirements,
   isSpellcaster,
 } from './spellValidator';
+import type { LandmarkDiscoveryResult } from '../types/landmark-types';
 import { executeSkipInterview, executeContinueInterview, executeEnterWorld } from './interviewExecutors';
 import { executeReviewDMResponse } from './reviewExecutor';
+import { encounterService } from './encounterService';
+import { landmarkService } from './landmarkService';
+import { LocationService } from './locationService';
+import { generateTile } from '../game/map';
+import type { TravelEncounterContext } from '../types/encounter-types';
 
 const RULE_ENGINE_VERSION = '1.0.0';
+
+const travelLocationService = new LocationService();
 
 // ============================================================================
 // HELPER: Calculate attack and damage modifiers
@@ -264,12 +272,41 @@ async function executeTravel(
   // Check for threat encounters (kidnapping, assassination, etc.)
   const threatEncounter = await checkForThreats(character, 'travel');
 
-  // Random encounter check (15% baseline chance - in addition to threats)
-  const encounterRoll = rollD20();
-  const hasRandomEncounter = encounterRoll.total <= 3;
+  // Determine biome and travel context for procedural encounters
+  const destinationTile = generateTile(newX, newY, character.campaign_seed);
 
-  // Threats override random encounters (more important)
-  const hasEncounter = threatEncounter.triggered || hasRandomEncounter;
+  let locationContext = null;
+  try {
+    locationContext = await travelLocationService.buildLocationContext(
+      character.campaign_seed,
+      { x: newX, y: newY },
+      { persist: false, radius: 30 }
+    );
+  } catch (error) {
+    console.error('[RuleEngine] Failed to build location context for travel encounter:', error);
+  }
+
+  const onRoad = locationContext?.nearestRoad ? locationContext.nearestRoad.distance <= 3 : false;
+  const nearestRoadCost = onRoad && locationContext?.nearestRoad
+    ? locationContext.roadsWithinRadius.find(road => road.id === locationContext.nearestRoad?.roadId)?.averageTraversalCost
+    : undefined;
+  const roadDanger = onRoad && typeof nearestRoadCost === 'number'
+    ? (nearestRoadCost > 1.4 ? 'dangerous' : 'moderate')
+    : (onRoad ? 'guarded' : 'dangerous');
+
+  const travelEncounterContext: TravelEncounterContext = {
+    campaignSeed: character.campaign_seed,
+    characterId: character.id,
+    position: { x: newX, y: newY },
+    biome: destinationTile.biome,
+    timeOfDay: 'day',
+    distance: action.distance,
+    onRoad,
+    roadDanger
+  };
+
+  const travelEncounter = await encounterService.evaluateTravelEncounter(travelEncounterContext);
+  const hasEncounter = threatEncounter.triggered || travelEncounter.triggered;
 
   // State changes
   const stateChanges: StateChange[] = [
@@ -301,11 +338,51 @@ async function executeTravel(
     delta: 10,
   });
 
-  // Build narrative context with threat information
+  const updatedCharacter: CharacterRecord = {
+    ...character,
+    position: { x: newX, y: newY }
+  };
+
+  let landmarkHighlights: string[] = [];
+  let landmarkDiscoveries: LandmarkDiscoveryResult | null = null;
+  try {
+    await landmarkService.ensureLandmarksAroundPosition(character.campaign_seed, updatedCharacter.position, 4);
+    const discoveries = await landmarkService.recordNearbyDiscoveries(updatedCharacter, 6);
+
+    landmarkDiscoveries = discoveries;
+
+    if (discoveries.newlyDiscovered.length > 0) {
+      landmarkHighlights = discoveries.newlyDiscovered.map(l => `${l.name}: ${l.description}`);
+    } else if (discoveries.alreadyKnown.length > 0) {
+      landmarkHighlights = discoveries.alreadyKnown
+        .slice(0, 2)
+        .map(l => `${l.name} (${l.type}) ${l.distance.toFixed(1)} miles ${l.bearing}`);
+    }
+  } catch (error) {
+    console.error('[RuleEngine] Failed to process landmark discoveries during travel:', error);
+  }
+
+  // Build narrative context with threat and encounter information
+  let summary = `You travel ${action.direction} to (${newX}, ${newY}).`;
+
+  if (landmarkHighlights.length > 0) {
+    summary += ` You pass ${landmarkHighlights.join('; ')}.`;
+  }
+
+  if (travelEncounter.triggered && travelEncounter.encounter) {
+    summary += ` ${travelEncounter.encounter.description}`;
+  }
+
   const narrativeContext: any = {
-    summary: `You travel ${action.direction} to (${newX}, ${newY}).`,
-    details: hasEncounter ? 'You sense something nearby...' : 'The journey is uneventful.',
+    summary,
+    details: travelEncounter.triggered
+      ? `Encounter: ${travelEncounter.encounter?.name ?? 'Unusual moment'} (${travelEncounter.reason}).`
+      : (landmarkHighlights.length > 0 ? 'You note nearby landmarks etched into the landscape.' : 'The journey is uneventful.'),
     mood: hasEncounter ? 'tense' : 'neutral',
+    biome: destinationTile.biome,
+    landmarks: landmarkHighlights,
+    travelEncounter: travelEncounter.triggered ? travelEncounter.encounter : null,
+    landmarkDiscoveries
   };
 
   // Add threat information if threat was triggered
@@ -315,12 +392,26 @@ async function executeTravel(
     narrativeContext.threatSeverity = threatEncounter.severity;
   }
 
+  if (travelEncounter.triggered) {
+    narrativeContext.encounterRoll = {
+      roll: travelEncounter.roll,
+      threshold: travelEncounter.threshold
+    };
+  }
+
+  const encounterDice: DiceRoll = {
+    dice: '1d100',
+    rolls: [travelEncounter.roll],
+    modifier: 0,
+    total: travelEncounter.roll
+  };
+
   return {
     actionId: action.actionId,
     success: true,
     outcome: 'success',
     rolls: {
-      encounter: d20RollResultToDiceRoll(encounterRoll),
+      encounter: encounterDice,
     },
     stateChanges,
     source: {
