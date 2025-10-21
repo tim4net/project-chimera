@@ -18,18 +18,30 @@
 import { Router } from 'express';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth';
 import { supabaseServiceClient } from '../services/supabaseClient';
-import { detectIntent, type GameContext } from '../services/intentDetector';
+import { detectIntent, detectQueryIntent, type GameContext, type HighLevelIntent } from '../services/intentDetector';
 import { validateAction, formatValidationFailure } from '../services/actionValidator';
 import { executeAction } from '../services/ruleEngine';
-import { generateNarrative, generateNarrativeWithGemini, isSignificantEvent } from '../services/narratorLLM';
-import { maybeOfferQuest, buildQuestOfferPrompt } from '../services/questIntegration';
+import {
+  generateNarrative,
+  isSignificantEvent,
+  enhanceContextWithTileFeatures,
+  describeTrafficLevel,
+  describeDangerLevel,
+  getCompassDirection,
+  type TileFeatureContext
+} from '../services/narratorLLM';
+import { maybeOfferQuest } from '../services/questIntegration';
 import { updateQuestProgress } from '../services/questGenerator';
 import { generateCombatLoot, awardLoot, formatLootForNarrative } from '../services/lootGenerator';
 import { checkAndProcessLevelUp } from '../services/levelingSystem';
 import type { CharacterRecord } from '../types';
 import type { ActionResult, StateChange } from '../types/actions';
+import { LocationService } from '../services/locationService';
+import type { LocationContext } from '../types/road-types';
 
 const router = Router();
+
+const locationService = new LocationService();
 
 // ============================================================================
 // COST TRACKING
@@ -226,6 +238,91 @@ async function applyStateChanges(
   }
 }
 
+function normalizeCharacterRecord(raw: CharacterRecord): CharacterRecord {
+  const candidate = raw as CharacterRecord & { position_x?: number; position_y?: number };
+  const existingPosition = candidate.position;
+
+  if (existingPosition && typeof existingPosition.x === 'number' && typeof existingPosition.y === 'number') {
+    return {
+      ...candidate,
+      position: existingPosition,
+    };
+  }
+
+  const normalizedPosition = {
+    x: typeof candidate.position_x === 'number'
+      ? candidate.position_x
+      : (existingPosition?.x ?? 0),
+    y: typeof candidate.position_y === 'number'
+      ? candidate.position_y
+      : (existingPosition?.y ?? 0),
+  };
+
+  return {
+    ...candidate,
+    position: normalizedPosition,
+  };
+}
+
+function formatRoadReference(name: string | null): string {
+  if (!name) return 'the road';
+  const trimmed = name.trim();
+  return /^the\b/i.test(trimmed) ? trimmed : `the ${trimmed}`;
+}
+
+function buildKnownWorldFacts(
+  character: CharacterRecord,
+  tileContext: TileFeatureContext,
+  locationContext: LocationContext | null
+): string | null {
+  if (!locationContext) {
+    return 'World data is temporarily unavailable for this region.';
+  }
+
+  const position = character.position ?? { x: 0, y: 0 };
+  const facts: string[] = [];
+
+  if (tileContext.is_on_road) {
+    const roadLabel = formatRoadReference(tileContext.road_name);
+    const trafficLabel = describeTrafficLevel(tileContext.road_traffic);
+    const dangerLabel = describeDangerLevel(tileContext.road_danger);
+    facts.push(`${roadLabel} beneath you carries ${trafficLabel} traffic and ${dangerLabel} danger.`);
+  } else if (locationContext.nearestRoad) {
+    const distance = locationContext.nearestRoad.distance.toFixed(1);
+    const dx = locationContext.nearestRoad.positionOnRoad.x - position.x;
+    const dy = locationContext.nearestRoad.positionOnRoad.y - position.y;
+    const direction = getCompassDirection(dx, dy);
+    const fallbackName = tileContext.road_name
+      ?? (() => {
+        const from = locationContext.nearestRoad?.fromSettlementName?.trim();
+        const to = locationContext.nearestRoad?.toSettlementName?.trim();
+        if (from && to) return `${from}–${to} Road`;
+        if (from) return `${from} Road`;
+        if (to) return `${to} Road`;
+        return 'unnamed road';
+      })();
+    const roadLabel = formatRoadReference(fallbackName);
+    facts.push(`${roadLabel} runs ${distance} miles to your ${direction}.`);
+  } else {
+    facts.push('No maintained roads cross this tile; you are currently off-road.');
+  }
+
+  if (tileContext.nearest_town_name && tileContext.nearest_town_distance != null && locationContext.nearestSettlement) {
+    const dx = locationContext.nearestSettlement.x - position.x;
+    const dy = locationContext.nearestSettlement.y - position.y;
+    const direction = getCompassDirection(dx, dy);
+    const distance = tileContext.nearest_town_distance.toFixed(1);
+    const settlementType = tileContext.settlement_type ?? 'settlement';
+    facts.push(`Nearest settlement: ${tileContext.nearest_town_name} (${settlementType}) ${distance} miles to the ${direction}.`);
+  } else {
+    facts.push('No mapped settlements fall within immediate scouting range.');
+  }
+
+  facts.push('Cardinal orientation: North corresponds to decreasing Y coordinates; east corresponds to increasing X coordinates.');
+
+  return facts.join(' ');
+}
+
 // ============================================================================
 // MAIN ROUTE
 // ============================================================================
@@ -266,6 +363,8 @@ router.post(
         res.status(404).json({ error: 'Character not found' });
         return;
       }
+
+      const typedCharacter = normalizeCharacterRecord(character as CharacterRecord);
 
       // Session 0 system has been removed - spell selection now happens during character creation
 
@@ -310,18 +409,20 @@ router.post(
 
       const gameContext: GameContext = {
         characterId,
-        character: character as CharacterRecord,
+        character: typedCharacter,
         inCombat: !!activeEncounter,
         nearbyPOIs: nearbyPOIs || [],
       };
 
       const intentResult = detectIntent(message, gameContext);
+      const highLevelIntent: HighLevelIntent = detectQueryIntent(message);
 
       console.log('[DM Chat Secure] Intent detection:', {
         actions: intentResult.actions.map(a => a.type),
         confidence: intentResult.confidence,
         flags: intentResult.flags,
       });
+      console.log('[DM Chat Secure] High-level intent:', highLevelIntent);
 
       // Handle suspicious patterns
       if (intentResult.flags.suspicious) {
@@ -354,7 +455,7 @@ router.post(
         if (action.type === 'CONVERSATION') {
           console.log('[DM Chat Secure] Validating unrecognized action...');
 
-          const validation = await validateAction(action, character as CharacterRecord, message);
+          const validation = await validateAction(action, typedCharacter, message);
 
           if (!validation.isValid) {
             // Action is invalid - return correction to player
@@ -390,7 +491,7 @@ router.post(
         try {
           console.log(`[DM Chat Secure] Executing action: ${action.type}`, action);
 
-          const result = await executeAction(action, character as CharacterRecord);
+          const result = await executeAction(action, typedCharacter);
           actionResults.push(result);
           allStateChanges.push(...result.stateChanges);
 
@@ -467,7 +568,7 @@ router.post(
         console.log('[DM Chat Secure] Player is asking for a quest');
 
         // Offer a quest ONLY when player explicitly asks
-        const offeredQuest = await maybeOfferQuest(character as CharacterRecord);
+        const offeredQuest = await maybeOfferQuest(typedCharacter);
 
         if (offeredQuest) {
           questOfferData = {
@@ -479,6 +580,38 @@ router.post(
         } else {
           // No quests available - let narrator handle it
           console.log('[DM Chat Secure] No quests available to offer');
+        }
+      }
+
+      let locationContextForPrompt: LocationContext | null = null;
+      let tileContextForPrompt: TileFeatureContext | null = null;
+      let worldFacts: string | null = null;
+
+      const canProvideWorldFacts = !typedCharacter.tutorial_state || typedCharacter.tutorial_state === 'complete';
+
+      if (highLevelIntent === 'query' && canProvideWorldFacts) {
+        try {
+          locationContextForPrompt = await locationService.buildLocationContext(
+            typedCharacter.campaign_seed,
+            typedCharacter.position,
+            {
+              characterId,
+              radius: 40,
+              nearbySettlementLimit: 3,
+            }
+          );
+
+          tileContextForPrompt = enhanceContextWithTileFeatures(typedCharacter, locationContextForPrompt);
+
+          if (tileContextForPrompt) {
+            worldFacts = buildKnownWorldFacts(typedCharacter, tileContextForPrompt, locationContextForPrompt);
+          }
+
+          if (worldFacts) {
+            console.log('[DM Chat Secure] Injecting world facts for query:', worldFacts);
+          }
+        } catch (error) {
+          console.error('[DM Chat Secure] Failed to assemble world facts:', error);
         }
       }
 
@@ -501,7 +634,7 @@ router.post(
         stateChanges: [],
         narrativeContext: {
           summary: 'A moment of exploration and conversation.',
-          location: `(${character.position_x}, ${character.position_y})`,
+          location: `(${typedCharacter.position.x}, ${typedCharacter.position.y})`,
         },
         createJournalEntry: false,
         triggerActivePhase: false,
@@ -509,11 +642,15 @@ router.post(
 
       try {
         narrative = await generateNarrative(
-          character as CharacterRecord,
+          typedCharacter,
           conversationHistory,
           message,
           primaryResult,
-          questOfferData
+          {
+            questToOffer: questOfferData,
+            worldFacts,
+            locationContext: locationContextForPrompt,
+          }
         );
 
         // ======================================================================

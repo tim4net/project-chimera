@@ -9,6 +9,9 @@ import { supabaseServiceClient } from '../services/supabaseClient';
 import { getDiscoveredTiles, initializeStartingArea } from '../services/fogOfWarService';
 import { generateTile } from '../game/map';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth';
+import { RoadNetworkService } from '../services/roadNetworkService';
+
+const roadNetworkService = new RoadNetworkService();
 
 const router = Router();
 
@@ -65,6 +68,8 @@ router.get('/:campaignSeed', requireAuth, async (req: Request, res: Response) =>
       };
     });
 
+    const roads = await roadNetworkService.ensureRoadNetwork(campaignSeed);
+
     res.json({
       campaignSeed,
       playerPosition: {
@@ -81,6 +86,18 @@ router.get('/:campaignSeed', requireAuth, async (req: Request, res: Response) =>
       },
       tiles,
       tilesDiscovered: fogData.tiles.length,
+      roads: roads.map(road => ({
+        id: road.id,
+        from: {
+          id: road.fromSettlementId,
+          name: road.fromSettlementName
+        },
+        to: {
+          id: road.toSettlementId,
+          name: road.toSettlementName
+        },
+        polyline: road.polyline
+      })),
     });
   } catch (error) {
     console.error('[StrategicMap] Error fetching map:', error);

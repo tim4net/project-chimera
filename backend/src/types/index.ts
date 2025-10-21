@@ -141,6 +141,16 @@ export interface ImageGenerationResult {
   metadata: Record<string, unknown>;
 }
 
+export type {
+  RoadRecord,
+  RoadCoordinate,
+  TerrainSample,
+  SettlementSummary,
+  RoadProximity,
+  LocationContext,
+  Vector2
+} from './road-types';
+
 export type TextType =
   | 'narration'
   | 'description'

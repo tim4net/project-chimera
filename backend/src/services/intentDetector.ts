@@ -122,6 +122,8 @@ export interface IntentDetectionResult {
   clarificationPrompt?: string;
 }
 
+export type HighLevelIntent = 'action' | 'query' | 'dialogue';
+
 // ============================================================================
 // TEXT NORMALIZATION (Security)
 // ============================================================================
@@ -162,6 +164,54 @@ function detectHomoglyphs(text: string): boolean {
 // ============================================================================
 // INTENT CLASSIFICATION
 // ============================================================================
+
+const WORLD_QUERY_PATTERNS: RegExp[] = [
+  /\bare there\b.*\b(towns?|cities|villages|settlements|roads?|paths?|bridges?|inns?)\b/,
+  /\bwhat\b.*\b(direction|way)\b.*\b(north|south|east|west)\b/,
+  /\bwhere\b.*\b(i|we)\b.*\b(am|are)\b/,
+  /\bhow far\b.*\b(town|city|settlement|road|river|mountain|forest)\b/,
+  /\bwhere\b.*\bnearest\b.*\b(town|city|settlement|road|river|lake|landmark)\b/,
+  /\bwhat\b.*\b(sees?|is around|surroundings)\b/,
+  /\bdescribe\b.*\b(area|surroundings|road|town)\b/,
+  /\bis there\b.*\b(path|road|river|bridge|village|settlement)\b/,
+];
+
+const WORLD_KEYWORDS = /\b(town|city|village|settlement|road|path|bridge|river|lake|forest|mountain|camp|landmark|map|surroundings|nearby|distance|direction|north|south|east|west)\b/;
+
+const ACTION_KEYWORDS = /\b(attack|strike|swing|stab|shoot|cast|travel|move|walk|run|head|approach|sneak|hide|draw|charge|sprint|dash|follow|chase|grab|take|pick up|open|kick|punch)\b/;
+
+export function detectQueryIntent(message: string): HighLevelIntent {
+  if (!message || typeof message !== 'string') {
+    return 'dialogue';
+  }
+
+  const normalized = normalizeText(message);
+  if (!normalized) {
+    return 'dialogue';
+  }
+
+  const isQuestionMark = message.includes('?');
+  const hasWorldKeyword = WORLD_KEYWORDS.test(normalized);
+
+  if (WORLD_QUERY_PATTERNS.some(pattern => pattern.test(normalized))) {
+    return 'query';
+  }
+
+  if (isQuestionMark && hasWorldKeyword) {
+    return 'query';
+  }
+
+  if (ACTION_KEYWORDS.test(normalized)) {
+    return 'action';
+  }
+
+  // Imperative verbs without explicit subject (e.g., "Look around", "Travel east")
+  if (/^(look|travel|go|move|head|run|walk|sneak|hide|attack|cast)\b/.test(normalized)) {
+    return 'action';
+  }
+
+  return 'dialogue';
+}
 
 /**
  * Detect if message contains multiple intents (compound actions)

@@ -8,6 +8,10 @@
 import type { CharacterRecord } from '../types';
 import { generateTile } from '../game/map';
 import { supabaseServiceClient } from './supabaseClient';
+import { LocationService } from './locationService';
+import type { LocationContext } from '../types/road-types';
+
+const locationService = new LocationService();
 
 // ============================================================================
 // GET WORLD CONTEXT FOR DM
@@ -16,7 +20,14 @@ import { supabaseServiceClient } from './supabaseClient';
 /**
  * Build world context string for DM prompts
  */
-export async function getWorldContext(character: CharacterRecord): Promise<string> {
+interface WorldContextOptions {
+  locationContext?: LocationContext | null;
+}
+
+export async function getWorldContext(
+  character: CharacterRecord,
+  options: WorldContextOptions = {}
+): Promise<string> {
   let context = '\nWORLD CONTEXT:\n';
 
   // Get ACTUAL biome from procedural generation (same as map uses)
@@ -61,6 +72,52 @@ export async function getWorldContext(character: CharacterRecord): Promise<strin
   context += `- South: ${south.biome} (elevation ${Math.round((south.elevation ?? 0) * 100)}m)\n`;
   context += `- East: ${east.biome} (elevation ${Math.round((east.elevation ?? 0) * 100)}m)\n`;
   context += `- West: ${west.biome} (elevation ${Math.round((west.elevation ?? 0) * 100)}m)\n`;
+
+  let locationContext: LocationContext | null = null;
+
+  try {
+    locationContext = options.locationContext ?? await locationService.buildLocationContext(
+      character.campaign_seed,
+      character.position,
+      {
+        characterId: character.id,
+        radius: 40,
+        nearbySettlementLimit: 3
+      }
+    );
+  } catch (error) {
+    console.error('[WorldContext] Failed to build location context:', error);
+  }
+
+  context += `\nTravel Network:\n`;
+
+  if (locationContext) {
+    if (locationContext.nearestSettlement) {
+      const settlement = locationContext.nearestSettlement;
+      context += `- Nearest Settlement: ${settlement.name} (${settlement.type}), `;
+      context += `${settlement.distance.toFixed(1)} miles away at (${settlement.x}, ${settlement.y})\n`;
+    } else {
+      context += '- No settlements detected within immediate range.\n';
+    }
+
+    if (locationContext.nearestRoad) {
+      const road = locationContext.nearestRoad;
+      context += `- Nearest Road: Connects ${road.fromSettlementName} ↔ ${road.toSettlementName}, `;
+      context += `${road.distance.toFixed(1)} miles away.\n`;
+    } else {
+      context += '- Roads have not yet been scouted in this region.\n';
+    }
+
+    if (locationContext.nearbySettlements.length > 0) {
+      context += '- Nearby Settlements: ';
+      context += locationContext.nearbySettlements
+        .map(settlement => `${settlement.name} (${settlement.type}, ${settlement.distance.toFixed(1)} mi)`)
+        .join(', ');
+      context += '\n';
+    }
+  } else {
+    context += '- Location services unavailable; unable to resolve travel network.\n';
+  }
 
   context += `\nDescribe the ${biome} environment in your narrative. `;
   context += `When players ask about surroundings, use the terrain data above for accurate descriptions.`;

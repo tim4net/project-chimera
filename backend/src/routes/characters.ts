@@ -19,6 +19,8 @@ import {
   getDarkvisionRange
 } from '../game/raceTraits';
 import { getSubclassSelectionLevel } from '../services/subclassService';
+import { generatePOIsInRadius } from '../game/map';
+import { initializeStartingArea } from '../services/fogOfWarService';
 
 interface CharacterCreationBody {
   name?: string;
@@ -277,8 +279,26 @@ router.post('/', requireAuth, async (req, res) => {
     const speed = getRacialSpeed(race);
     // All players share the same global campaign (world)
     const campaignSeed = GLOBAL_CAMPAIGN_SEED;
-    // Start at (500,500) but character won't be "in world" until tutorial_state is null
-    const startingPosition = { x: 500, y: 500 } as const;
+
+    // Find a nearby village to start in; if none found, expand search radius
+    let startingPosition = { x: 500, y: 500 };
+    const baseX = 500;
+    const baseY = 500;
+    const searchRadii = [30, 60, 100, 150]; // Expanding search radii
+
+    for (const radius of searchRadii) {
+      const pois = generatePOIsInRadius(baseX, baseY, radius, campaignSeed);
+      const village = pois.find(poi => poi.type === 'village');
+      if (village) {
+        startingPosition = { x: village.x, y: village.y };
+        console.log(`[Characters] Found starting village "${village.name}" at (${village.x}, ${village.y})`);
+        break;
+      }
+    }
+
+    if (startingPosition.x === baseX && startingPosition.y === baseY) {
+      console.log(`[Characters] No village found nearby, starting at default (500, 500)`);
+    }
 
     // Use racial trait system for AC calculation
     const armorClass = calculateBaseAC(race, baseScores.DEX);
@@ -408,6 +428,16 @@ router.post('/', requireAuth, async (req, res) => {
     if (startingEquipment.length > 0) {
       console.info(`[Characters] ${createdCharacter.name} would receive ${startingEquipment.length} starting items (skipped for now, gold given instead)`);
     }
+
+    // Initialize fog of war around starting position (async, non-blocking)
+    void initializeStartingArea(
+      GLOBAL_CAMPAIGN_SEED,
+      startingPosition.x,
+      startingPosition.y,
+      createdCharacter.id
+    ).catch((fwError: unknown) => {
+      console.error('[Characters] fog of war initialization failed (non-fatal):', fwError);
+    });
 
     // Generate shared starter town for the global world (async, non-blocking)
     // This only generates once - subsequent characters reuse the same town

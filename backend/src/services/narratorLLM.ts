@@ -20,6 +20,9 @@ import { getInterviewPrompt } from './session0Interview';
 import { getModel, createCachedPrompt, generateWithCache } from './gemini';
 import { TownGenerationService } from './townGenerationService';
 import type { GeneratedTown, TownLocation, TownNPC, TownQuest } from './townGenerationService';
+import { generateTile } from '../game/map';
+import { LocationService } from './locationService';
+import type { LocationContext, RoadProximity, SettlementSummary, SettlementType } from '../types/road-types';
 
 const LOCAL_LLM_ENDPOINT = process.env.LOCAL_LLM_ENDPOINT || 'http://localhost:1234/v1';
 
@@ -33,6 +36,223 @@ const TOWN_CONTEXT_TTL = 60_000; // 60 seconds
 // - Local LLM reserved for ASYNC background tasks only (quest gen, POI descriptions, etc.)
 // - This supports 100+ players within $50/month budget with good UX
 const USE_GEMINI_FOR_REALTIME = true; // Always true - do not change without measuring latency
+
+const locationService = new LocationService();
+
+const SETTLEMENT_TRAFFIC_WEIGHTS: Record<SettlementType, number> = {
+  capital: 95,
+  city: 85,
+  town: 70,
+  fort: 60,
+  outpost: 55,
+  village: 45,
+};
+
+const BIOME_DANGER_BASE: Record<string, number> = {
+  plains: 25,
+  forest: 40,
+  mountains: 60,
+  desert: 55,
+  swamp: 65,
+  marsh: 60,
+  tundra: 50,
+  water: 80,
+  coastline: 45,
+};
+
+export interface TileFeatureContext {
+  is_on_road: boolean;
+  road_name: string | null;
+  road_traffic: number;
+  road_danger: number;
+  nearest_town_name: string | null;
+  nearest_town_distance: number | null;
+  settlement_type: string | null;
+}
+
+export interface NarrativeContextOptions {
+  questToOffer?: { title: string; description: string; rewards: string } | null;
+  worldFacts?: string | null;
+  locationContext?: LocationContext | null;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function findSettlementById(
+  id: string | undefined,
+  location?: LocationContext | null
+): SettlementSummary | null {
+  if (!id || !location) return null;
+
+  if (location.nearestSettlement && location.nearestSettlement.id === id) {
+    return location.nearestSettlement;
+  }
+
+  return location.nearbySettlements.find(settlement => settlement.id === id) ?? null;
+}
+
+function calculateTrafficScore(
+  road: RoadProximity | null | undefined,
+  location?: LocationContext | null
+): number {
+  if (!road || !location) return 0;
+
+  const from = findSettlementById(road.fromSettlementId, location);
+  const to = findSettlementById(road.toSettlementId, location);
+
+  const fromWeight = from ? (SETTLEMENT_TRAFFIC_WEIGHTS[from.type] ?? 45) : 35;
+  const toWeight = to ? (SETTLEMENT_TRAFFIC_WEIGHTS[to.type] ?? 45) : 35;
+  const base = (fromWeight + toWeight) / 2;
+
+  const distancePenalty = clamp(road.distance * 10, 0, 25);
+  return clamp(Math.round(base - distancePenalty), 10, 95);
+}
+
+function formatRoadName(road: RoadProximity | null | undefined): string | null {
+  if (!road) return null;
+  const from = road.fromSettlementName?.trim();
+  const to = road.toSettlementName?.trim();
+
+  if (from && to) {
+    if (from === to) {
+      return `${from} Way`;
+    }
+    return `${from}–${to} Road`;
+  }
+
+  if (from) return `${from} Road`;
+  if (to) return `${to} Road`;
+  return 'Unnamed Road';
+}
+
+function baseDangerForBiome(biome: string | undefined): number {
+  if (!biome) return 40;
+  return BIOME_DANGER_BASE[biome.toLowerCase()] ?? 40;
+}
+
+export function describeTrafficLevel(score: number): string {
+  if (score >= 75) return 'heavy';
+  if (score >= 50) return 'moderate';
+  if (score >= 30) return 'light';
+  return 'sparse';
+}
+
+export function describeDangerLevel(score: number): string {
+  if (score >= 70) return 'high';
+  if (score >= 45) return 'moderate';
+  if (score >= 25) return 'low';
+  return 'minimal';
+}
+
+export function getCompassDirection(dx: number, dy: number): string {
+  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
+    return 'right here';
+  }
+
+  const angle = Math.atan2(-dy, dx);
+  const degrees = (angle * 180 / Math.PI + 360) % 360;
+  const sectors = ['east', 'northeast', 'north', 'northwest', 'west', 'southwest', 'south', 'southeast'];
+  const index = Math.floor((degrees + 22.5) / 45) % sectors.length;
+  return sectors[index];
+}
+
+export function enhanceContextWithTileFeatures(
+  character: CharacterRecord,
+  location?: LocationContext | null
+): TileFeatureContext {
+  const position = character.position ?? { x: 0, y: 0 };
+  const tile = generateTile(position.x, position.y, character.campaign_seed);
+  const nearestRoad = location?.nearestRoad ?? null;
+  const isOnRoad = !!nearestRoad && nearestRoad.distance <= 0.5;
+  const roadName = formatRoadName(nearestRoad);
+  const roadTraffic = calculateTrafficScore(nearestRoad, location);
+  const biomeDanger = baseDangerForBiome(tile.biome);
+
+  let roadDanger = biomeDanger;
+  if (isOnRoad) roadDanger -= 10;
+  if (roadTraffic >= 70) roadDanger -= 10;
+  if (roadTraffic <= 25) roadDanger += 10;
+  roadDanger = clamp(Math.round(roadDanger), 5, 95);
+
+  const nearestSettlement = location?.nearestSettlement ?? null;
+
+  return {
+    is_on_road: isOnRoad,
+    road_name: roadName,
+    road_traffic: roadTraffic,
+    road_danger: roadDanger,
+    nearest_town_name: nearestSettlement?.name ?? null,
+    nearest_town_distance: nearestSettlement ? Number(nearestSettlement.distance.toFixed(1)) : null,
+    settlement_type: nearestSettlement?.type ?? null,
+  };
+}
+
+function formatRoadContextLine(
+  tileContext: TileFeatureContext,
+  location: LocationContext | null,
+  position: { x: number; y: number }
+): string | null {
+  if (tileContext.is_on_road && tileContext.road_name) {
+    const trafficLabel = describeTrafficLevel(tileContext.road_traffic);
+    const dangerLabel = describeDangerLevel(tileContext.road_danger);
+    return `- You are standing ON ${tileContext.road_name} (${trafficLabel} traffic, ${dangerLabel} danger).`;
+  }
+
+  if (location?.nearestRoad) {
+    const distanceMiles = Number(location.nearestRoad.distance.toFixed(1));
+    const dx = location.nearestRoad.positionOnRoad.x - position.x;
+    const dy = location.nearestRoad.positionOnRoad.y - position.y;
+    const direction = getCompassDirection(dx, dy);
+    const name = tileContext.road_name ?? formatRoadName(location.nearestRoad) ?? 'a maintained trail';
+    return `- ${name} runs ${distanceMiles} miles to your ${direction}.`;
+  }
+
+  return '- No maintained roads are visible at this exact tile.';
+}
+
+function formatSettlementContextLine(
+  tileContext: TileFeatureContext,
+  location: LocationContext | null,
+  position: { x: number; y: number }
+): string | null {
+  if (!tileContext.nearest_town_name || tileContext.nearest_town_distance == null || !location?.nearestSettlement) {
+    return null;
+  }
+
+  const dx = location.nearestSettlement.x - position.x;
+  const dy = location.nearestSettlement.y - position.y;
+  const direction = getCompassDirection(dx, dy);
+  const distance = tileContext.nearest_town_distance.toFixed(1);
+  const settlementType = tileContext.settlement_type ?? 'settlement';
+
+  return `- Nearest settlement: ${tileContext.nearest_town_name} (${settlementType}), ${distance} miles to the ${direction}.`;
+}
+
+function formatLocationContextBlock(
+  character: CharacterRecord,
+  tileContext: TileFeatureContext | null,
+  location: LocationContext | null
+): string {
+  if (!tileContext) return '';
+
+  const position = character.position ?? { x: 0, y: 0 };
+  const tile = generateTile(position.x, position.y, character.campaign_seed);
+
+  const lines: string[] = ['\nLOCATION CONTEXT:'];
+
+  const roadLine = formatRoadContextLine(tileContext, location, position);
+  if (roadLine) lines.push(roadLine);
+
+  const settlementLine = formatSettlementContextLine(tileContext, location, position);
+  if (settlementLine) lines.push(settlementLine);
+
+  const elevationMeters = Math.round((tile.elevation ?? 0) * 100);
+  lines.push(`- Tile biome: ${tile.biome}, elevation approximately ${elevationMeters}m.`);
+
+  return `${lines.join('\n')}\n`;
+}
 
 // ============================================================================
 // NARRATIVE-ONLY SYSTEM PROMPT (Security Hardened)
@@ -81,7 +301,21 @@ Output: "You check your belongings: a rusty longsword, a battered wooden shield,
 Given: Level 0 Bard in tutorial mode
 Output: "Welcome, young bard! Before you set out on your adventure, you need to choose the magical songs that will form your repertoire. [Present the cantrip list from tutorial context]. Which cantrips call to you?"
 
-REMEMBER: You are a storyteller, not a rules adjudicator. The game engine handles all mechanics. But you MUST answer player questions accurately using the CHARACTER SHEET provided.`;
+**IMPORTANT: TOWN CONTEXT**
+If the CHARACTER SHEET contains a "STARTER TOWN CONTEXT" section, you MUST use it to ground your narrative:
+- The character is traveling through the world toward this town - treat it as their destination/current area of focus
+- Reference specific locations (inns, markets, squares), NPCs (names and roles), and quests from the town context
+- When describing the character's surroundings, include the town's distinctive features: mention the gates, key buildings (mills, markets), and landmarks
+- Use the town's atmosphere (ambient sounds, signature smells, seasonal notes) to make scenes vivid and immersive
+- If the player asks "what do I see?", describe the path leading to the town with the town's gates visible in the distance or nearby
+- Weave town details naturally into your narrative - don't just list them
+- Let the town feel real and specific with its own character, not a generic fantasy landscape
+
+**LOCATION CONTEXT & WORLD FACTS:**
+- Use the provided Location Context and World Facts to ground your descriptions in reality.
+- When asked about world features, reference the actual data instead of being vague.
+
+REMEMBER: You are a storyteller, not a rules adjudicator. The game engine handles all mechanics. But you MUST answer player questions accurately using the CHARACTER SHEET provided. When a town context is available, use it to create immersive, specific narratives grounded in that place.`;
 
 // ============================================================================
 // LLM MESSAGE TYPES
@@ -171,15 +405,24 @@ async function getTownContext(character: CharacterRecord): Promise<string> {
 
     console.log(`[NarratorLLM] Found town: ${town.name} for campaign: ${character.campaign_seed}`);
 
-    const townData = town.full_data as GeneratedTown;
+    // Parse town.full_data - it might be a JSON string
+    let townData: GeneratedTown;
+    if (typeof town.full_data === 'string') {
+      console.log(`[TownContext] Parsing town.full_data as JSON string`);
+      townData = JSON.parse(town.full_data);
+    } else {
+      townData = town.full_data as GeneratedTown;
+    }
 
     // Build reveal tier context (what the character knows based on exploration)
     // For now, show public information by default
     // In future, this will be filtered based on discovered secrets
     console.log(`[TownContext] Building context for ${townData.name}`);
-    console.log(`[TownContext] Locations count: ${townData.locations?.length || 0}`);
-    console.log(`[TownContext] NPCs count: ${townData.npcs?.length || 0}`);
-    console.log(`[TownContext] Quests count: ${townData.quests?.length || 0}`);
+    console.log(`[TownContext] townData keys: ${Object.keys(townData).join(', ')}`);
+    console.log(`[TownContext] Has locations: ${!!townData.locations}, count: ${townData.locations?.length || 0}`);
+    console.log(`[TownContext] First location name:`, townData.locations?.[0]?.name || 'NONE');
+    console.log(`[TownContext] Has NPCs: ${!!townData.npcs}, count: ${townData.npcs?.length || 0}`);
+    console.log(`[TownContext] First NPC name:`, townData.npcs?.[0]?.name || 'NONE');
 
     let townContext = `\nSTARTER TOWN CONTEXT:\n`;
     townContext += `Name: ${townData.name}\n`;
@@ -249,8 +492,14 @@ async function buildNarrativePrompt(
   conversationHistory: ChatMessage[],
   playerMessage: string,
   actionResult: ActionResult,
-  questToOffer?: { title: string; description: string; rewards: string } | null
+  options: NarrativeContextOptions = {}
 ): Promise<NarratorMessage[]> {
+  const {
+    questToOffer = null,
+    worldFacts = null,
+    locationContext: providedLocationContext = null,
+  } = options;
+
   // Calculate tension level (hidden mechanics → narrative atmosphere)
   const tension = calculateTensionLevel(character);
 
@@ -325,6 +574,36 @@ REMEMBER: Do NOT let the player explore yet. They must complete this interview s
     }
   }
 
+  const position = character.position ?? { x: 0, y: 0 };
+  let locationContext: LocationContext | null = providedLocationContext;
+  let tileFeatures: TileFeatureContext | null = null;
+  let locationContextBlock = '';
+
+  if (!character.tutorial_state || character.tutorial_state === 'complete') {
+    if (!locationContext) {
+      try {
+        locationContext = await locationService.buildLocationContext(
+          character.campaign_seed,
+          position,
+          {
+            characterId: character.id,
+            radius: 40,
+            nearbySettlementLimit: 3,
+          }
+        );
+      } catch (error) {
+        console.error('[NarratorLLM] Failed to resolve location context:', error);
+      }
+    }
+
+    tileFeatures = enhanceContextWithTileFeatures(character, locationContext);
+    locationContextBlock = formatLocationContextBlock(character, tileFeatures, locationContext);
+
+    if (locationContextBlock) {
+      console.log('[NarratorLLM] Location context block generated:', locationContextBlock.trim());
+    }
+  }
+
   // Get quest context (only if in world, not during interview)
   let questContext = '';
   if (!character.tutorial_state || character.tutorial_state === 'complete') {
@@ -336,7 +615,7 @@ REMEMBER: Do NOT let the player explore yet. They must complete this interview s
   // Get world context (only if in world, not during interview)
   let worldContext = '';
   if (!character.tutorial_state || character.tutorial_state === 'complete') {
-    worldContext = await getWorldContext(character);
+    worldContext = await getWorldContext(character, { locationContext });
   } else {
     worldContext = 'Character is in Chronicle Chamber (Session 0). Not in world yet.';
   }
@@ -372,12 +651,14 @@ REMEMBER: Do NOT let the player explore yet. They must complete this interview s
 Character: ${character.name} (${character.race} ${character.class} Level ${character.level})
 HP: ${character.hp_current}/${character.hp_max}
 Gold: ${character.gold || 0} gp
-Position: (${character.position.x}, ${character.position.y})
+Position: (${position.x}, ${position.y})
 Abilities: STR ${character.ability_scores.STR}, DEX ${character.ability_scores.DEX}, CON ${character.ability_scores.CON}, INT ${character.ability_scores.INT}, WIS ${character.ability_scores.WIS}, CHA ${character.ability_scores.CHA}
 Proficiency Bonus: +${character.proficiency_bonus}
 Equipment: ${equipmentList}
 XP: ${character.xp}
 ${narrativeContext}
+
+${locationContextBlock}
 
 ${questContext}
 
@@ -449,6 +730,10 @@ Remember: This is a CONSEQUENCE of their earlier narrative claim!`;
     finalPrompt += `⚠️ IMPORTANT: The player is asking a QUESTION. Answer it directly using the CHARACTER SHEET data provided above. Then continue with narrative.\n\n`;
   }
 
+  if (worldFacts && worldFacts.trim().length > 0) {
+    finalPrompt += `KNOWN WORLD FACTS: ${worldFacts.trim()}\n\n`;
+  }
+
   finalPrompt += `---\n${actionSummary}\n---\n\n`;
 
   // Add quest offer if provided
@@ -480,8 +765,13 @@ export async function generateNarrative(
   conversationHistory: ChatMessage[],
   playerMessage: string,
   actionResult: ActionResult,
-  questToOffer?: { title: string; description: string; rewards: string } | null
+  options: NarrativeContextOptions = {}
 ): Promise<string> {
+  const {
+    questToOffer = null,
+    worldFacts = null,
+    locationContext = null,
+  } = options;
 
   // CRITICAL: Use Gemini for Session 0 interview (better instruction compliance)
   if (character.tutorial_state &&
@@ -490,7 +780,13 @@ export async function generateNarrative(
     console.log('[NarratorLLM] Character in Session 0 - using Gemini for strict instruction following');
     console.log('[NarratorLLM] Tutorial state:', character.tutorial_state);
     try {
-      const geminiResult = await generateNarrativeWithGemini(character, conversationHistory, playerMessage, actionResult, questToOffer);
+      const geminiResult = await generateNarrativeWithGemini(
+        character,
+        conversationHistory,
+        playerMessage,
+        actionResult,
+        { questToOffer, worldFacts, locationContext }
+      );
       console.log('[NarratorLLM] Gemini success for Session 0');
       return geminiResult;
     } catch (geminiError) {
@@ -513,7 +809,7 @@ export async function generateNarrative(
     conversationHistory,
     playerMessage,
     actionResult,
-    questToOffer
+    { questToOffer, worldFacts, locationContext }
   );
 
   // Call LLM
@@ -572,7 +868,7 @@ export async function generateNarrativeWithGemini(
   conversationHistory: ChatMessage[],
   playerMessage: string,
   actionResult: ActionResult,
-  questToOffer?: { title: string; description: string; rewards: string } | null
+  options: NarrativeContextOptions = {}
 ): Promise<string> {
   // Import Gemini service
   const { generateText } = await import('./gemini');
@@ -582,7 +878,7 @@ export async function generateNarrativeWithGemini(
     conversationHistory,
     playerMessage,
     actionResult,
-    questToOffer
+    options
   );
 
   // Convert messages to single prompt for Gemini

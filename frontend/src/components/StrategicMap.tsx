@@ -35,6 +35,14 @@ interface MapData {
   };
   tiles: MapTile[];
   tilesDiscovered: number;
+  roads: RoadSegment[];
+}
+
+interface RoadSegment {
+  id: string;
+  from: { id: string; name: string };
+  to: { id: string; name: string };
+  polyline: { x: number; y: number }[];
 }
 
 // Biome colors (muted for strategic view)
@@ -97,7 +105,11 @@ export default function StrategicMap({ characterId, campaignSeed, isFullscreen =
         }
 
         const data = await response.json();
-        setMapData(data);
+        const normalized: MapData = {
+          ...data,
+          roads: Array.isArray(data.roads) ? data.roads : []
+        };
+        setMapData(normalized);
 
         // Log warning for large datasets
         if (data.tilesDiscovered > 5000) {
@@ -218,6 +230,35 @@ export default function StrategicMap({ characterId, campaignSeed, isFullscreen =
         ctx.lineTo(offsetX + worldWidth, screenY);
         ctx.stroke();
       }
+    }
+
+    // Draw roads after overlays for visibility
+    if (mapData.roads.length > 0) {
+      ctx.save();
+      ctx.lineWidth = Math.max(1, tileSize * 0.35);
+      ctx.strokeStyle = 'rgba(214, 188, 104, 0.85)';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(214, 188, 104, 0.35)';
+      ctx.shadowBlur = Math.max(2, tileSize * 0.6);
+
+      for (const road of mapData.roads) {
+        if (!road.polyline || road.polyline.length < 2) continue;
+
+        ctx.beginPath();
+        road.polyline.forEach((point, index) => {
+          const screenX = offsetX + (point.x - mapData.bounds.minX) * tileSize;
+          const screenY = offsetY + (point.y - mapData.bounds.minY) * tileSize;
+          if (index === 0) {
+            ctx.moveTo(screenX, screenY);
+          } else {
+            ctx.lineTo(screenX, screenY);
+          }
+        });
+        ctx.stroke();
+      }
+
+      ctx.restore();
     }
 
     // Draw player position marker
