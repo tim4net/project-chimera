@@ -374,7 +374,12 @@ export const generateImage = async ({
     return pollForCompletion(pending.id, promptHash, 'image');
   }
 
-  const request = await createAssetRequest(`image|${promptHash}`, 'image');
+  let request: any = null;
+  try {
+    request = await createAssetRequest(`image|${promptHash}`, 'image');
+  } catch (error) {
+    console.warn('[ImageGen] Failed to create asset request, continuing without tracking:', error instanceof Error ? error.message : error);
+  }
 
   try {
     const styleConfig = await getActiveStyleConfig();
@@ -391,11 +396,11 @@ export const generateImage = async ({
       const message = error instanceof Error ? error.message : String(error);
       console.error('[ImageGen] Generation pipeline failed, creating and uploading placeholder:', message);
       imageBuffer = createPlaceholderImage();
-      
+
       // Upload the placeholder and return its URL directly
       const fileName = `${contextType}/${Date.now()}_placeholder.svg`;
       const storedUrl = await uploadToStorage(imageBuffer, fileName, 'image/svg+xml');
-      
+
       // Cache the placeholder result
       await cacheGeneratedImage({
         prompt,
@@ -403,7 +408,7 @@ export const generateImage = async ({
         dimensions,
         contextType,
         styleVersionId,
-        metadata: { 
+        metadata: {
           generatedAt: new Date().toISOString(),
           model: 'placeholder',
           contextProvided: Object.keys(context),
@@ -411,7 +416,9 @@ export const generateImage = async ({
         }
       });
 
-      await updateAssetRequestStatus(request.id, 'completed');
+      if (request) {
+        await updateAssetRequestStatus(request.id, 'completed');
+      }
 
       return {
         imageUrl: storedUrl,
@@ -436,7 +443,9 @@ export const generateImage = async ({
       }
     });
 
-    await updateAssetRequestStatus(request.id, 'completed');
+    if (request) {
+      await updateAssetRequestStatus(request.id, 'completed');
+    }
 
     return {
       imageUrl: storedUrl,
@@ -444,7 +453,9 @@ export const generateImage = async ({
       metadata: { generatedAt: new Date().toISOString() }
     };
   } catch (error) {
-    await updateAssetRequestStatus(request.id, 'failed');
+    if (request) {
+      await updateAssetRequestStatus(request.id, 'failed');
+    }
     throw error;
   }
 };

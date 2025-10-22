@@ -134,6 +134,16 @@ export const startServer = (): void => {
     });
   });
 
+  // Global error handlers
+  process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+    console.error('[Server] Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+
+  process.on('uncaughtException', (error: Error) => {
+    console.error('[Server] Uncaught Exception:', error);
+    // Don't exit immediately - allow graceful shutdown
+  });
+
   // Graceful shutdown
   process.on('SIGTERM', async () => {
     console.log('[Server] SIGTERM received, shutting down gracefully...');

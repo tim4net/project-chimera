@@ -4,6 +4,7 @@
  */
 
 import { generateWithLocalLLM } from './narratorLLM';
+import { parseJsonFromResponse, validateJsonStructure } from './jsonParser';
 
 interface NameGenerationRequest {
   race: string;
@@ -63,49 +64,53 @@ function buildNamePrompt(request: NameGenerationRequest): string {
 
   const cultureHint = culturalHints[request.race] || 'Fantasy-appropriate to the character\'s culture';
 
-  return `Generate a fantasy name for a ${genderText} ${request.race}${classContext}${backgroundContext}.
+  return `You are a fantasy name generator. Create a unique name for a ${genderText} ${request.race}${classContext}${backgroundContext}.
+
+CRITICAL: YOU MUST OUTPUT EXACTLY this JSON format with NO markdown, NO code blocks, NO extra text:
+{"firstName":"FIRST","lastName":"LAST","meaning":"MEANING"}
 
 CULTURAL CONTEXT: ${cultureHint}
 
-REQUIREMENTS:
-- First name and surname (or title-based last name)
-- Unique and memorable - NOT generic or clichéd
-- Evocative of ${request.race} heritage and culture
-- Mysterious but pronounceable
-- Fits a dark fantasy world (medieval, dangerous, mysterious)
+REQUIREMENTS FOR EACH FIELD:
+- firstName (string): First/given name only (5-15 chars). Evocative of ${request.race} culture. Pronounceable but mysterious. Examples: Selendra, Thorin, Aeliana, Kael, Sylvira
+- lastName (string): Family name or title-based surname (5-20 chars). Examples: Moonwhisper, Stonehelm, Shadowbane, Embercrest
+- meaning (string): 1-2 sentences explaining the name's origin or meaning (30-100 chars). NO markdown.
 
-RESPOND ONLY WITH JSON (no markdown, no extra text):
-{
-  "firstName": "first name only",
-  "lastName": "family name or title-based surname",
-  "meaning": "1-2 sentence origin or meaning"
-}
+INVALID OUTPUT EXAMPLES (DO NOT DO THESE):
+- {"firstName":"A","lastName":"B"...} - WRONG: Names too short
+- {"firstName":"Bob","lastName":"Smith"...} - WRONG: Not fantasy-appropriate
+- {"meaning":"This is a very long explanation that goes on and on and on explaining every detail"...} - WRONG: Too long
+- \`\`\`json {...}\`\`\` - WRONG: Don't use code blocks
+- {"firstName":"Name's","lastName":"Test"...} - WRONG: Quotes not escaped in strings
 
-EXAMPLE for Female Elf Wizard:
-{
-  "firstName": "Selendra",
-  "lastName": "Moonwhisper",
-  "meaning": "Moon-touched seeker of hidden arcane secrets"
-}
+VALID OUTPUT EXAMPLE:
+{"firstName":"Selendra","lastName":"Moonwhisper","meaning":"Moon-touched seeker of hidden arcane secrets, blessed by the ancient forest."}
 
-Now generate a UNIQUE name for this character:`;
+Generate ONE UNIQUE ${genderText} ${request.race}${classContext}${backgroundContext} name now. Output ONLY the JSON on a single line, nothing else:`;
 }
 
 function parseNameResponse(response: string): NameGenerationResult {
   try {
-    // Try to extract JSON from response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const data = JSON.parse(jsonMatch[0]);
+    // Use centralized JSON parser with automatic cleanup
+    const parseResult = parseJsonFromResponse<NameGenerationResult>(response, {
+      fixCommonErrors: true,
+    });
+
+    if (parseResult.success && parseResult.data) {
+      const data = parseResult.data;
+
+      // Validate required fields
+      if (
+        validateJsonStructure(data, ['firstName', 'lastName']) &&
+        data.firstName &&
+        data.lastName
+      ) {
         return {
           fullName: `${data.firstName} ${data.lastName}`,
           firstName: data.firstName,
           lastName: data.lastName,
           meaning: data.meaning,
         };
-      } catch (jsonError) {
-        console.warn('[NameGenerator] LLM returned malformed JSON, attempting fallback parsing');
       }
     }
 
@@ -124,7 +129,7 @@ function parseNameResponse(response: string): NameGenerationResult {
     }
 
     if (firstName && lastName) {
-      console.info('[NameGenerator] Used fallback line-by-line parsing for LLM response');
+      console.info('[NameGenerator] ✅ Used fallback line-by-line parsing for LLM response');
       return {
         fullName: `${firstName} ${lastName}`,
         firstName,
@@ -134,8 +139,10 @@ function parseNameResponse(response: string): NameGenerationResult {
 
     throw new Error('LLM response could not be parsed - malformed or missing required fields');
   } catch (error) {
-    console.warn('[NameGenerator] Ignoring badly formatted LLM response, awaiting fallback retry:',
-      error instanceof Error ? error.message : String(error));
+    console.warn(
+      '[NameGenerator] ⚠ Badly formatted LLM response:',
+      error instanceof Error ? error.message : String(error)
+    );
     throw error;
   }
 }

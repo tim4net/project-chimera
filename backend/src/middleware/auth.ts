@@ -14,6 +14,24 @@ export const requireAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // DEVELOPMENT MODE: Allow mock authentication via X-Mock-User-Id header
+    const AUTH_MODE = process.env.AUTH_MODE || 'strict';
+    const isProduction = process.env.NODE_ENV === 'production';
+    const mockUserId = req.headers['x-mock-user-id'] as string;
+
+    if (AUTH_MODE === 'mock' && !isProduction && mockUserId) {
+      console.log('[Auth] ✅ Development mode: Using mock user:', mockUserId);
+      (req as AuthenticatedRequest).user = {
+        id: mockUserId,
+        email: `${mockUserId}@dev.local`,
+        user_metadata: {},
+        app_metadata: {},
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      } as User;
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       res.status(401).json(UNAUTHORIZED_RESPONSE);

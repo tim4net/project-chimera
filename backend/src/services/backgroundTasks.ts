@@ -13,6 +13,7 @@
 
 import { generateWithLocalLLM } from './narratorLLM';
 import { supabaseServiceClient } from './supabaseClient';
+import { parseJsonFromResponse, validateJsonStructure } from './jsonParser';
 
 // ============================================================================
 // QUEST TEMPLATE GENERATION
@@ -41,72 +42,75 @@ export async function generateQuestTemplatesBackground(
   for (let i = 0; i < count; i++) {
     const level = Math.floor(Math.random() * (levelRange[1] - levelRange[0] + 1)) + levelRange[0];
 
-    const prompt = `Generate a UNIQUE D&D 5e quest template for level ${level} characters. Use a DIFFERENT theme each time.
+    const xpReward = Math.round(level * 100);
+    const goldReward = Math.round(level * 50 + Math.random() * 100);
 
-Examples of quest themes (pick only ONE, make it DISTINCT):
-- "The Missing Caravan" (rescue/investigation)
-- "Plague Rats of Mill Creek" (extermination)
-- "Recover the Starfall Artifact" (retrieval)
-- "Guard the Road to Millhaven" (protection)
-- "Map the Forgotten Caverns" (exploration)
+    const prompt = `You are a D&D 5e quest generator. Generate a UNIQUE quest template for level ${level} characters.
 
-Return ONLY a JSON object:
-{
-  "title": "Quest name (UNIQUE, creative, specific)",
-  "description": "1-2 sentence description",
-  "objectives": [{"type": "kill_enemies|reach_location|collect_items", "target": "specific enemy/place/item", "count": number}],
-  "rewards": {"xp": ${Math.round(level * 100)}, "gold": ${Math.round(level * 50 + Math.random() * 100)}}
-}
+CRITICAL: YOU MUST OUTPUT EXACTLY this JSON format with NO markdown, NO code blocks, NO extra text:
+{"title":"QUEST_TITLE","description":"DESCRIPTION","objectives":[{"type":"TYPE","target":"TARGET","count":COUNT}],"rewards":{"xp":${xpReward},"gold":${goldReward}}}
 
-Make each quest feel COMPLETELY DIFFERENT from others. Vary:
-- Location types (forest, mountains, ruins, settlement, caves)
-- Enemy types (not just goblins - use bandits, undead, beasts, cultists, etc)
-- Quest objectives (mix kill/retrieve/escort/investigate tasks)
-- Story hooks (urgent, mysterious, lucrative, moral, etc)`;
+REQUIREMENTS FOR EACH FIELD:
+- title (string): A creative, specific quest name (10-50 chars). NOT generic. Vary the style: some action-based like "Recover the Amulet", some location-based like "The Haunted Manor", some character-based like "Save the Merchant's Daughter", some mystery-based like "Investigate the Murders". NOT all "The [Adjective] [Noun]" - mix it up!
+- description (string): Exactly 1-2 sentences explaining the quest hook (50-150 chars). NO markdown, NO special chars except apostrophes.
+- objectives (array): Exactly 1-3 objectives. Each must have type, target, count.
+  * type (string): MUST be exactly one of: "kill_enemies", "reach_location", "collect_items", "escort_npc", "investigate"
+  * target (string): Specific enemy/location/item name (10-40 chars)
+  * count (number): How many (integer 1-50)
+- rewards: xp = ${xpReward}, gold = ${goldReward} (MUST match these exact values)
+
+INVALID OUTPUT EXAMPLES (DO NOT DO THESE):
+- {"title":"A Generic Quest"...} - WRONG: Generic title
+- {"description":"Kill 10 rats in the cellar. Then...", ...} - WRONG: More than 2 sentences
+- {"objectives":[{"type":"kill","target":"rats"...}]} - WRONG: type must be "kill_enemies" exactly
+- \`\`\`json {...}\`\`\` - WRONG: Don't use code blocks
+- {"title":"Quest's Name"...} - WRONG: Quotes inside strings not escaped
+
+VALID OUTPUT EXAMPLES (show variety in title styles):
+1. {"title":"The Shadow in Millhaven Woods","description":"Strange tracks near the mill suggest a predator stalking livestock. The fearful farmers offer gold for answers.","objectives":[{"type":"investigate","target":"Millhaven Woods","count":1},{"type":"kill_enemies","target":"Shadow Beast","count":1}],"rewards":{"xp":${xpReward},"gold":${goldReward}}}
+2. {"title":"Rescue the Merchant's Daughter","description":"A merchant's daughter was kidnapped by bandits fleeing toward the old ruins. The family will reward brave heroes.","objectives":[{"type":"reach_location","target":"Bandit Hideout","count":1},{"type":"escort_npc","target":"Merchant's Daughter","count":1}],"rewards":{"xp":${xpReward},"gold":${goldReward}}}
+
+Generate ONE UNIQUE quest. Make the title DIFFERENT from these examples. Output ONLY the JSON on a single line, nothing else:`;
 
     try {
-      const response = await generateWithLocalLLM(prompt, { temperature: 0.9, maxTokens: 300 });
+      const response = await generateWithLocalLLM(prompt, { temperature: 1.0, maxTokens: 300 });
 
-      // Extract JSON more robustly - find the first { and last }
-      const openBrace = response.indexOf('{');
-      const closeBrace = response.lastIndexOf('}');
+      // Use centralized JSON parser with automatic cleanup
+      const parseResult = parseJsonFromResponse<QuestTemplate>(response, {
+        fixCommonErrors: true,
+      });
 
-      if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
-        let jsonStr = response.substring(openBrace, closeBrace + 1);
-
-        // Try to clean up common issues with LLM output
-        jsonStr = jsonStr
-          .replace(/[\u4e00-\u9fa5]/g, '') // Remove Chinese characters
-          .replace(/[\u3000]/g, ' ') // Remove ideographic spaces
-          .replace(/[""]/g, '"') // Fix smart quotes (Chinese)
-          .replace(/[''"]/g, '"') // Fix other smart quotes
-          .replace(/[\u2018\u2019]/g, '"') // Fix Unicode quotes
-          .replace(/[\u201c\u201d]/g, '"') // Fix more Unicode quotes
-          .replace(/[\r\n]/g, ' ') // Remove newlines within JSON
-          .replace(/,\s*}/g, '}') // Remove trailing commas before }
-          .replace(/,\s*]/g, ']'); // Remove trailing commas before ]
-
-        try {
-          const template = JSON.parse(jsonStr) as QuestTemplate;
-
-          try {
-            // Validate schema before using
-            if (!template.title || typeof template.title !== 'string' ||
-                !template.description || typeof template.description !== 'string' ||
-                !Array.isArray(template.objectives) || template.objectives.length === 0 ||
-                !template.rewards || typeof template.rewards !== 'object' || typeof template.rewards.xp !== 'number' || typeof template.rewards.gold !== 'number') {
-              throw new Error('Invalid quest schema: missing or wrong type fields');
-            }
-
-            templates.push(template);
-            console.log(`[BackgroundTasks] Generated quest: "${template.title}"`);
-          } catch (validateErr) {
-            console.error(`[BackgroundTasks] Quest ${i + 1} schema validation failed:`, (validateErr as Error).message);
-          }
-        } catch (parseErr) {
-          console.warn(`[BackgroundTasks] ⚠ Quest ${i + 1}: LLM returned invalid JSON (skipping, will retry) - ${(parseErr as Error).message.substring(0, 60)}`);
-        }
+      if (!parseResult.success) {
+        console.warn(`[BackgroundTasks] ⚠ Quest ${i + 1} parse failed: ${parseResult.error}`);
+        continue;
       }
+
+      const template = parseResult.data!;
+
+      // Validate schema
+      if (
+        !validateJsonStructure(template, [
+          'title',
+          'description',
+          'objectives',
+          'rewards',
+        ]) ||
+        !template.title ||
+        typeof template.title !== 'string' ||
+        !template.description ||
+        typeof template.description !== 'string' ||
+        !Array.isArray(template.objectives) ||
+        template.objectives.length === 0 ||
+        !template.rewards ||
+        typeof template.rewards.xp !== 'number' ||
+        typeof template.rewards.gold !== 'number'
+      ) {
+        console.warn(`[BackgroundTasks] ⚠ Quest ${i + 1} schema validation failed`);
+        continue;
+      }
+
+      templates.push(template);
+      console.log(`[BackgroundTasks] ✅ Generated quest: "${template.title}"`);
     } catch (error) {
       console.error(`[BackgroundTasks] Failed to generate quest ${i + 1}:`, error);
     }
@@ -146,40 +150,74 @@ export async function generatePOIDescriptionsBackground(
   for (let i = 0; i < count; i++) {
     const poiType = poiTypes[Math.floor(Math.random() * poiTypes.length)];
 
-    const prompt = `Generate a D&D 5e point of interest description.
+    const prompt = `You are a D&D 5e location descriptor. Create a mysterious ${poiType} point of interest.
 
-Type: ${poiType}
+CRITICAL: YOU MUST OUTPUT EXACTLY this JSON format with NO markdown, NO code blocks, NO extra text:
+{"type":"${poiType}","name":"THE_NAME","description":"DESCRIPTION","encounter_chance":0.3}
 
-Return ONLY a JSON object:
-{
-  "type": "${poiType}",
-  "name": "The [Adjective] [Noun]",
-  "description": "2-3 sentence atmospheric description",
-  "encounter_chance": 0.3
-}
+REQUIREMENTS FOR EACH FIELD:
+- type (string): MUST be exactly "${poiType}"
+- name (string): A mystical location name (5-40 chars). Format: "The [Adjective] [Noun]" or "[Name] of [Place]". Examples: "The Shattered Tower", "The Moonlit Grove", "Raven's Crypt", "The Bone Merchant's Stall". NO generic names like "The Place" or "Unknown Location".
+- description (string): Exactly 2-3 sentences of atmospheric description (80-200 chars). Evoke mood, not mechanics. NO stats or rules. NO markdown formatting.
+- encounter_chance (number): MUST be 0.3 (exactly)
 
-Make it evocative and mysterious. Vary the names.`;
+INVALID OUTPUT EXAMPLES (DO NOT DO THESE):
+- {"type":"ruins"...} - WRONG: Wrong type value
+- {"description":"A place. It has things. You enter."...} - WRONG: Less than 2 sentences
+- {"name":"The Long Description Of A Place With Many Words"...} - WRONG: Name too long
+- \`\`\`json {...}\`\`\` - WRONG: Don't use code blocks
+- {"description":"2 sentences. More stuff. And more stuff."...} - WRONG: More than 3 sentences
+
+VALID OUTPUT EXAMPLE:
+{"type":"${poiType}","name":"The Widow's Lantern","description":"An ancient stone structure stands weathered and defiant against constant wind. Strange lights flicker within at dusk, though no living soul dwells here. Local herders fear its curse.","encounter_chance":0.3}
+
+Generate ONE unique ${poiType} now. Output ONLY the JSON on a single line, nothing else:`;
 
     try {
       const response = await generateWithLocalLLM(prompt, { temperature: 0.9, maxTokens: 200 });
 
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const poi = JSON.parse(jsonMatch[0]) as POIDescription;
-        descriptions.push(poi);
+      // Use centralized JSON parser
+      const parseResult = parseJsonFromResponse<POIDescription>(response, {
+        fixCommonErrors: true,
+      });
 
-        // Store in database
-        await supabaseServiceClient.from('world_pois').insert({
-          campaign_seed,
-          name: poi.name,
-          type: poi.type,
-          description: poi.description,
-          position: { x: 0, y: 0 }, // Will be placed by world generator
-          discovered: false,
-        });
-
-        console.log(`[BackgroundTasks] Generated POI: "${poi.name}"`);
+      if (!parseResult.success) {
+        console.warn(`[BackgroundTasks] ⚠ POI ${i + 1} parse failed: ${parseResult.error}`);
+        continue;
       }
+
+      const poi = parseResult.data!;
+
+      // Validate schema
+      if (
+        !validateJsonStructure(poi, [
+          'type',
+          'name',
+          'description',
+          'encounter_chance',
+        ]) ||
+        poi.type !== poiType ||
+        !poi.name ||
+        !poi.description ||
+        typeof poi.encounter_chance !== 'number'
+      ) {
+        console.warn(`[BackgroundTasks] ⚠ POI ${i + 1} schema validation failed`);
+        continue;
+      }
+
+      descriptions.push(poi);
+
+      // Store in database
+      await supabaseServiceClient.from('world_pois').insert({
+        campaign_seed,
+        name: poi.name,
+        type: poi.type,
+        description: poi.description,
+        position: { x: 0, y: 0 }, // Will be placed by world generator
+        discovered: false,
+      });
+
+      console.log(`[BackgroundTasks] ✅ Generated POI: "${poi.name}"`);
     } catch (error) {
       console.error(`[BackgroundTasks] Failed to generate POI ${i + 1}:`, error);
     }
@@ -402,94 +440,80 @@ export async function generateCombatEncountersBackground(
 
     const prompt = `Generate a UNIQUE D&D 5e combat encounter description.
 
+CRITICAL: Output EXACTLY this JSON format with NO markdown, NO code blocks, NO extra text:
+{"name":"ENCOUNTER_NAME","description":"DESCRIPTION","enemies":[{"name":"NAME","type":"${primaryEnemy.type}","hp":${primaryEnemy.hp},"ac":${primaryEnemy.ac},"attack_bonus":${primaryEnemy.attack},"damage_dice":"${primaryEnemy.damage}","special_abilities":"ABILITY"}],"loot_tier":"minimal/standard/rich"}
+
+ENCOUNTER NAMING - CREATE VARIETY (NOT all "The X"):
+Mix these naming styles:
+- Tactical: "Goblin Ambush at Dead Oak", "Bandit Trap on King's Road", "Skeleton Guard Post"
+- Location-based: "Wolves in Thornwood Pass", "Orc War Party at River Ford", "Undead in the Crypt"
+- Tactical descriptive: "Coordinated Flanking Attack", "Ambush from Concealment", "Frontal Siege Formation"
+- Enemy-focused: "Berserker's Last Stand", "Lich's Undead Guardians", "Cult Assassins in Darkness"
+- Mysterious: "The Darkwood Threat", "Shadows on the Trail", "Curse of the Lost Temple"
+
+REQUIREMENTS:
+- name (string): Creative, specific encounter name (15-50 chars). NOT all "X Encounter" - vary the style!
+- description (string): 2-3 sentences with terrain, atmosphere, and tactical positioning
+- enemies (array): Exactly ${groupSize} enemy objects with name, type, hp, ac, attack_bonus, damage_dice, special_abilities
+- Each enemy must have a DISTINCT memorable name (not generic)
+- loot_tier: "minimal", "standard", or "rich"
+
 Location: ${locationType}
 Enemy Type: ${groupSize}x ${primaryEnemy.type}
 Challenge Rating: ${cr.toFixed(1)}
 
-Examples of encounter scenarios for context:
-- Ambush from dark woods with tactical positioning
-- Dungeon chamber with hazards (traps, pillars, water)
-- Street confrontation with environmental advantages
-- Lair with multiple escape routes and lair actions
-- Patrol formation on the road at dawn
+VALID EXAMPLES (show variety):
+1. {"name":"Goblin Ambush at Dead Oak","description":"...","enemies":[...],"loot_tier":"minimal"}
+2. {"name":"Wolves in Thornwood Pass","description":"...","enemies":[...],"loot_tier":"standard"}
+3. {"name":"The Darkwood Threat","description":"...","enemies":[...],"loot_tier":"standard"}
 
-Return ONLY a JSON object:
-{
-  "name": "Unique encounter name (not generic, e.g. 'Goblin Ambush at Dead Oak' not 'Goblin Encounter')",
-  "description": "2-3 sentence atmospheric description with terrain details and ambiance",
-  "enemies": [
-    {
-      "name": "Memorable individual name (e.g. 'Gruk Ironjaw', 'Sergeant Vex', 'Mother Blackfang')",
-      "type": "${primaryEnemy.type}",
-      "hp": ${primaryEnemy.hp},
-      "ac": ${primaryEnemy.ac},
-      "attack_bonus": ${primaryEnemy.attack},
-      "damage_dice": "${primaryEnemy.damage}",
-      "special_abilities": "One unique tactic or ability that makes this enemy interesting (not generic)"
-    }
-  ],
-  "loot_tier": "minimal/standard/rich"
-}
-
-Make descriptions VIVID with specific details. Give each enemy a DISTINCT memorable name and personality.`;
+Generate ONE UNIQUE encounter. Output ONLY JSON on a single line, nothing else:`;
 
     try {
-      const response = await generateWithLocalLLM(prompt, { temperature: 0.95, maxTokens: 400 });
+      const response = await generateWithLocalLLM(prompt, { temperature: 1.0, maxTokens: 400 });
 
-      // Extract JSON more robustly - find the first { and last }
-      const openBrace = response.indexOf('{');
-      const closeBrace = response.lastIndexOf('}');
+      // Use centralized parser with improved quote handling and brace-aware extraction
+      const parseResult = parseJsonFromResponse<CombatEncounter>(response, {
+        fixCommonErrors: true,
+        debug: false,
+      });
 
-      if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
-        let jsonStr = response.substring(openBrace, closeBrace + 1);
-        const originalLength = jsonStr.length;
+      if (!parseResult.success) {
+        console.warn(`[BackgroundTasks] ⚠ Encounter ${i + 1}: Parse failed: ${parseResult.error}`);
+        continue;
+      }
 
-        // Try to clean up common issues with LLM output (VERY aggressive for encounters which have nested arrays)
-        jsonStr = jsonStr
-          .replace(/[\u0080-\uffff]/g, '') // Remove ALL non-ASCII characters (Chinese, Unicode chars, etc)
-          .replace(/[\r\n\t]/g, ' ') // Remove all whitespace control chars
-          .replace(/\s+/g, ' ') // Normalize spaces
-          .replace(/,\s*}/g, '}') // Remove trailing commas before }
-          .replace(/,\s*]/g, ']') // Remove trailing commas before ]
-          .replace(/:\s*,/g, ': null,') // Fix missing values before commas
-          .replace(/:\s*}/g, ': null}'); // Fix missing values before }
+      const parsed = parseResult.data!;
 
-        try {
-          const parsed = JSON.parse(jsonStr);
-
-          try {
-            // Validate schema before using
-            if (!parsed.name || typeof parsed.name !== 'string' ||
-                !parsed.description || typeof parsed.description !== 'string' ||
-                !Array.isArray(parsed.enemies) || parsed.enemies.length === 0) {
-              throw new Error('Invalid encounter schema: missing name, description, or enemies array');
-            }
-
-            // Validate enemies have required fields
-            for (const enemy of parsed.enemies) {
-              if (!enemy || typeof enemy !== 'object' || !enemy.name || !enemy.type || typeof enemy.hp !== 'number') {
-                throw new Error('Invalid enemy in encounter: missing name, type, or hp');
-              }
-            }
-
-            // Build full encounter with proper typing
-            const encounter: CombatEncounter = {
-              name: parsed.name,
-              description: parsed.description,
-              challenge_rating: cr,
-              enemies: parsed.enemies,
-              loot_tier: parsed.loot_tier || 'standard',
-              location_type: locationType,
-            };
-
-            encounters.push(encounter);
-            console.log(`[BackgroundTasks] Generated encounter: "${encounter.name}" (${encounter.enemies.length} enemies, CR ${cr.toFixed(1)})`);
-          } catch (validateErr: any) {
-            console.error(`[BackgroundTasks] Encounter ${i + 1} schema validation failed: ${validateErr.message}`);
-          }
-        } catch (parseErr: any) {
-          console.warn(`[BackgroundTasks] ⚠ Encounter ${i + 1}: LLM returned invalid JSON (skipping, will retry) - ${parseErr.message?.substring(0, 60)}`);
+      try {
+        // Validate schema before using
+        if (!parsed.name || typeof parsed.name !== 'string' ||
+            !parsed.description || typeof parsed.description !== 'string' ||
+            !Array.isArray(parsed.enemies) || parsed.enemies.length === 0) {
+          throw new Error('Invalid encounter schema: missing name, description, or enemies array');
         }
+
+        // Validate enemies have required fields
+        for (const enemy of parsed.enemies) {
+          if (!enemy || typeof enemy !== 'object' || !enemy.name || !enemy.type || typeof enemy.hp !== 'number') {
+            throw new Error('Invalid enemy in encounter: missing name, type, or hp');
+          }
+        }
+
+        // Build full encounter with proper typing
+        const encounter: CombatEncounter = {
+          name: parsed.name,
+          description: parsed.description,
+          challenge_rating: cr,
+          enemies: parsed.enemies,
+          loot_tier: parsed.loot_tier || 'standard',
+          location_type: locationType,
+        };
+
+        encounters.push(encounter);
+        console.log(`[BackgroundTasks] Generated encounter: "${encounter.name}" (${encounter.enemies.length} enemies, CR ${cr.toFixed(1)})`);
+      } catch (validateErr: any) {
+        console.error(`[BackgroundTasks] Encounter ${i + 1} schema validation failed: ${validateErr.message}`);
       }
     } catch (error) {
       console.warn(`[BackgroundTasks] ⚠ Encounter ${i + 1}: Generation failed (skipping, will retry)`);
@@ -517,70 +541,68 @@ export async function generateDungeonContentBackground(
   for (let i = 0; i < count; i++) {
     const roomCount = Math.floor(Math.random() * 3) + 3; // 3-5 rooms
 
-    const prompt = `Generate a small D&D dungeon/lair layout.
+    const prompt = `Generate a small D&D dungeon/lair layout with ${roomCount} rooms.
 
-Rooms: ${roomCount}
+CRITICAL: You MUST output EXACTLY this JSON format with NO markdown, NO code blocks, NO extra text:
+{"name":"DUNGEON_NAME","description":"DESCRIPTION","rooms":[{"room_number":1,"description":"ROOM_DESC","encounter":"ENCOUNTER","loot":"LOOT"}]}
 
-Return ONLY a JSON object:
-{
-  "name": "Dungeon name (e.g. 'The Forgotten Crypt')",
-  "description": "2-3 sentence overview of the dungeon's history and appearance",
-  "rooms": [
-    {
-      "room_number": 1,
-      "description": "What's in this room",
-      "encounter": "enemy group or trap",
-      "loot": "treasure description"
-    }
-  ]
-}
+DUNGEON NAMING - CREATE VARIETY (NOT all "The X"):
+Mix these naming styles:
+- Location-based: "The Forgotten Crypt", "Caverns of the Lost King", "Sunken Vault"
+- Descriptor-based: "Whispered Keep", "Silent Tombs", "Cursed Halls"
+- Owner/function: "Lich's Tower", "Assassin's Nest", "Treasure Vault"
+- Mysterious: "The Deep Below", "Shattered Spire", "Broken Citadel"
 
-Make it atmospheric and interesting to explore.`;
+REQUIREMENTS:
+- name (string): Creative, specific dungeon name (10-40 chars). NOT all "The [Adjective] [Noun]" - vary the style!
+- description (string): 2-3 sentences about history/appearance (60-150 chars). NO markdown.
+- rooms (array): Exactly ${roomCount} room objects with room_number, description, encounter, loot
+
+INVALID EXAMPLES (DO NOT):
+- {"name":"The Whispering Cave"} - WRONG: If last dungeon used similar "The X" pattern
+- {"name":"A Dungeon"} - WRONG: Too generic
+- \`\`\`json {...}\`\`\` - WRONG: Don't use code blocks
+
+VALID EXAMPLES (show variety):
+1. {"name":"Lich's Tower","description":"...","rooms":[...]}
+2. {"name":"Sunken Vault","description":"...","rooms":[...]}
+3. {"name":"The Lost Temple","description":"...","rooms":[...]}
+
+Generate ONE UNIQUE dungeon. Output ONLY JSON on a single line, nothing else:`;
 
     try {
-      const response = await generateWithLocalLLM(prompt, { temperature: 0.9, maxTokens: 600 });
+      const response = await generateWithLocalLLM(prompt, { temperature: 1.0, maxTokens: 600 });
 
-      // Extract JSON more robustly - find the first { and last }
-      const openBrace = response.indexOf('{');
-      const closeBrace = response.lastIndexOf('}');
+      // Use centralized parser with improved quote handling and brace-aware extraction
+      const parseResult = parseJsonFromResponse<any>(response, {
+        fixCommonErrors: true,
+        debug: false,
+      });
 
-      if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
-        let jsonStr = response.substring(openBrace, closeBrace + 1);
+      if (!parseResult.success) {
+        console.warn(`[BackgroundTasks] ⚠ Dungeon ${i + 1}: Parse failed: ${parseResult.error}`);
+        continue;
+      }
 
-        // Try to clean up common issues with LLM output (VERY aggressive for dungeons which have nested room arrays)
-        jsonStr = jsonStr
-          .replace(/[\u0080-\uffff]/g, '') // Remove ALL non-ASCII characters (Chinese, Unicode chars, etc)
-          .replace(/[\r\n\t]/g, ' ') // Remove all whitespace control chars
-          .replace(/\s+/g, ' ') // Normalize spaces
-          .replace(/,\s*}/g, '}') // Remove trailing commas before }
-          .replace(/,\s*]/g, ']') // Remove trailing commas before ]
-          .replace(/:\s*,/g, ': null,') // Fix missing values before commas
-          .replace(/:\s*}/g, ': null}'); // Fix missing values before }
+      const dungeon = parseResult.data!;
 
-        try {
-          const dungeon = JSON.parse(jsonStr);
-
-          try {
-            // Validate schema before using
-            if (!dungeon.name || typeof dungeon.name !== 'string' ||
-                !dungeon.description || typeof dungeon.description !== 'string' ||
-                !Array.isArray(dungeon.rooms) || dungeon.rooms.length === 0) {
-              throw new Error('Invalid dungeon schema: missing name, description, or rooms array');
-            }
-
-            dungeons.push({
-              name: dungeon.name,
-              description: dungeon.description,
-              rooms: dungeon.rooms.length,
-            });
-
-            console.log(`[BackgroundTasks] Generated dungeon: "${dungeon.name}" (${dungeon.rooms.length} rooms)`);
-          } catch (validateErr) {
-            console.error(`[BackgroundTasks] Dungeon ${i + 1} schema validation failed:`, (validateErr as Error).message);
-          }
-        } catch (parseErr) {
-          console.warn(`[BackgroundTasks] ⚠ Dungeon ${i + 1}: LLM returned invalid JSON (skipping, will retry) - ${(parseErr as Error).message.substring(0, 60)}`);
+      try {
+        // Validate schema before using
+        if (!dungeon.name || typeof dungeon.name !== 'string' ||
+            !dungeon.description || typeof dungeon.description !== 'string' ||
+            !Array.isArray(dungeon.rooms) || dungeon.rooms.length === 0) {
+          throw new Error('Invalid dungeon schema: missing name, description, or rooms array');
         }
+
+        dungeons.push({
+          name: dungeon.name,
+          description: dungeon.description,
+          rooms: dungeon.rooms.length,
+        });
+
+        console.log(`[BackgroundTasks] Generated dungeon: "${dungeon.name}" (${dungeon.rooms.length} rooms)`);
+      } catch (validateErr) {
+        console.error(`[BackgroundTasks] Dungeon ${i + 1} schema validation failed:`, (validateErr as Error).message);
       }
     } catch (error) {
       console.warn(`[BackgroundTasks] ⚠ Dungeon ${i + 1}: Generation failed (skipping, will retry)`);
