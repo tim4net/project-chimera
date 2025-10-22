@@ -41,18 +41,28 @@ export async function generateQuestTemplatesBackground(
   for (let i = 0; i < count; i++) {
     const level = Math.floor(Math.random() * (levelRange[1] - levelRange[0] + 1)) + levelRange[0];
 
-    const prompt = `Generate a D&D 5e quest template for level ${level} characters.
+    const prompt = `Generate a UNIQUE D&D 5e quest template for level ${level} characters. Use a DIFFERENT theme each time.
 
-Return ONLY a JSON object with this structure:
+Examples of quest themes (pick only ONE, make it DISTINCT):
+- "The Missing Caravan" (rescue/investigation)
+- "Plague Rats of Mill Creek" (extermination)
+- "Recover the Starfall Artifact" (retrieval)
+- "Guard the Road to Millhaven" (protection)
+- "Map the Forgotten Caverns" (exploration)
+
+Return ONLY a JSON object:
 {
-  "title": "Quest name",
+  "title": "Quest name (UNIQUE, creative, specific)",
   "description": "1-2 sentence description",
-  "objectives": [{"type": "kill_enemies", "target": "goblins", "count": 5}],
-  "rewards": {"xp": 100, "gold": 50}
+  "objectives": [{"type": "kill_enemies|reach_location|collect_items", "target": "specific enemy/place/item", "count": number}],
+  "rewards": {"xp": ${Math.round(level * 100)}, "gold": ${Math.round(level * 50 + Math.random() * 100)}}
 }
 
-Quest themes: wilderness exploration, dungeon delving, helping villagers, investigating mysteries.
-Keep objectives simple: kill enemies, reach location, collect items.`;
+Make each quest feel COMPLETELY DIFFERENT from others. Vary:
+- Location types (forest, mountains, ruins, settlement, caves)
+- Enemy types (not just goblins - use bandits, undead, beasts, cultists, etc)
+- Quest objectives (mix kill/retrieve/escort/investigate tasks)
+- Story hooks (urgent, mysterious, lucrative, moral, etc)`;
 
     try {
       const response = await generateWithLocalLLM(prompt, { temperature: 0.9, maxTokens: 300 });
@@ -232,19 +242,27 @@ export async function generateNPCPersonalitiesBackground(
   const personalities: NPCPersonality[] = [];
 
   for (let i = 0; i < count; i++) {
-    const prompt = `Generate a D&D NPC personality.
+    const prompt = `Generate a UNIQUE D&D NPC personality with a DISTINCT name from what you've generated before.
+
+Choose a race FIRST to guide naming conventions:
+- Human names: Aelric Dawnward, Vesper Thornfield, Rowan Stormreach
+- Elf names: Elara Moonwhisper, Xanthis Silverglen, Nimue Starfall
+- Dwarf names: Thorin Ironforge, Greta Stoneshaper, Brakkir Deepdelve
+- Halfling names: Pip Goodbarrel, Rosie Thistlebottom, Milo Brownstone
+- Tiefling names: Zara Emberfall, Kalix Nightbringer, Ashara Fadewhisper
+- Orc names: Drogga Skullcleaver, Murgha Earthshaker, Gruk Bonecrusher
 
 Return ONLY a JSON object:
 {
   "name": "First Last",
-  "race": "human/elf/dwarf/halfling/etc",
-  "occupation": "merchant/guard/farmer/etc",
+  "race": "human/elf/dwarf/halfling/tiefling/orc",
+  "occupation": "merchant/guard/farmer/healer/bard/sage/scout",
   "personality": "1 sentence describing demeanor",
-  "quirk": "1 memorable trait or habit",
+  "quirk": "1 memorable trait or habit (must be unique and interesting)",
   "secret": "1 sentence secret or background detail"
 }
 
-Make them interesting and varied.`;
+Make names DIVERSE and UNIQUE. Each NPC should feel completely different.`;
 
     try {
       const response = await generateWithLocalLLM(prompt, { temperature: 0.95, maxTokens: 250 });
@@ -321,31 +339,38 @@ export async function generateCombatEncountersBackground(
     // Determine group size based on CR
     const groupSize = Math.max(1, Math.floor(cr / primaryEnemy.cr));
 
-    const prompt = `Generate a D&D 5e combat encounter description.
+    const prompt = `Generate a UNIQUE D&D 5e combat encounter description.
 
 Location: ${locationType}
 Enemy Type: ${groupSize}x ${primaryEnemy.type}
 Challenge Rating: ${cr.toFixed(1)}
 
+Examples of encounter scenarios for context:
+- Ambush from dark woods with tactical positioning
+- Dungeon chamber with hazards (traps, pillars, water)
+- Street confrontation with environmental advantages
+- Lair with multiple escape routes and lair actions
+- Patrol formation on the road at dawn
+
 Return ONLY a JSON object:
 {
-  "name": "Descriptive encounter name",
-  "description": "2-3 sentence atmospheric description of the encounter setup",
+  "name": "Unique encounter name (not generic, e.g. 'Goblin Ambush at Dead Oak' not 'Goblin Encounter')",
+  "description": "2-3 sentence atmospheric description with terrain details and ambiance",
   "enemies": [
     {
-      "name": "Individual enemy name (e.g. 'Scar-face the Goblin')",
+      "name": "Memorable individual name (e.g. 'Gruk Ironjaw', 'Sergeant Vex', 'Mother Blackfang')",
       "type": "${primaryEnemy.type}",
       "hp": ${primaryEnemy.hp},
       "ac": ${primaryEnemy.ac},
       "attack_bonus": ${primaryEnemy.attack},
       "damage_dice": "${primaryEnemy.damage}",
-      "special_abilities": "1 brief special ability or tactic"
+      "special_abilities": "One unique tactic or ability that makes this enemy interesting (not generic)"
     }
   ],
   "loot_tier": "minimal/standard/rich"
 }
 
-Make the description vivid and the enemy names memorable.`;
+Make descriptions VIVID with specific details. Give each enemy a DISTINCT memorable name and personality.`;
 
     try {
       const response = await generateWithLocalLLM(prompt, { temperature: 0.95, maxTokens: 400 });
