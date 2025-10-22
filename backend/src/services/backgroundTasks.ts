@@ -88,10 +88,23 @@ Make each quest feel COMPLETELY DIFFERENT from others. Vary:
 
         try {
           const template = JSON.parse(jsonStr) as QuestTemplate;
-          templates.push(template);
-          console.log(`[BackgroundTasks] Generated quest: "${template.title}"`);
+
+          try {
+            // Validate schema before using
+            if (!template.title || typeof template.title !== 'string' ||
+                !template.description || typeof template.description !== 'string' ||
+                !Array.isArray(template.objectives) || template.objectives.length === 0 ||
+                !template.rewards || typeof template.rewards !== 'object' || typeof template.rewards.xp !== 'number' || typeof template.rewards.gold !== 'number') {
+              throw new Error('Invalid quest schema: missing or wrong type fields');
+            }
+
+            templates.push(template);
+            console.log(`[BackgroundTasks] Generated quest: "${template.title}"`);
+          } catch (validateErr) {
+            console.error(`[BackgroundTasks] Quest ${i + 1} schema validation failed:`, (validateErr as Error).message);
+          }
         } catch (parseErr) {
-          console.error(`[BackgroundTasks] JSON parse failed for quest ${i + 1}, attempting stricter extraction...`, parseErr);
+          console.error(`[BackgroundTasks] Quest ${i + 1} JSON parse failed:`, (parseErr as Error).message);
         }
       }
     } catch (error) {
@@ -303,11 +316,22 @@ Make names DIVERSE and UNIQUE. Each NPC should feel completely different.`;
 
         try {
           const npc = JSON.parse(jsonStr) as NPCPersonality;
-          personalities.push(npc);
-          console.log(`[BackgroundTasks] Generated NPC: ${npc.name} (${npc.occupation})`);
+
+          try {
+            // Validate schema before using
+            if (!npc.name || typeof npc.name !== 'string' ||
+                !npc.occupation || typeof npc.occupation !== 'string' ||
+                !npc.personality || typeof npc.personality !== 'string') {
+              throw new Error('Invalid NPC schema: missing or wrong type fields');
+            }
+
+            personalities.push(npc);
+            console.log(`[BackgroundTasks] Generated NPC: ${npc.name} (${npc.occupation})`);
+          } catch (validateErr) {
+            console.error(`[BackgroundTasks] NPC ${i + 1} schema validation failed:`, (validateErr as Error).message);
+          }
         } catch (parseErr) {
-          console.error(`[BackgroundTasks] JSON parse failed, trying stricter extraction...`);
-          // Silently skip malformed entries
+          console.error(`[BackgroundTasks] NPC ${i + 1} JSON parse failed:`, (parseErr as Error).message);
         }
       }
     } catch (error) {
@@ -433,23 +457,38 @@ Make descriptions VIVID with specific details. Give each enemy a DISTINCT memora
         try {
           const parsed = JSON.parse(jsonStr);
 
-          // Build full encounter with proper typing
-          const encounter: CombatEncounter = {
-            name: parsed.name,
-            description: parsed.description,
-            challenge_rating: cr,
-            enemies: parsed.enemies || [],
-            loot_tier: parsed.loot_tier || 'standard',
-            location_type: locationType,
-          };
+          try {
+            // Validate schema before using
+            if (!parsed.name || typeof parsed.name !== 'string' ||
+                !parsed.description || typeof parsed.description !== 'string' ||
+                !Array.isArray(parsed.enemies) || parsed.enemies.length === 0) {
+              throw new Error('Invalid encounter schema: missing name, description, or enemies array');
+            }
 
-          encounters.push(encounter);
-          console.log(`[BackgroundTasks] Generated encounter: "${encounter.name}" (${encounter.enemies.length} enemies, CR ${cr.toFixed(1)})`);
+            // Validate enemies have required fields
+            for (const enemy of parsed.enemies) {
+              if (!enemy || typeof enemy !== 'object' || !enemy.name || !enemy.type || typeof enemy.hp !== 'number') {
+                throw new Error('Invalid enemy in encounter: missing name, type, or hp');
+              }
+            }
+
+            // Build full encounter with proper typing
+            const encounter: CombatEncounter = {
+              name: parsed.name,
+              description: parsed.description,
+              challenge_rating: cr,
+              enemies: parsed.enemies,
+              loot_tier: parsed.loot_tier || 'standard',
+              location_type: locationType,
+            };
+
+            encounters.push(encounter);
+            console.log(`[BackgroundTasks] Generated encounter: "${encounter.name}" (${encounter.enemies.length} enemies, CR ${cr.toFixed(1)})`);
+          } catch (validateErr: any) {
+            console.error(`[BackgroundTasks] Encounter ${i + 1} schema validation failed: ${validateErr.message}`);
+          }
         } catch (parseErr: any) {
-          // Log the first few hundred chars of cleaned JSON to debug
-          const preview = jsonStr.substring(0, Math.min(300, jsonStr.length));
-          console.error(`[BackgroundTasks] Encounter ${i + 1} JSON parse failed (${originalLength} -> ${jsonStr.length} bytes): ${parseErr.message}`);
-          console.error(`[BackgroundTasks] Preview: ${preview}...`);
+          console.error(`[BackgroundTasks] Encounter ${i + 1} JSON parse failed: ${parseErr.message}`);
         }
       }
     } catch (error) {
@@ -520,15 +559,27 @@ Make it atmospheric and interesting to explore.`;
 
         try {
           const dungeon = JSON.parse(jsonStr);
-          dungeons.push({
-            name: dungeon.name,
-            description: dungeon.description,
-            rooms: dungeon.rooms?.length || roomCount,
-          });
 
-          console.log(`[BackgroundTasks] Generated dungeon: "${dungeon.name}" (${dungeon.rooms?.length || 0} rooms)`);
+          try {
+            // Validate schema before using
+            if (!dungeon.name || typeof dungeon.name !== 'string' ||
+                !dungeon.description || typeof dungeon.description !== 'string' ||
+                !Array.isArray(dungeon.rooms) || dungeon.rooms.length === 0) {
+              throw new Error('Invalid dungeon schema: missing name, description, or rooms array');
+            }
+
+            dungeons.push({
+              name: dungeon.name,
+              description: dungeon.description,
+              rooms: dungeon.rooms.length,
+            });
+
+            console.log(`[BackgroundTasks] Generated dungeon: "${dungeon.name}" (${dungeon.rooms.length} rooms)`);
+          } catch (validateErr) {
+            console.error(`[BackgroundTasks] Dungeon ${i + 1} schema validation failed:`, (validateErr as Error).message);
+          }
         } catch (parseErr) {
-          console.error(`[BackgroundTasks] JSON parse failed for dungeon ${i + 1}, attempting stricter extraction...`, parseErr);
+          console.error(`[BackgroundTasks] Dungeon ${i + 1} JSON parse failed:`, (parseErr as Error).message);
         }
       }
     } catch (error) {
