@@ -67,12 +67,32 @@ Make each quest feel COMPLETELY DIFFERENT from others. Vary:
     try {
       const response = await generateWithLocalLLM(prompt, { temperature: 0.9, maxTokens: 300 });
 
-      // Parse JSON from response
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const template = JSON.parse(jsonMatch[0]) as QuestTemplate;
-        templates.push(template);
-        console.log(`[BackgroundTasks] Generated quest: "${template.title}"`);
+      // Extract JSON more robustly - find the first { and last }
+      const openBrace = response.indexOf('{');
+      const closeBrace = response.lastIndexOf('}');
+
+      if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
+        let jsonStr = response.substring(openBrace, closeBrace + 1);
+
+        // Try to clean up common issues with LLM output
+        jsonStr = jsonStr
+          .replace(/[\u4e00-\u9fa5]/g, '') // Remove Chinese characters
+          .replace(/[\u3000]/g, ' ') // Remove ideographic spaces
+          .replace(/[""]/g, '"') // Fix smart quotes (Chinese)
+          .replace(/[''"]/g, '"') // Fix other smart quotes
+          .replace(/[\u2018\u2019]/g, '"') // Fix Unicode quotes
+          .replace(/[\u201c\u201d]/g, '"') // Fix more Unicode quotes
+          .replace(/[\r\n]/g, ' ') // Remove newlines within JSON
+          .replace(/,\s*}/g, '}') // Remove trailing commas before }
+          .replace(/,\s*]/g, ']'); // Remove trailing commas before ]
+
+        try {
+          const template = JSON.parse(jsonStr) as QuestTemplate;
+          templates.push(template);
+          console.log(`[BackgroundTasks] Generated quest: "${template.title}"`);
+        } catch (parseErr) {
+          console.error(`[BackgroundTasks] JSON parse failed for quest ${i + 1}, attempting stricter extraction...`, parseErr);
+        }
       }
     } catch (error) {
       console.error(`[BackgroundTasks] Failed to generate quest ${i + 1}:`, error);
@@ -267,11 +287,28 @@ Make names DIVERSE and UNIQUE. Each NPC should feel completely different.`;
     try {
       const response = await generateWithLocalLLM(prompt, { temperature: 0.95, maxTokens: 250 });
 
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const npc = JSON.parse(jsonMatch[0]) as NPCPersonality;
-        personalities.push(npc);
-        console.log(`[BackgroundTasks] Generated NPC: ${npc.name} (${npc.occupation})`);
+      // Extract JSON more robustly - find the first { and last }
+      const openBrace = response.indexOf('{');
+      const closeBrace = response.lastIndexOf('}');
+
+      if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
+        let jsonStr = response.substring(openBrace, closeBrace + 1);
+
+        // Try to clean up common issues with LLM output
+        // Replace common problematic patterns
+        jsonStr = jsonStr
+          .replace(/[\u4e00-\u9fa5]/g, '') // Remove Chinese characters
+          .replace(/[""]/g, '"') // Fix smart quotes
+          .replace(/[\r\n]/g, ' '); // Remove newlines within JSON
+
+        try {
+          const npc = JSON.parse(jsonStr) as NPCPersonality;
+          personalities.push(npc);
+          console.log(`[BackgroundTasks] Generated NPC: ${npc.name} (${npc.occupation})`);
+        } catch (parseErr) {
+          console.error(`[BackgroundTasks] JSON parse failed, trying stricter extraction...`);
+          // Silently skip malformed entries
+        }
       }
     } catch (error) {
       console.error(`[BackgroundTasks] Failed to generate NPC ${i + 1}:`, error);
@@ -375,22 +412,45 @@ Make descriptions VIVID with specific details. Give each enemy a DISTINCT memora
     try {
       const response = await generateWithLocalLLM(prompt, { temperature: 0.95, maxTokens: 400 });
 
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+      // Extract JSON more robustly - find the first { and last }
+      const openBrace = response.indexOf('{');
+      const closeBrace = response.lastIndexOf('}');
 
-        // Build full encounter with proper typing
-        const encounter: CombatEncounter = {
-          name: parsed.name,
-          description: parsed.description,
-          challenge_rating: cr,
-          enemies: parsed.enemies || [],
-          loot_tier: parsed.loot_tier || 'standard',
-          location_type: locationType,
-        };
+      if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
+        let jsonStr = response.substring(openBrace, closeBrace + 1);
+        const originalLength = jsonStr.length;
 
-        encounters.push(encounter);
-        console.log(`[BackgroundTasks] Generated encounter: "${encounter.name}" (${encounter.enemies.length} enemies, CR ${cr.toFixed(1)})`);
+        // Try to clean up common issues with LLM output (VERY aggressive for encounters which have nested arrays)
+        jsonStr = jsonStr
+          .replace(/[\u0080-\uffff]/g, '') // Remove ALL non-ASCII characters (Chinese, Unicode chars, etc)
+          .replace(/[\r\n\t]/g, ' ') // Remove all whitespace control chars
+          .replace(/\s+/g, ' ') // Normalize spaces
+          .replace(/,\s*}/g, '}') // Remove trailing commas before }
+          .replace(/,\s*]/g, ']') // Remove trailing commas before ]
+          .replace(/:\s*,/g, ': null,') // Fix missing values before commas
+          .replace(/:\s*}/g, ': null}'); // Fix missing values before }
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+
+          // Build full encounter with proper typing
+          const encounter: CombatEncounter = {
+            name: parsed.name,
+            description: parsed.description,
+            challenge_rating: cr,
+            enemies: parsed.enemies || [],
+            loot_tier: parsed.loot_tier || 'standard',
+            location_type: locationType,
+          };
+
+          encounters.push(encounter);
+          console.log(`[BackgroundTasks] Generated encounter: "${encounter.name}" (${encounter.enemies.length} enemies, CR ${cr.toFixed(1)})`);
+        } catch (parseErr: any) {
+          // Log the first few hundred chars of cleaned JSON to debug
+          const preview = jsonStr.substring(0, Math.min(300, jsonStr.length));
+          console.error(`[BackgroundTasks] Encounter ${i + 1} JSON parse failed (${originalLength} -> ${jsonStr.length} bytes): ${parseErr.message}`);
+          console.error(`[BackgroundTasks] Preview: ${preview}...`);
+        }
       }
     } catch (error) {
       console.error(`[BackgroundTasks] Failed to generate encounter ${i + 1}:`, error);
@@ -441,16 +501,35 @@ Make it atmospheric and interesting to explore.`;
     try {
       const response = await generateWithLocalLLM(prompt, { temperature: 0.9, maxTokens: 600 });
 
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const dungeon = JSON.parse(jsonMatch[0]);
-        dungeons.push({
-          name: dungeon.name,
-          description: dungeon.description,
-          rooms: dungeon.rooms?.length || roomCount,
-        });
+      // Extract JSON more robustly - find the first { and last }
+      const openBrace = response.indexOf('{');
+      const closeBrace = response.lastIndexOf('}');
 
-        console.log(`[BackgroundTasks] Generated dungeon: "${dungeon.name}" (${dungeon.rooms?.length || 0} rooms)`);
+      if (openBrace !== -1 && closeBrace !== -1 && closeBrace > openBrace) {
+        let jsonStr = response.substring(openBrace, closeBrace + 1);
+
+        // Try to clean up common issues with LLM output (VERY aggressive for dungeons which have nested room arrays)
+        jsonStr = jsonStr
+          .replace(/[\u0080-\uffff]/g, '') // Remove ALL non-ASCII characters (Chinese, Unicode chars, etc)
+          .replace(/[\r\n\t]/g, ' ') // Remove all whitespace control chars
+          .replace(/\s+/g, ' ') // Normalize spaces
+          .replace(/,\s*}/g, '}') // Remove trailing commas before }
+          .replace(/,\s*]/g, ']') // Remove trailing commas before ]
+          .replace(/:\s*,/g, ': null,') // Fix missing values before commas
+          .replace(/:\s*}/g, ': null}'); // Fix missing values before }
+
+        try {
+          const dungeon = JSON.parse(jsonStr);
+          dungeons.push({
+            name: dungeon.name,
+            description: dungeon.description,
+            rooms: dungeon.rooms?.length || roomCount,
+          });
+
+          console.log(`[BackgroundTasks] Generated dungeon: "${dungeon.name}" (${dungeon.rooms?.length || 0} rooms)`);
+        } catch (parseErr) {
+          console.error(`[BackgroundTasks] JSON parse failed for dungeon ${i + 1}, attempting stricter extraction...`, parseErr);
+        }
       }
     } catch (error) {
       console.error(`[BackgroundTasks] Failed to generate dungeon ${i + 1}:`, error);
