@@ -66,26 +66,53 @@ export const cacheGeneratedImage = async (imageData: {
   const cacheKey = `${prompt}|${dimensions.width}x${dimensions.height}|${contextType}`;
   const promptHash = generateHash(cacheKey);
 
-  const { data, error } = await supabaseServiceClient
-    .from('generated_images')
-    .insert({
-      prompt_hash: promptHash,
+  try {
+    const { data, error } = await supabaseServiceClient
+      .from('generated_images')
+      .insert({
+        prompt_hash: promptHash,
+        context_type: contextType,
+        image_url: imageUrl,
+        prompt,
+        style_version_id: styleVersionId ?? null,
+        dimensions,
+        metadata: metadata ?? {}
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.warn('Error caching generated image (continuing without cache):', error);
+      // Return a dummy object to continue processing
+      return {
+        id: 'dummy',
+        request_id: null,
+        prompt,
+        context_type: contextType,
+        image_url: imageUrl,
+        dimensions: dimensions as any,
+        metadata,
+        created_at: new Date().toISOString(),
+        expires_at: new Date().toISOString()
+      } as any;
+    }
+
+    return data as GeneratedImageRow;
+  } catch (err) {
+    console.warn('Failed to cache generated image (continuing without cache):', err);
+    // Return a dummy object to continue processing
+    return {
+      id: 'dummy',
+      request_id: null,
+      prompt,
       context_type: contextType,
       image_url: imageUrl,
-      prompt,
-      style_version_id: styleVersionId ?? null,
-      dimensions,
-      metadata: metadata ?? {}
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error caching generated image:', error);
-    throw new Error('Failed to cache generated image');
+      dimensions: dimensions as any,
+      metadata,
+      created_at: new Date().toISOString(),
+      expires_at: new Date().toISOString()
+    } as any;
   }
-
-  return data as GeneratedImageRow;
 };
 
 export const cacheGeneratedText = async (textData: {
