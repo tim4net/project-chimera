@@ -347,12 +347,13 @@ export class NpcService {
       });
       firstName = nameResult.firstName;
       lastName = nameResult.lastName;
-      console.log(`[NpcService] Generated LLM name: ${firstName} ${lastName} (${race} ${gender})`);
+      console.log(`[NpcService] ✓ LLM-generated: ${firstName} ${lastName} (${race} ${gender} ${charClass})`);
     } catch (error) {
-      console.warn('[NpcService] LLM name generation failed, using fallback:', error instanceof Error ? error.message : String(error));
+      console.warn(`[NpcService] ⚠ LLM name generation failed (${race} ${gender}), falling back to deterministic pool`);
       // Fallback to random selection from pools if LLM fails
       firstName = options.generator.pick(FIRST_NAMES);
       lastName = options.generator.pick(LAST_NAMES);
+      console.log(`[NpcService] → Fallback: ${firstName} ${lastName}`);
     }
 
     const payload = {

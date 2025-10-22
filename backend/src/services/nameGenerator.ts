@@ -35,12 +35,10 @@ export async function generateFantasyName(
       maxTokens: 200,
     });
 
-    console.log('[NameGenerator] LLM generated name for', request.race, request.gender);
-
     // Parse the LLM response
     return parseNameResponse(llmResponse);
   } catch (error) {
-    console.warn('[NameGenerator] LLM generation failed, using fallback:', error instanceof Error ? error.message : String(error));
+    console.warn(`[NameGenerator] ⚠ LLM name generation failed for ${request.race} ${request.gender}, using deterministic fallback`);
     // Fallback to deterministic generation on any LLM error
     return generateFallbackName(request);
   }
@@ -98,13 +96,17 @@ function parseNameResponse(response: string): NameGenerationResult {
     // Try to extract JSON from response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]);
-      return {
-        fullName: `${data.firstName} ${data.lastName}`,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        meaning: data.meaning,
-      };
+      try {
+        const data = JSON.parse(jsonMatch[0]);
+        return {
+          fullName: `${data.firstName} ${data.lastName}`,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          meaning: data.meaning,
+        };
+      } catch (jsonError) {
+        console.warn('[NameGenerator] LLM returned malformed JSON, attempting fallback parsing');
+      }
     }
 
     // Fallback: parse line-by-line
@@ -122,6 +124,7 @@ function parseNameResponse(response: string): NameGenerationResult {
     }
 
     if (firstName && lastName) {
+      console.info('[NameGenerator] Used fallback line-by-line parsing for LLM response');
       return {
         fullName: `${firstName} ${lastName}`,
         firstName,
@@ -129,9 +132,10 @@ function parseNameResponse(response: string): NameGenerationResult {
       };
     }
 
-    throw new Error('Could not parse name from LLM response');
+    throw new Error('LLM response could not be parsed - malformed or missing required fields');
   } catch (error) {
-    console.error('[NameGenerator] Parse error:', error);
+    console.warn('[NameGenerator] Ignoring badly formatted LLM response, awaiting fallback retry:',
+      error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
