@@ -7,6 +7,7 @@ import { cleanupStaleRequests } from './services/assetCache';
 import { startCacheCleaner, stopCacheCleaner } from './services/gemini';
 import { startCostTracking, stopCostTracking } from './routes/dmChatSecure';
 import { TownGenerationService } from './services/townGenerationService';
+import { applyMigrations } from './services/migrationService';
 import {
   initializeWebSocketServer,
   shutdownWebSocketServer,
@@ -112,10 +113,21 @@ export const startServer = (): void => {
   console.log('[Server] WebSocket server initialized');
 
   // Start HTTP server
-  const server = httpServer.listen(port, () => {
+  const server = httpServer.listen(port, async () => {
     // eslint-disable-next-line no-console
     console.log(`Server is running on port ${port}`);
     console.log(`WebSocket server listening on port ${port}`);
+
+    // Run database migrations on startup
+    try {
+      console.log('[Startup] Running database migrations...');
+      const migrationResults = await applyMigrations();
+      const successCount = migrationResults.filter(r => r.success).length;
+      const failureCount = migrationResults.filter(r => !r.success).length;
+      console.log(`[Startup] Migrations: ${successCount} succeeded, ${failureCount} failed`);
+    } catch (err) {
+      console.error('[Startup] Migration execution failed:', err instanceof Error ? err.message : err);
+    }
 
     // Start Gemini cache cleanup interval
     startCacheCleaner();

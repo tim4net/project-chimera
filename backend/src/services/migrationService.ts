@@ -41,14 +41,10 @@ const MIGRATION_014 = `
 CREATE TABLE IF NOT EXISTS public.asset_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_hash TEXT NOT NULL UNIQUE,
-  asset_type TEXT NOT NULL CHECK (asset_type IN ('image', 'text')),
-  context_type TEXT,
-  prompt TEXT NOT NULL,
-  context JSONB,
+  request_type TEXT NOT NULL CHECK (request_type IN ('image', 'text')),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
-  result TEXT,
-  error_message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  started_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days')
 );
@@ -56,23 +52,55 @@ CREATE TABLE IF NOT EXISTS public.asset_requests (
 CREATE TABLE IF NOT EXISTS public.generated_images (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_id UUID REFERENCES public.asset_requests(id) ON DELETE CASCADE,
+  prompt_hash TEXT,
   prompt TEXT NOT NULL,
   context_type TEXT,
   image_url TEXT NOT NULL,
+  style_version_id UUID,
   dimensions JSONB,
   metadata JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
 );
 
+CREATE TABLE IF NOT EXISTS public.generated_text (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id UUID REFERENCES public.asset_requests(id) ON DELETE CASCADE,
+  context_key TEXT NOT NULL,
+  text_type TEXT NOT NULL CHECK (text_type IN ('narration', 'description', 'dialogue', 'quest_text', 'flavor')),
+  content TEXT NOT NULL,
+  context JSONB,
+  style_version_id UUID,
+  llm_used TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
+);
+
+CREATE TABLE IF NOT EXISTS public.style_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  version_name TEXT NOT NULL,
+  description TEXT,
+  style_config JSONB NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS asset_requests_status_idx ON public.asset_requests(status);
 CREATE INDEX IF NOT EXISTS asset_requests_expires_at_idx ON public.asset_requests(expires_at);
 CREATE INDEX IF NOT EXISTS asset_requests_created_at_idx ON public.asset_requests(created_at);
+CREATE INDEX IF NOT EXISTS asset_requests_request_hash_idx ON public.asset_requests(request_hash);
 CREATE INDEX IF NOT EXISTS generated_images_expires_at_idx ON public.generated_images(expires_at);
 CREATE INDEX IF NOT EXISTS generated_images_created_at_idx ON public.generated_images(created_at);
+CREATE INDEX IF NOT EXISTS generated_images_prompt_hash_idx ON public.generated_images(prompt_hash);
+CREATE INDEX IF NOT EXISTS generated_text_context_key_idx ON public.generated_text(context_key);
+CREATE INDEX IF NOT EXISTS generated_text_expires_at_idx ON public.generated_text(expires_at);
+CREATE INDEX IF NOT EXISTS style_versions_is_active_idx ON public.style_versions(is_active);
 
 ALTER TABLE public.asset_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.generated_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.generated_text ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.style_versions ENABLE ROW LEVEL SECURITY;
 `;
 
 /**

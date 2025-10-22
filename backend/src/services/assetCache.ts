@@ -125,25 +125,54 @@ export const cacheGeneratedText = async (textData: {
 }): Promise<GeneratedTextRow> => {
   const { contextKey, textType, content, context, styleVersionId, llmUsed } = textData;
 
-  const { data, error } = await supabaseServiceClient
-    .from('generated_text')
-    .insert({
+  try {
+    const { data, error } = await supabaseServiceClient
+      .from('generated_text')
+      .insert({
+        context_key: contextKey,
+        text_type: textType,
+        content,
+        context: context ?? {},
+        style_version_id: styleVersionId ?? null,
+        llm_used: llmUsed
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.warn('Error caching generated text (continuing without cache):', error);
+      // Return a dummy object to continue processing
+      return {
+        id: 'dummy',
+        request_id: null,
+        context_key: contextKey,
+        text_type: textType,
+        content,
+        context,
+        style_version_id: styleVersionId ?? null,
+        llm_used: llmUsed,
+        created_at: new Date().toISOString(),
+        expires_at: new Date().toISOString()
+      } as any;
+    }
+
+    return data as GeneratedTextRow;
+  } catch (err) {
+    console.warn('Failed to cache generated text (continuing without cache):', err);
+    // Return a dummy object to continue processing
+    return {
+      id: 'dummy',
+      request_id: null,
       context_key: contextKey,
       text_type: textType,
       content,
-      context: context ?? {},
+      context,
       style_version_id: styleVersionId ?? null,
-      llm_used: llmUsed
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error caching generated text:', error);
-    throw new Error('Failed to cache generated text');
+      llm_used: llmUsed,
+      created_at: new Date().toISOString(),
+      expires_at: new Date().toISOString()
+    } as any;
   }
-
-  return data as GeneratedTextRow;
 };
 
 export const checkPendingRequest = async (requestHash: string): Promise<AssetRequestRow | null> => {
