@@ -33,6 +33,7 @@ import travelRoutes from './routes/travel';
 // import dmChatRoutes from './routes/dmChat'; // OLD insecure version
 import dmChatSecureRoutes from './routes/dmChatSecure'; // NEW secure architecture
 import verificationRoutes from './routes/verification';
+import adminMigrationsRoutes from './routes/admin-migrations';
 
 export const app = express();
 
@@ -97,6 +98,7 @@ app.use('/api/spells', spellsRoutes); // D&D 5e spells database
 app.use('/api/party', partyRoutes); // Party system for multiplayer (ADR-003, ADR-004)
 app.use('/api/travel', travelRoutes); // Travel system with interactive events (Phase 3B)
 app.use('/api/chat/dm', dmChatSecureRoutes); // PRIMARY GAMEPLAY INTERFACE (secure architecture)
+app.use('/api/admin/migrations', adminMigrationsRoutes); // Database migrations
 app.use('/api', verificationRoutes);
 
 const port = Number(process.env.PORT ?? 3001);

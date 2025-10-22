@@ -266,3 +266,4 @@ See `/legacy-backup/README.md` for migration history.
 - Use 'podman compose' not 'podman-compose'
 - source code files should not exceed 300 lines. If they are approaching that size, split them into smaller modular files. If you work on existing files that are larger than 400 lines, break them into smaller files as you edit them
 - make sure to restart containers using the restart containers skill when it's necessary to use a fix or feature that you are implementing
+- NEVER COPY ANYTHING FROM .env TO OTHER FILES!
