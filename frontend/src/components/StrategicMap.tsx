@@ -138,13 +138,6 @@ export default function StrategicMap({ characterId, campaignSeed, isFullscreen =
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Cleanup function to clear canvas on unmount
-    return () => {
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    };
-
     // Set canvas size to container
     const container = canvas.parentElement;
     if (container) {
@@ -292,6 +285,12 @@ export default function StrategicMap({ characterId, campaignSeed, isFullscreen =
       );
     }
 
+    // Cleanup function to clear canvas on unmount
+    return () => {
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    };
   }, [mapData, zoom, panOffset]);
 
   // Mouse wheel zoom
