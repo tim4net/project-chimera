@@ -42,8 +42,9 @@ export function useImageGeneration(params: ImageGenerationParams | null): ImageR
         });
 
         if (!response.ok) {
-          console.warn(`[useImageGeneration] Failed with ${response.status}, using fallback`);
-          // Don't throw - just fail gracefully
+          const statusText = `${response.status} ${response.statusText}`;
+          console.warn(`[useImageGeneration] Failed with ${statusText}, using fallback`);
+          setError(`Image generation failed (${statusText})`);
           setLoading(false);
           return;
         }
@@ -52,9 +53,15 @@ export function useImageGeneration(params: ImageGenerationParams | null): ImageR
         console.log('[useImageGeneration] Received:', data);
         setImageUrl(data.imageUrl);
         setCached(data.cached);
+        setError(null);
       } catch (err: any) {
-        console.warn('[useImageGeneration] Error (will use fallback):', err.message);
-        setError(err.message);
+        // Suppress specific browser errors
+        if (err?.message?.includes('Receiving end does not exist')) {
+          console.warn('[useImageGeneration] Browser extension error (harmless), using fallback');
+          return;
+        }
+        console.warn('[useImageGeneration] Error (will use fallback):', err?.message || err);
+        setError(err?.message || 'Image generation failed');
       } finally {
         setLoading(false);
       }

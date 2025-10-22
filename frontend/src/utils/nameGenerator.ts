@@ -169,14 +169,21 @@ export async function generateRandomName(race: Race, gender: Gender): Promise<st
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ race, gender }),
+    }).catch((fetchError) => {
+      console.warn('[NameGenerator] Fetch failed:', fetchError);
+      return null;
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      return data.fullName || `${data.firstName} ${data.lastName}`;
+    if (response && response.ok) {
+      try {
+        const data = await response.json();
+        return data.fullName || `${data.firstName} ${data.lastName}`;
+      } catch (parseError) {
+        console.warn('[NameGenerator] JSON parse failed:', parseError);
+      }
     }
   } catch (error) {
-    console.warn('[NameGenerator] LLM failed, using fallback:', error);
+    console.warn('[NameGenerator] LLM generation failed, using fallback:', error);
   }
 
   // Fallback to curated lists
