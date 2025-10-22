@@ -228,7 +228,7 @@ function buildDmPrompt(character: CharacterRecord, history: ChatMessage[], playe
     Name: ${character.name}
     Class: ${character.class}, Level: ${character.level}
     HP: ${character.hp_current}/${character.hp_max}
-    Position: (${character.position.x}, ${character.position.y})
+    Position: (${character.position_x}, ${character.position_y})
     XP: ${character.xp}
     Gold: ${character.gold || 0} gp
     Abilities: ${JSON.stringify(character.ability_scores)}

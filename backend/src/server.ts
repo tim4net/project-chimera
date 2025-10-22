@@ -1,11 +1,20 @@
 import 'dotenv/config';
 import express, { type Request, type Response } from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import { cleanupStaleRequests } from './services/assetCache';
 import { startCacheCleaner, stopCacheCleaner } from './services/gemini';
 import { startCostTracking, stopCostTracking } from './routes/dmChatSecure';
 import { TownGenerationService } from './services/townGenerationService';
+import {
+  initializeWebSocketServer,
+  shutdownWebSocketServer,
+} from './websocket';
+import {
+  startTravelWorker,
+  stopTravelWorker,
+} from './workers/travelWorker';
 
 import characterRoutes from './routes/characters';
 import worldRoutes from './routes/world';
@@ -20,6 +29,7 @@ import subclassRoutes from './routes/subclass';
 import nameGenerationRoutes from './routes/nameGeneration';
 import spellsRoutes from './routes/spells';
 import partyRoutes from './routes/party';
+import travelRoutes from './routes/travel';
 // import dmChatRoutes from './routes/dmChat'; // OLD insecure version
 import dmChatSecureRoutes from './routes/dmChatSecure'; // NEW secure architecture
 import verificationRoutes from './routes/verification';
@@ -85,21 +95,34 @@ app.use('/api/subclass', subclassRoutes); // Subclass selection and management
 app.use('/api/names', nameGenerationRoutes); // Fantasy name generation
 app.use('/api/spells', spellsRoutes); // D&D 5e spells database
 app.use('/api/party', partyRoutes); // Party system for multiplayer (ADR-003, ADR-004)
+app.use('/api/travel', travelRoutes); // Travel system with interactive events (Phase 3B)
 app.use('/api/chat/dm', dmChatSecureRoutes); // PRIMARY GAMEPLAY INTERFACE (secure architecture)
 app.use('/api', verificationRoutes);
 
 const port = Number(process.env.PORT ?? 3001);
 
 export const startServer = (): void => {
-  const server = app.listen(port, () => {
+  // Create HTTP server from Express app
+  const httpServer = createServer(app);
+
+  // Initialize WebSocket server
+  initializeWebSocketServer(httpServer);
+  console.log('[Server] WebSocket server initialized');
+
+  // Start HTTP server
+  const server = httpServer.listen(port, () => {
     // eslint-disable-next-line no-console
     console.log(`Server is running on port ${port}`);
+    console.log(`WebSocket server listening on port ${port}`);
 
     // Start Gemini cache cleanup interval
     startCacheCleaner();
 
     // Start cost tracking cleanup interval
     startCostTracking();
+
+    // Start travel worker for tick-based progress
+    startTravelWorker();
 
     // Cleanup stale asset requests on startup
     cleanupStaleRequests(30).then(count => {
@@ -110,20 +133,24 @@ export const startServer = (): void => {
   });
 
   // Graceful shutdown
-  process.on('SIGTERM', () => {
+  process.on('SIGTERM', async () => {
     console.log('[Server] SIGTERM received, shutting down gracefully...');
     stopCacheCleaner();
     stopCostTracking();
+    stopTravelWorker();
+    await shutdownWebSocketServer();
     server.close(() => {
       console.log('[Server] Server closed');
       process.exit(0);
     });
   });
 
-  process.on('SIGINT', () => {
+  process.on('SIGINT', async () => {
     console.log('[Server] SIGINT received, shutting down gracefully...');
     stopCacheCleaner();
     stopCostTracking();
+    stopTravelWorker();
+    await shutdownWebSocketServer();
     server.close(() => {
       console.log('[Server] Server closed');
       process.exit(0);

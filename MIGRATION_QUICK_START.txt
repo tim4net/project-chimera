@@ -1,0 +1,48 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    POI TYPE ENUM MIGRATION - QUICK START                     ║
+╔══════════════════════════════════════════════════════════════════════════════╗
+
+🚨 PROBLEM: Backend error "invalid input value for enum poi_type: village"
+
+🎯 SOLUTION: Apply migration to convert enum to TEXT type
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 QUICK STEPS:
+
+1. Open Supabase SQL Editor:
+   https://supabase.com/dashboard/project/muhlitkerrjparpcuwmc/sql/new
+
+2. Copy migration SQL:
+   cat /srv/project-chimera/backend/migrations/20251021_ensure_world_pois_text_type.sql
+
+3. Paste into SQL Editor and click "Run"
+
+4. Verify success (run this query):
+   SELECT column_name, data_type
+   FROM information_schema.columns
+   WHERE table_name = 'world_pois' AND column_name = 'type';
+
+   Expected: type | text
+
+5. Restart backend:
+   podman compose restart backend
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📄 DETAILED INSTRUCTIONS:
+   cat /srv/project-chimera/APPLY_MIGRATION_INSTRUCTIONS.txt
+
+📊 FULL SUMMARY:
+   cat /srv/project-chimera/MIGRATION_APPLICATION_SUMMARY.md
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ SUCCESS CHECKLIST:
+   [ ] Migration executed without errors
+   [ ] Column type is TEXT (verified)
+   [ ] Backend restarted successfully
+   [ ] No enum errors in backend logs
+   [ ] Road network service works correctly
+
+═══════════════════════════════════════════════════════════════════════════════

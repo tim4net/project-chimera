@@ -7,10 +7,12 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "helmet": "^8.1.0"
+    "helmet": "^8.1.0",
+    "supabase-cli": "^0.0.21"
   },
   "devDependencies": {
     "jest": "^30.2.0",
+    "pg": "^8.16.3",
     "prisma": "^6.17.1",
     "supertest": "^7.1.4"
   }

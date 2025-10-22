@@ -33,18 +33,19 @@ export async function getWorldContext(
   let context = '\nWORLD CONTEXT:\n';
 
   // Get ACTUAL biome from procedural generation (same as map uses)
-  const currentTile = generateTile(character.position.x, character.position.y, character.campaign_seed);
+  const currentTile = generateTile(character.position_x, character.position_y, character.campaign_seed);
   const biome = currentTile.biome;
   const elevation = currentTile.elevation ?? 0;
 
-  context += `- Current Location: (${character.position.x}, ${character.position.y})\n`;
+  context += `- Current Location: (${character.position_x}, ${character.position_y})\n`;
   context += `- Biome: ${biome}\n`;
   context += `- Elevation: ${Math.round(elevation * 100)}m\n`;
   context += `- ${getBiomeDescription(biome)}\n`;
 
   // Ensure landmarks generated near current position, then record discovery state
   try {
-    await landmarkService.ensureLandmarksAroundPosition(character.campaign_seed, character.position, 4);
+    const charPosition = { x: character.position_x ?? 0, y: character.position_y ?? 0 };
+    await landmarkService.ensureLandmarksAroundPosition(character.campaign_seed, charPosition, 4);
   } catch (error) {
     console.error('[WorldContext] Failed to ensure landmarks:', error);
   }
@@ -78,8 +79,8 @@ export async function getWorldContext(
   const { data: nearbyPOIs } = await supabaseServiceClient
     .rpc('find_nearby_pois', {
       p_campaign_seed: character.campaign_seed,
-      p_x: character.position.x,
-      p_y: character.position.y,
+      p_x: character.position_x,
+      p_y: character.position_y,
       p_radius: 50, // 50-mile radius
       p_limit: 5
     });
@@ -99,10 +100,10 @@ export async function getWorldContext(
   }
 
   // Get surrounding tiles for directional awareness
-  const north = generateTile(character.position.x, character.position.y - 10, character.campaign_seed);
-  const south = generateTile(character.position.x, character.position.y + 10, character.campaign_seed);
-  const east = generateTile(character.position.x + 10, character.position.y, character.campaign_seed);
-  const west = generateTile(character.position.x - 10, character.position.y, character.campaign_seed);
+  const north = generateTile(character.position_x, character.position_y - 10, character.campaign_seed);
+  const south = generateTile(character.position_x, character.position_y + 10, character.campaign_seed);
+  const east = generateTile(character.position_x + 10, character.position_y, character.campaign_seed);
+  const west = generateTile(character.position_x - 10, character.position_y, character.campaign_seed);
 
   context += `\nSurrounding Terrain (10 miles in each direction):\n`;
   context += `- North: ${north.biome} (elevation ${Math.round((north.elevation ?? 0) * 100)}m)\n`;
@@ -113,9 +114,10 @@ export async function getWorldContext(
   let locationContext: LocationContext | null = null;
 
   try {
+    const charPosition = { x: character.position_x ?? 0, y: character.position_y ?? 0 };
     locationContext = options.locationContext ?? await locationService.buildLocationContext(
       character.campaign_seed,
-      character.position,
+      charPosition,
       {
         characterId: character.id,
         radius: 40,

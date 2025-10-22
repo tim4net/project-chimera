@@ -334,14 +334,12 @@ async function updateCampaignBounds(
 ): Promise<void> {
   if (tiles.length === 0) return;
 
-  // Convert tiles array to JSONB for PostgreSQL function
-  const tilesJson = JSON.stringify(tiles);
-
   // Use atomic RPC function to prevent race conditions
   const { error } = await supabaseServiceClient
     .rpc('update_campaign_bounds_atomic', {
       p_campaign_seed: campaignSeed,
-      p_new_tiles: tilesJson,
+      // Pass the array directly so the driver sends proper JSONB
+      p_new_tiles: tiles,
     });
 
   if (error) {

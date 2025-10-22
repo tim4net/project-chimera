@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Travel System Database Migrations - Manual Application Guide
+# This script provides instructions for applying migrations via Supabase SQL Editor
+
+echo "=========================================="
+echo "Travel System Database Migrations"
+echo "=========================================="
+echo ""
+echo "IMPORTANT: Migrations must be applied manually via Supabase SQL Editor"
+echo "due to network connectivity constraints."
+echo ""
+echo "Step 1: Open Supabase Dashboard"
+echo "  URL: https://supabase.com/dashboard/project/muhlitkerrjparpcuwmc/sql/new"
+echo ""
+echo "Step 2: Copy the combined migration SQL"
+echo "  File: /srv/project-chimera/TRAVEL_MIGRATIONS_COMBINED.sql"
+echo ""
+echo "Step 3: Paste into SQL Editor and Click RUN"
+echo ""
+echo "=========================================="
+echo ""
+echo "Displaying combined migrations for copy/paste:"
+echo ""
+cat /srv/project-chimera/TRAVEL_MIGRATIONS_COMBINED.sql
+echo ""
+echo "=========================================="
+echo ""
+echo "After applying migrations, verify with:"
+echo ""
+echo "SELECT column_name, data_type"
+echo "FROM information_schema.columns"
+echo "WHERE table_name IN ('travel_sessions', 'travel_events', 'world_pois')"
+echo "ORDER BY table_name, ordinal_position;"
+echo ""
+echo "=========================================="

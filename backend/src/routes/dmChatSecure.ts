@@ -38,6 +38,8 @@ import type { CharacterRecord, GameEvent, DmResponse } from '../types';
 import type { ActionResult, StateChange } from '../types/actions';
 import { LocationService } from '../services/locationService';
 import type { LocationContext } from '../types/road-types';
+import { revealTilesInRadius } from '../services/fogOfWarService';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -329,8 +331,76 @@ function buildGameEvents(
 
 async function applyStateChanges(
   stateChanges: StateChange[],
-  characterId: string
+  characterId: string,
+  actionType?: string,
+  character?: CharacterRecord
 ): Promise<void> {
+  // For TRAVEL actions, create a travel session instead of updating position directly
+  if (actionType === 'TRAVEL' && character) {
+    // Find the destination position from state changes
+    let destinationX = character.position_x ?? 0;
+    let destinationY = character.position_y ?? 0;
+
+    for (const change of stateChanges) {
+      if (change.field === 'position_x') {
+        destinationX = change.newValue;
+      }
+      if (change.field === 'position_y') {
+        destinationY = change.newValue;
+      }
+    }
+
+    const currentX = character.position_x ?? 0;
+    const currentY = character.position_y ?? 0;
+
+    // Calculate distance in miles (assuming 1 tile = 1 mile)
+    const dx = destinationX - currentX;
+    const dy = destinationY - currentY;
+    const miles = Math.sqrt(dx * dx + dy * dy);
+
+    // Create travel session
+    const sessionId = uuidv4();
+    const { error: insertError } = await supabaseServiceClient
+      .from('travel_sessions')
+      .insert({
+        id: sessionId,
+        character_id: characterId,
+        status: 'active',
+        miles_traveled: 0,
+        miles_total: miles,
+        destination_x: destinationX,
+        destination_y: destinationY,
+        travel_mode: 'normal', // Default travel mode
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error(`[DM Chat] Failed to create travel session:`, insertError);
+    } else {
+      console.log(`[DM Chat] Created travel session ${sessionId} for ${miles.toFixed(2)} miles`);
+    }
+
+    // Discover tiles at current position
+    try {
+      const { data: charData } = await supabaseServiceClient
+        .from('characters')
+        .select('campaign_seed')
+        .eq('id', characterId)
+        .single();
+
+      if (charData) {
+        await revealTilesInRadius(charData.campaign_seed, currentX, currentY, 5, characterId);
+        console.log(`[DM Chat] Revealed starting tiles for travel session`);
+      }
+    } catch (error) {
+      console.error(`[DM Chat] Failed to discover starting tiles:`, error);
+    }
+
+    // For TRAVEL, don't apply position changes here - let the worker handle it
+    return;
+  }
+
   for (const change of stateChanges) {
     // Only apply changes to the authenticated character
     if (change.entityId !== characterId || change.entityType !== 'character') {
@@ -388,6 +458,18 @@ async function applyStateChanges(
         break;
       }
 
+      case 'game_time_minutes': {
+        const { error } = await supabaseServiceClient
+          .from('characters')
+          .update({ game_time_minutes: change.newValue })
+          .eq('id', characterId);
+
+        if (error) {
+          console.error(`[DM Chat] Failed to update ${change.field}:`, error);
+        }
+        break;
+      }
+
       // Add more fields as needed (inventory, gold, etc.)
       default:
         console.warn(`[DM Chat] Unknown field type: ${change.field}`);
@@ -396,28 +478,11 @@ async function applyStateChanges(
 }
 
 function normalizeCharacterRecord(raw: CharacterRecord): CharacterRecord {
-  const candidate = raw as CharacterRecord & { position_x?: number; position_y?: number };
-  const existingPosition = candidate.position;
-
-  if (existingPosition && typeof existingPosition.x === 'number' && typeof existingPosition.y === 'number') {
-    return {
-      ...candidate,
-      position: existingPosition,
-    };
-  }
-
-  const normalizedPosition = {
-    x: typeof candidate.position_x === 'number'
-      ? candidate.position_x
-      : (existingPosition?.x ?? 0),
-    y: typeof candidate.position_y === 'number'
-      ? candidate.position_y
-      : (existingPosition?.y ?? 0),
-  };
-
+  // Ensure position coordinates are set to defaults if missing
   return {
-    ...candidate,
-    position: normalizedPosition,
+    ...raw,
+    position_x: raw.position_x ?? 0,
+    position_y: raw.position_y ?? 0,
   };
 }
 
@@ -436,7 +501,7 @@ function buildKnownWorldFacts(
     return 'World data is temporarily unavailable for this region.';
   }
 
-  const position = character.position ?? { x: 0, y: 0 };
+  const positionX = character.position_x ?? 0; const positionY = character.position_y ?? 0;
   const facts: string[] = [];
 
   if (tileContext.is_on_road) {
@@ -446,8 +511,8 @@ function buildKnownWorldFacts(
     facts.push(`${roadLabel} beneath you carries ${trafficLabel} traffic and ${dangerLabel} danger.`);
   } else if (locationContext.nearestRoad) {
     const distance = locationContext.nearestRoad.distance.toFixed(1);
-    const dx = locationContext.nearestRoad.positionOnRoad.x - position.x;
-    const dy = locationContext.nearestRoad.positionOnRoad.y - position.y;
+    const dx = locationContext.nearestRoad.positionOnRoad.x - positionX;
+    const dy = locationContext.nearestRoad.positionOnRoad.y - positionY;
     const direction = getCompassDirection(dx, dy);
     const fallbackName = tileContext.road_name
       ?? (() => {
@@ -465,8 +530,8 @@ function buildKnownWorldFacts(
   }
 
   if (tileContext.nearest_town_name && tileContext.nearest_town_distance != null && locationContext.nearestSettlement) {
-    const dx = locationContext.nearestSettlement.x - position.x;
-    const dy = locationContext.nearestSettlement.y - position.y;
+    const dx = locationContext.nearestSettlement.x - positionX;
+    const dy = locationContext.nearestSettlement.y - positionY;
     const direction = getCompassDirection(dx, dy);
     const distance = tileContext.nearest_town_distance.toFixed(1);
     const settlementType = tileContext.settlement_type ?? 'settlement';
@@ -522,7 +587,7 @@ router.post(
       }
 
       const typedCharacter = normalizeCharacterRecord(character as CharacterRecord);
-      const initialPosition = { ...typedCharacter.position };
+      const initialPosition = { x: typedCharacter.position_x ?? 0, y: typedCharacter.position_y ?? 0 };
 
       // Session 0 system has been removed - spell selection now happens during character creation
 
@@ -559,11 +624,27 @@ router.post(
 
       // Get nearby POIs for context (POIs are world entities, not owned by characters)
       // For now, just get POIs from the same campaign
-      const { data: nearbyPOIs } = await supabaseServiceClient
-        .from('world_pois')
-        .select('name, type, position')
-        .eq('campaign_seed', character.campaign_seed)
-        .limit(10);
+      let nearbyPOIs: any[] | null = null;
+      try {
+        const { data, error } = await supabaseServiceClient
+          .from('world_pois')
+          .select('name, type, position')
+          .eq('campaign_seed', character.campaign_seed)
+          .limit(10);
+        if (error && (error as any).code === '42703') {
+          console.warn('[DM Chat Secure] world_pois.campaign_seed missing; falling back to unscoped POI query');
+          const fallback = await supabaseServiceClient
+            .from('world_pois')
+            .select('name, type, position')
+            .limit(10);
+          nearbyPOIs = fallback.data || [];
+        } else {
+          nearbyPOIs = data || [];
+        }
+      } catch (e) {
+        console.error('[DM Chat Secure] Failed to fetch POIs:', e);
+        nearbyPOIs = [];
+      }
 
       const gameContext: GameContext = {
         characterId,
@@ -678,12 +759,16 @@ router.post(
 
       if (allStateChanges.length > 0) {
         console.log(`[DM Chat Secure] Applying ${allStateChanges.length} state changes`);
-        await applyStateChanges(allStateChanges, characterId);
+        // Find if any action is TRAVEL
+        const travelAction = intentResult.actions.find(a => a.type === 'TRAVEL');
+        await applyStateChanges(allStateChanges, characterId, travelAction ? 'TRAVEL' : undefined, typedCharacter);
       }
 
-      const updatedPositionAfterActions = getPositionChange(allStateChanges, typedCharacter.position);
+      const currentPosition = { x: typedCharacter.position_x ?? 0, y: typedCharacter.position_y ?? 0 };
+      const updatedPositionAfterActions = getPositionChange(allStateChanges, currentPosition);
       if (updatedPositionAfterActions) {
-        typedCharacter.position = updatedPositionAfterActions.newPosition;
+        typedCharacter.position_x = updatedPositionAfterActions.newPosition.x;
+        typedCharacter.position_y = updatedPositionAfterActions.newPosition.y;
       }
 
       // ======================================================================
@@ -761,9 +846,10 @@ router.post(
 
       if (highLevelIntent === 'query' && canProvideWorldFacts) {
         try {
+          const characterPosition = { x: typedCharacter.position_x ?? 0, y: typedCharacter.position_y ?? 0 };
           locationContextForPrompt = await locationService.buildLocationContext(
             typedCharacter.campaign_seed,
-            typedCharacter.position,
+            characterPosition,
             {
               characterId,
               radius: 40,
@@ -804,7 +890,7 @@ router.post(
         stateChanges: [],
         narrativeContext: {
           summary: 'A moment of exploration and conversation.',
-          location: `(${typedCharacter.position.x}, ${typedCharacter.position.y})`,
+          location: `(${typedCharacter.position_x}, ${typedCharacter.position_y})`,
         },
         createJournalEntry: false,
         triggerActivePhase: false,

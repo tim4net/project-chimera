@@ -268,7 +268,7 @@ export class LandmarkService {
     radius: number = DEFAULT_DISCOVERY_RADIUS
   ): Promise<LandmarkDiscoveryResult> {
     const campaignSeed = character.campaign_seed;
-    const position = character.position;
+    const position = { x: character.position_x ?? 0, y: character.position_y ?? 0 };
     const nearby = await this.getNearbyLandmarks(campaignSeed, position, radius);
 
     if (nearby.length === 0) {

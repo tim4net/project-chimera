@@ -56,8 +56,14 @@ export interface CharacterRecord {
   armor_class: number;
   speed: number;
   hit_dice: HitDicePool;
-  position: CharacterPosition;
+  position_x: number; // Character position on world map
+  position_y: number;
+  position?: CharacterPosition; // Legacy position object (computed from position_x/y)
   campaign_seed: string;
+  game_time_minutes: number; // In-game time progression (migration 008)
+  world_date_day: number; // Celestine Concordance Calendar: 1-40 (migration 008)
+  world_date_month: number; // 1-10 (migration 008)
+  world_date_year: number; // 0+ (migration 008)
   spell_slots: Record<string, number>;
   backstory: string | null;
   skills: string | null;
@@ -261,3 +267,30 @@ export type {
   NpcMovementPlan,
   NpcMovementOptions
 } from './npc-types';
+
+export type {
+  ClientEvents,
+  ServerEvents,
+  AuthenticatePayload,
+  AuthenticatedResponse,
+  AuthErrorResponse,
+  GameActionPayload,
+  GameStateUpdate,
+  ChatMessagePayload,
+  DMMessageResponse,
+  ChatHistoryResponse,
+  ActiveTurnActionPayload,
+  ActiveTurnStartEvent,
+  ActiveCombatUpdate,
+  ActiveCombatEndEvent,
+  IdleTaskStartPayload,
+  IdleTaskCompleteEvent,
+  IdleTaskUpdateEvent,
+  WorldEventPayload,
+  TensionUpdateEvent,
+  SubscribeCharacterPayload,
+  UnsubscribeCharacterPayload,
+  NotificationPayload,
+  ErrorPayload,
+  SocketData
+} from './websocket';

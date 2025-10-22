@@ -99,7 +99,7 @@ You are reviewing a D&D 5e AI Dungeon Master's response for rule compliance and 
 - Class: ${character.class}
 - Level: ${character.level}
 - HP: ${character.hp_current}/${character.hp_max}
-- Position: (${character.position.x}, ${character.position.y})
+- Position: (${character.position_x}, ${character.position_y})
 
 ## Interaction
 

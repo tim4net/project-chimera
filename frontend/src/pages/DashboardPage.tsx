@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthProvider.tsx';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,7 @@ import IdleTaskPanel from '../components/IdleTaskPanel';
 import PartyPanel from '../components/PartyPanel';
 import StrategicMap from '../components/StrategicMap';
 import TownApproachingLoader from '../components/TownApproachingLoader';
+import TravelPanel from '../components/TravelPanel';
 import type { DmApiResponse } from '../types';
 
 type CharacterRecord = {
@@ -122,6 +123,8 @@ const DashboardPageInner = () => {
   const [error, setError] = useState('');
   const [isFullscreenMap, setIsFullscreenMap] = useState(false);
   const [travelDestination, setTravelDestination] = useState<{ x: number; y: number } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [travelMode, setTravelMode] = useState<'smart' | 'active' | 'quiet'>('smart');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   // Keep journal entries state for future journal modal/panel feature
@@ -388,8 +391,9 @@ const DashboardPageInner = () => {
             />
           </div>
 
-          {/* Right Column - Strategic World Map */}
-          <div className="lg:col-span-3">
+          {/* Right Column - Strategic World Map & Travel Panel */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* World Map */}
             <div className="bg-nuaibria-surface border-2 border-nuaibria-ember/20 rounded-lg shadow-card-hover overflow-hidden hover:border-nuaibria-ember/40 transition-all">
               <div className="bg-gradient-to-r from-nuaibria-ember/20 via-nuaibria-gold/10 to-nuaibria-ember/20 px-4 py-3 border-b border-nuaibria-border flex items-center justify-between">
                 <h2 className="text-lg font-display font-bold text-nuaibria-ember">World Map</h2>
@@ -418,6 +422,12 @@ const DashboardPageInner = () => {
                 )}
               </div>
             </div>
+
+            {/* Travel Panel - Shows active travel session with real-time updates */}
+            <TravelPanel
+              characterId={character.id}
+              onTravelModeChange={setTravelMode}
+            />
           </div>
         </div>
       </div>

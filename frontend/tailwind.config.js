@@ -53,6 +53,7 @@ export default {
       animation: {
         'fade-in': 'fadeIn 200ms ease-in',
         'slide-up': 'slideUp 300ms ease-out',
+        'slide-in-right': 'slideInRight 300ms ease-out',
         'glow-pulse': 'glowPulse 2s ease-in-out infinite',
         // Text-specific glow animation without opacity/filter changes to avoid flicker
         'text-glow': 'textGlow 2500ms ease-in-out infinite',
@@ -66,6 +67,10 @@ export default {
         slideUp: {
           '0%': { transform: 'translateY(10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        slideInRight: {
+          '0%': { transform: 'translateX(20px)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
         },
         glowPulse: {
           '0%, 100%': {

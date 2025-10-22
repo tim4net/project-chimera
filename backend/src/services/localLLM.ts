@@ -97,7 +97,7 @@ function selectBestModel(availableModels: string[]): string {
 
 function buildPrompt(character: CharacterRecord, history: ChatMessage[], playerMessage: string): LocalLlmMessage[] {
   const characterSheet = `Name: ${character.name}, Class: ${character.class}, Level: ${character.level}
-HP: ${character.hp_current}/${character.hp_max}, Position: (${character.position.x}, ${character.position.y})
+HP: ${character.hp_current}/${character.hp_max}, Position: (${character.position_x}, ${character.position_y})
 XP: ${character.xp}, Gold: ${character.gold || 0} gp
 Abilities: STR ${character.ability_scores.STR}, DEX ${character.ability_scores.DEX}, CON ${character.ability_scores.CON}, INT ${character.ability_scores.INT}, WIS ${character.ability_scores.WIS}, CHA ${character.ability_scores.CHA}`;
 

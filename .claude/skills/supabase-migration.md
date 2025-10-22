@@ -9,9 +9,19 @@ This skill helps create and manage database schema migrations for the Nuaibria p
 
 ## Prerequisites
 
-- Supabase CLI installed (`npm install -g supabase` or check installation)
-- Project linked to Supabase Cloud (`supabase link`)
+- Node.js installed (to use `npx supabase`)
+- Project linked to Supabase Cloud (using `npx supabase link`)
 - Access to project's `.env` file with Supabase credentials
+- **No global installation needed** - use `npx supabase` to run CLI commands
+
+## Environment Variables (from .env)
+
+The project uses these Supabase credentials:
+- **SUPABASE_URL**: https://muhlitkerrjparpcuwmc.supabase.co
+- **SUPABASE_ANON_KEY**: Public key for client-side access
+- **SUPABASE_SERVICE_KEY**: Admin key for server-side operations
+- **SUPABASE_ACCESS_TOKEN**: Personal access token for CLI management
+- **DATABASE_URL**: Direct PostgreSQL connection string
 
 ## Migration Workflow
 
@@ -173,39 +183,31 @@ Before applying, ensure your migration:
 - [ ] Handles existing data gracefully (no data loss)
 - [ ] Is idempotent (can be run multiple times safely)
 
-### 5. Testing the Migration Locally (if Supabase CLI available)
+### 5. Applying Migration to Cloud Production
 
-```bash
-# Start local Supabase (if not running)
-cd /srv/project-chimera
-supabase start
-
-# Apply migrations locally
-supabase db reset
-
-# Test the migration works
-# Run your application and test the new schema
-```
-
-### 6. Applying Migration to Cloud Production
-
-#### Method A: Using Supabase CLI (Preferred)
+#### Method A: Using npx supabase (Recommended - No Installation Required)
 
 ```bash
 cd /srv/project-chimera
 
-# Ensure you're logged in
-supabase login
+# Ensure you're logged in (first time only)
+npx supabase login
 
 # Link to your cloud project (if not already linked)
-supabase link --project-ref muhlitkerrjparpcuwmc
+npx supabase link --project-ref muhlitkerrjparpcuwmc
 
 # Push migrations to production
-supabase db push
+npx supabase db push
 
 # Verify the migration was applied
-supabase db diff
+npx supabase db diff
 ```
+
+**Key advantages of `npx supabase`:**
+- No global installation needed
+- Uses temporary npm cache
+- Always uses latest CLI version
+- Works in isolated environments
 
 #### Method B: Using Supabase Dashboard (Manual)
 
@@ -214,19 +216,6 @@ supabase db diff
 3. Copy the migration SQL from your file
 4. Paste and execute the SQL
 5. Verify the changes in the Table Editor
-
-#### Method C: Using Backend MCP Tool (If Available)
-
-```typescript
-// Use the mcp__supabase__apply_migration tool
-await applyMigration({
-  name: 'add_known_spells_to_characters',
-  query: `
-    ALTER TABLE public.characters
-    ADD COLUMN IF NOT EXISTS known_spells jsonb DEFAULT '[]'::jsonb;
-  `
-});
-```
 
 ### 7. Verification After Migration
 
@@ -393,21 +382,162 @@ CREATE INDEX IF NOT EXISTS character_quests_status_idx ON public.character_quest
 └── SUPABASE_CLOUD_CREDENTIALS.md     # Connection details
 ```
 
+## Database Management Commands
+
+### Authentication & Project Setup
+
+```bash
+# Login to Supabase CLI (required for first use)
+npx supabase login
+
+# Link to cloud project
+cd /srv/project-chimera
+npx supabase link --project-ref muhlitkerrjparpcuwmc
+
+# Check current link status
+npx supabase status
+```
+
+### Migration Operations
+
+```bash
+# Create migration file
+TIMESTAMP=$(date +%Y%m%d%H%M%S) && touch supabase/migrations/${TIMESTAMP}_description.sql
+
+# Apply to production (recommended method)
+cd /srv/project-chimera && npx supabase db push
+
+# View migration history
+ls -lth supabase/migrations/
+
+# Pull remote schema into local migrations (dangerous - use with caution)
+npx supabase db pull
+
+# View migration diff before applying
+npx supabase db diff
+```
+
+### Database Inspection
+
+```bash
+# View database logs
+npx supabase logs db
+
+# View API logs
+npx supabase logs api
+
+# View realtime logs
+npx supabase logs realtime
+
+# Get project info
+npx supabase projects list
+
+# Get specific project details
+npx supabase projects info muhlitkerrjparpcuwmc
+```
+
+### Direct PostgreSQL Access (Advanced)
+
+```bash
+# Using DATABASE_URL directly via psql
+export DATABASE_URL="postgresql://postgres.muhlitkerrjparpcuwmc:YFKAjQjbAhxTjgqvQl1552IhEPGmanzG@db.muhlitkerrjparpcuwmc.supabase.co:5432/postgres"
+
+# Connect to database
+psql "$DATABASE_URL"
+
+# Run query directly
+psql "$DATABASE_URL" -c "SELECT version();"
+
+# Run SQL file
+psql "$DATABASE_URL" -f migration_file.sql
+
+# Export all tables
+pg_dump "$DATABASE_URL" > backup.sql
+
+# Export specific table
+pg_dump "$DATABASE_URL" -t public.characters > characters_backup.sql
+```
+
+### Supabase API Management
+
+```bash
+# List all database roles
+curl -s "https://muhlitkerrjparpcuwmc.supabase.co/rest/v1/information_schema.role_table_grants" \
+  -H "apikey: SUPABASE_ANON_KEY" | jq .
+
+# Query database via REST API
+curl -s "https://muhlitkerrjparpcuwmc.supabase.co/rest/v1/characters?select=*" \
+  -H "apikey: SUPABASE_ANON_KEY"
+
+# Execute raw SQL via RPC (if setup)
+curl -X POST "https://muhlitkerrjparpcuwmc.supabase.co/rest/v1/rpc/execute_sql" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SERVICE_KEY" \
+  -d '{"sql":"SELECT count(*) FROM characters"}'
+```
+
+### Database Backup & Recovery
+
+```bash
+# Manual backup via CLI
+supabase db download
+
+# List available backups
+supabase backups list
+
+# Restore from backup (requires manual action in dashboard)
+# Go to: https://supabase.com/dashboard/project/muhlitkerrjparpcuwmc
+# Navigate to: Database → Backups
+# Select backup and click "Restore"
+```
+
+### Performance & Maintenance
+
+```bash
+# Vacuum database (optimize storage)
+# Connect via psql and run:
+VACUUM ANALYZE;
+
+# Check table sizes
+SELECT
+  schemaname,
+  tablename,
+  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+
+# Check index usage
+SELECT
+  schemaname,
+  tablename,
+  indexname,
+  idx_scan
+FROM pg_stat_user_indexes
+ORDER BY idx_scan DESC;
+```
+
 ## Quick Reference Commands
 
 ```bash
 # Create migration file
 TIMESTAMP=$(date +%Y%m%d%H%M%S) && touch supabase/migrations/${TIMESTAMP}_description.sql
 
-# Apply to production (CLI)
-cd /srv/project-chimera && supabase db push
+# Apply to production (uses npx - no install needed)
+cd /srv/project-chimera && npx supabase db push
 
 # View migration history
 ls -lth supabase/migrations/
 
 # Check Supabase status
-supabase status
+npx supabase status
 
 # View logs
-supabase logs db
+npx supabase logs db
+
+# Login (first time only)
+npx supabase login
+
+# Backup database
+npx supabase db download
 ```

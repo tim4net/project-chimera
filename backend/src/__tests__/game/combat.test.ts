@@ -4,9 +4,7 @@ import { rollDice } from '../../game/dice';
 import type { Combatant } from '../../types/index';
 
 // Mock the rollDice function
-jest.mock('../../game/dice', () => ({
-  rollDice: jest.fn(),
-}));
+jest.mock('../../game/dice');
 
 const mockRollDice = rollDice as jest.MockedFunction<typeof rollDice>;
 

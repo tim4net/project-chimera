@@ -13,6 +13,7 @@
 
 import type { ActionSpec } from '../types/actions';
 import type { CharacterRecord } from '../types';
+import { supabaseServiceClient } from './supabaseClient';
 
 const LOCAL_LLM_ENDPOINT = process.env.LOCAL_LLM_ENDPOINT || 'http://localhost:1234/v1';
 
@@ -53,11 +54,11 @@ interface LLMValidationRequest {
 /**
  * Fast checks for obvious impossibilities based on character sheet
  */
-function performDeterministicChecks(
+async function performDeterministicChecks(
   action: ActionSpec,
   character: CharacterRecord,
   originalMessage: string
-): ValidationResult | null {
+): Promise<ValidationResult | null> {
   const normalized = originalMessage.toLowerCase();
 
   // Check 0: Allow simple questions and conversational RP without LLM overhead
@@ -80,9 +81,26 @@ function performDeterministicChecks(
   const spellMatch = originalMessage.match(spellCastPattern);
   if (spellMatch) {
     const spellName = spellMatch[2];
-    // TODO: Check character's known spells list once spell system is implemented
-    // For now, pass to AI validator
-    return null;
+
+    // Check if character has the spell
+    const knownCantrips = (character as any).selected_cantrips || [];
+    const knownSpells = (character as any).selected_spells || [];
+    const allKnownSpells = [...knownCantrips, ...knownSpells];
+
+    // Case-insensitive spell name matching
+    const hasSpell = allKnownSpells.some(
+      spell => spell.toLowerCase() === spellName.toLowerCase()
+    );
+
+    if (!hasSpell) {
+      return {
+        isValid: false,
+        reason: `You don't know the spell "${spellName}".`,
+        suggestion: allKnownSpells.length > 0
+          ? `You currently know: ${allKnownSpells.join(', ')}`
+          : "You don't know any spells yet."
+      };
+    }
   }
 
   // Check 2: Using items not in inventory
@@ -90,9 +108,45 @@ function performDeterministicChecks(
   const itemMatch = originalMessage.match(itemUsePattern);
   if (itemMatch) {
     const itemName = itemMatch[3];
-    // TODO: Check character's inventory once item system is fully integrated
-    // For now, pass to AI validator
-    return null;
+
+    // Query inventory from database
+    const { data: items, error } = await supabaseServiceClient
+      .from('game_items')
+      .select('name, quantity')
+      .eq('character_id', character.id);
+
+    if (error) {
+      console.error('[ActionValidator] Failed to fetch inventory:', error);
+      // Pass to AI validator if database query fails
+      return null;
+    }
+
+    // Case-insensitive item name matching
+    const hasItem = items?.some(
+      item => item.name.toLowerCase().includes(itemName.toLowerCase())
+    );
+
+    if (!hasItem) {
+      const inventoryList = items && items.length > 0
+        ? items.map(i => `${i.name} (${i.quantity || 1})`).join(', ')
+        : 'empty';
+
+      return {
+        isValid: false,
+        reason: `You don't have "${itemName}" in your inventory.`,
+        suggestion: `Your inventory: ${inventoryList}`
+      };
+    }
+
+    // Check quantity for consumables
+    const item = items?.find(i => i.name.toLowerCase().includes(itemName.toLowerCase()));
+    if (item && item.quantity !== undefined && item.quantity <= 0) {
+      return {
+        isValid: false,
+        reason: `You're out of ${item.name}.`,
+        suggestion: 'You need to find or purchase more.'
+      };
+    }
   }
 
   // Check 3: Physical impossibilities (obvious cases)
@@ -183,13 +237,32 @@ Response: {"isValid": false, "reason": "XP must be earned through gameplay.", "s
 /**
  * Build validation prompt for the LLM
  */
-function buildValidationPrompt(
+async function buildValidationPrompt(
   character: CharacterRecord,
   originalMessage: string
-): string {
-  // Build character context
-  const inventory = "TODO: Fetch from items table"; // TODO: Implement once items system is ready
-  const spells = "TODO: Fetch from character spells"; // TODO: Implement once spell system is ready
+): Promise<string> {
+  // Get known spells from character
+  const knownCantrips = (character as any).selected_cantrips || [];
+  const knownSpells = (character as any).selected_spells || [];
+  const allKnownSpells = [...knownCantrips, ...knownSpells];
+  const spells = allKnownSpells.length > 0 ? allKnownSpells.join(', ') : 'None';
+
+  // Fetch inventory from database
+  let inventory = 'Unknown';
+  try {
+    const { data: items, error } = await supabaseServiceClient
+      .from('game_items')
+      .select('name, quantity')
+      .eq('character_id', character.id);
+
+    if (!error && items) {
+      inventory = items.length > 0
+        ? items.map(i => `${i.name} (${i.quantity || 1})`).join(', ')
+        : 'Empty';
+    }
+  } catch (error) {
+    console.error('[ActionValidator] Failed to fetch inventory for prompt:', error);
+  }
 
   const characterContext = `
 **Character Sheet:**
@@ -213,95 +286,128 @@ function buildValidationPrompt(
 /**
  * Call the Local LLM for AI validation
  */
-async function validateWithAI(
+async function validateWithLocalLLM(
+  character: CharacterRecord,
+  originalMessage: string
+): Promise<ValidationResult> {
+  const prompt = await buildValidationPrompt(character, originalMessage);
+
+  const response = await fetch(`${LOCAL_LLM_ENDPOINT}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'qwen/qwen3-4b-2507', // Fast 4B model for quick validation
+      messages: [
+        { role: 'system', content: VALIDATOR_SYSTEM_PROMPT },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3, // Low temperature for consistent validation
+      max_tokens: 200, // Short response
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'action_validation',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              isValid: {
+                type: 'boolean',
+                description: 'Whether the action is valid according to D&D 5e rules and physics'
+              },
+              reason: {
+                type: 'string',
+                description: 'Brief explanation for the player about why the action is valid or invalid'
+              },
+              suggestion: {
+                type: 'string',
+                description: 'What the player CAN do instead (if action is invalid)'
+              }
+            },
+            required: ['isValid', 'reason'],
+            additionalProperties: false
+          }
+        }
+      }
+    }),
+    signal: AbortSignal.timeout(15000) // 15 second timeout for LLM validation
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    console.error('[ActionValidator] LLM request failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      endpoint: LOCAL_LLM_ENDPOINT,
+      errorBody: errorText
+    });
+    throw new Error(`Local LLM request failed with status ${response.status}: ${response.statusText}`);
+  }
+
+  const data = await response.json() as {
+    choices: Array<{ message: { content: string } }>
+  };
+
+  const content = data.choices[0]?.message?.content;
+  if (!content) {
+    console.error('[ActionValidator] Empty response from LLM');
+    throw new Error('Local LLM returned empty response');
+  }
+
+  let parsed: { isValid: boolean; reason?: string; suggestion?: string };
+  try {
+    parsed = JSON.parse(content) as {
+      isValid: boolean;
+      reason?: string;
+      suggestion?: string;
+    };
+  } catch (parseError) {
+    console.error('[ActionValidator] Failed to parse local LLM response:', parseError);
+    throw new Error('Local LLM returned invalid JSON');
+  }
+
+  console.log(`[ActionValidator] Validation result for "${originalMessage}": ${parsed.isValid ? 'VALID' : 'INVALID'}`);
+  if (!parsed.isValid) {
+    console.log(`[ActionValidator] Reason: ${parsed.reason}`);
+  }
+
+  return {
+    isValid: parsed.isValid,
+    reason: parsed.reason,
+    suggestion: parsed.suggestion
+  };
+}
+
+async function validateWithGemini(
   character: CharacterRecord,
   originalMessage: string
 ): Promise<ValidationResult> {
   try {
-    const prompt = buildValidationPrompt(character, originalMessage);
+    const prompt = await buildValidationPrompt(character, originalMessage);
+    const { generateText } = await import('./gemini');
 
-    const response = await fetch(`${LOCAL_LLM_ENDPOINT}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'qwen/qwen3-4b-2507', // Fast 4B model for quick validation
-        messages: [
-          { role: 'system', content: VALIDATOR_SYSTEM_PROMPT },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.3, // Low temperature for consistent validation
-        max_tokens: 200, // Short response
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'action_validation',
-            strict: true,
-            schema: {
-              type: 'object',
-              properties: {
-                isValid: {
-                  type: 'boolean',
-                  description: 'Whether the action is valid according to D&D 5e rules and physics'
-                },
-                reason: {
-                  type: 'string',
-                  description: 'Brief explanation for the player about why the action is valid or invalid'
-                },
-                suggestion: {
-                  type: 'string',
-                  description: 'What the player CAN do instead (if action is invalid)'
-                }
-              },
-              required: ['isValid', 'reason'],
-              additionalProperties: false
-            }
-          }
-        }
-      }),
-      signal: AbortSignal.timeout(15000) // 15 second timeout for LLM validation
+    const fullPrompt = `${VALIDATOR_SYSTEM_PROMPT}\n\n${prompt}\n\nRespond ONLY with the JSON object described above.`;
+    const responseText = await generateText(fullPrompt, {
+      temperature: 0.2,
+      maxTokens: 200,
+      modelType: 'flash'
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[ActionValidator] LLM request failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        endpoint: LOCAL_LLM_ENDPOINT,
-        errorBody: errorText
-      });
-      // Fail closed: reject the action when validation service is unavailable
-      return {
-        isValid: false,
-        reason: "I'm having trouble validating that action right now. Please try describing what you want to do in a different way, or use a standard action like attack, travel, or rest.",
-        suggestion: "Try: 'I attack', 'I travel north', 'I search the area', or 'I talk to someone nearby'"
-      };
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[ActionValidator] Gemini fallback returned non-JSON response:', responseText);
+      throw new Error('Gemini fallback response missing JSON');
     }
 
-    const data = await response.json() as {
-      choices: Array<{ message: { content: string } }>
-    };
-
-    const content = data.choices[0]?.message?.content;
-    if (!content) {
-      console.error('[ActionValidator] Empty response from LLM');
-      // Fail closed for security
-      return {
-        isValid: false,
-        reason: "I can't validate that action right now.",
-        suggestion: "Try a standard action like attack, travel, rest, or rephrase your message."
-      };
-    }
-
-    // Parse JSON response
-    const result = JSON.parse(content) as {
+    const result = JSON.parse(jsonMatch[0]) as {
       isValid: boolean;
       reason?: string;
       suggestion?: string;
     };
 
-    console.log(`[ActionValidator] Validation result for "${originalMessage}": ${result.isValid ? 'VALID' : 'INVALID'}`);
+    console.log(`[ActionValidator] Gemini fallback result for "${originalMessage}": ${result.isValid ? 'VALID' : 'INVALID'}`);
     if (!result.isValid) {
-      console.log(`[ActionValidator] Reason: ${result.reason}`);
+      console.log(`[ActionValidator] Gemini reason: ${result.reason}`);
     }
 
     return {
@@ -310,18 +416,33 @@ async function validateWithAI(
       suggestion: result.suggestion
     };
   } catch (error) {
-    console.error('[ActionValidator] AI validation failed:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      endpoint: LOCAL_LLM_ENDPOINT,
-      action: originalMessage
+    console.error('[ActionValidator] Gemini fallback failed:', error);
+    throw error;
+  }
+}
+
+async function validateWithAI(
+  character: CharacterRecord,
+  originalMessage: string
+): Promise<ValidationResult> {
+  try {
+    return await validateWithLocalLLM(character, originalMessage);
+  } catch (localError) {
+    console.warn('[ActionValidator] Local LLM validation failed, attempting Gemini fallback:', {
+      error: localError instanceof Error ? localError.message : String(localError),
+      endpoint: LOCAL_LLM_ENDPOINT
     });
-    // Fail closed: reject the action when validation service has an error
-    return {
-      isValid: false,
-      reason: "I'm having trouble validating that action right now. Please try describing what you want to do in a different way, or use a standard action.",
-      suggestion: "Try: 'I attack', 'I travel north', 'I search the area', or 'I rest'"
-    };
+
+    try {
+      return await validateWithGemini(character, originalMessage);
+    } catch (geminiError) {
+      console.error('[ActionValidator] All validation fallbacks failed:', geminiError);
+      return {
+        isValid: false,
+        reason: "I'm having trouble validating that action right now. Please try describing what you want to do in a different way, or use a standard action.",
+        suggestion: "Try: 'I attack', 'I travel north', 'I search the area', or 'I rest'"
+      };
+    }
   }
 }
 
@@ -351,7 +472,7 @@ export async function validateAction(
   console.log(`[ActionValidator] Validating: "${originalMessage}"`);
 
   // Stage 1: Fast deterministic checks
-  const deterministicResult = performDeterministicChecks(action, character, originalMessage);
+  const deterministicResult = await performDeterministicChecks(action, character, originalMessage);
   if (deterministicResult) {
     // Found an obvious issue, return immediately
     return deterministicResult;

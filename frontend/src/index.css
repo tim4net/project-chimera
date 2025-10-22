@@ -53,4 +53,25 @@
     -webkit-box-shadow: 0 0 0 1000px #0a0e1a inset;
     transition: background-color 5000s ease-in-out 0s;
   }
+
+  /* Danger level color classes for travel system */
+  .danger-1 {
+    @apply bg-green-900/20 border-green-500/40 text-green-400;
+  }
+
+  .danger-2 {
+    @apply bg-blue-900/20 border-blue-500/40 text-blue-400;
+  }
+
+  .danger-3 {
+    @apply bg-amber-900/20 border-amber-500/40 text-amber-400;
+  }
+
+  .danger-4 {
+    @apply bg-red-900/20 border-red-500/40 text-red-400;
+  }
+
+  .danger-5 {
+    @apply bg-purple-900/20 border-purple-500/40 text-purple-400;
+  }
 }

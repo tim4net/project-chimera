@@ -74,6 +74,24 @@ export async function getRandomEnemyForBiome(biome: string, characterLevel: numb
 }
 
 /**
+ * Get enemy by ID
+ */
+export async function getEnemyById(id: string): Promise<Enemy | null> {
+  const { data, error } = await supabaseServiceClient
+    .from('enemies')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) {
+    console.error(`[EnemyService] Enemy with ID "${id}" not found`);
+    return null;
+  }
+
+  return { ...data as Enemy, hp_current: data.hp_max };
+}
+
+/**
  * Get enemy by name (for quest-specific encounters)
  */
 export async function getEnemyByName(name: string): Promise<Enemy | null> {

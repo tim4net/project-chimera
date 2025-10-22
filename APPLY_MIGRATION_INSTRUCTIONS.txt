@@ -1,0 +1,179 @@
+================================================================================
+POI TYPE ENUM MIGRATION - APPLICATION INSTRUCTIONS
+================================================================================
+
+PROBLEM:
+The backend is encountering this blocking error:
+  "invalid input value for enum poi_type: "village""
+
+This prevents the road network service from functioning correctly.
+
+SOLUTION:
+Apply the migration that converts the poi_type column from enum to TEXT.
+
+================================================================================
+QUICK START - SUPABASE WEB CONSOLE (RECOMMENDED)
+================================================================================
+
+Step 1: Open the Supabase SQL Editor
+  URL: https://supabase.com/dashboard/project/muhlitkerrjparpcuwmc/sql/new
+
+Step 2: Copy the SQL migration
+  The SQL is shown below in the "MIGRATION SQL" section.
+  Copy the ENTIRE SQL block (all 59 lines).
+
+Step 3: Paste and Execute
+  - Paste the SQL into the Supabase SQL Editor
+  - Click the "Run" or "Execute" button
+  - Wait for the success message
+
+Step 4: Verify Success
+  - Create a new query tab
+  - Run this verification query:
+
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_name = 'world_pois' AND column_name = 'type';
+
+  - Expected result: type | text
+
+Step 5: Restart Backend
+  Run this command in the terminal:
+    podman compose restart backend
+
+================================================================================
+MIGRATION SQL (Copy everything below this line)
+================================================================================
+
+-- Migration: Ensure world_pois uses TEXT for type column (not enum)
+-- Date: 2025-10-21
+-- Issue: Enum constraints are causing insertion failures
+-- Solution: Use TEXT type for maximum flexibility
+
+-- Drop the enum if it exists (it may not be used)
+DO $$
+BEGIN
+  -- First, if world_pois.type is using the enum, change it to TEXT
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'world_pois'
+    AND column_name = 'type'
+    AND udt_name = 'poi_type'
+  ) THEN
+    ALTER TABLE world_pois ALTER COLUMN type TYPE TEXT;
+    RAISE NOTICE 'Changed world_pois.type from enum to TEXT';
+  END IF;
+
+  -- Now drop the enum if it exists and nothing else is using it
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'poi_type') THEN
+    DROP TYPE IF EXISTS poi_type CASCADE;
+    RAISE NOTICE 'Dropped poi_type enum';
+  END IF;
+END$$;
+
+-- Ensure world_pois table exists with TEXT type
+CREATE TABLE IF NOT EXISTS world_pois (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,  -- TEXT, not enum, for flexibility
+  position JSONB NOT NULL,
+  campaign_seed TEXT,
+  generated_content JSONB,
+  discovered_by_characters UUID[] DEFAULT ARRAY[]::UUID[],
+  first_discovered_at TIMESTAMPTZ,
+  description TEXT,  -- For backward compatibility
+  discovered BOOLEAN DEFAULT FALSE,  -- For backward compatibility
+  encounter_chance FLOAT,  -- For backward compatibility
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Ensure indexes exist
+CREATE INDEX IF NOT EXISTS world_pois_campaign_idx
+  ON world_pois (campaign_seed);
+
+CREATE INDEX IF NOT EXISTS world_pois_campaign_type_idx
+  ON world_pois (campaign_seed, type);
+
+CREATE INDEX IF NOT EXISTS world_pois_type_idx
+  ON world_pois (type);
+
+-- Add comments
+COMMENT ON TABLE world_pois IS 'Points of Interest in the game world (settlements, dungeons, landmarks, etc.)';
+COMMENT ON COLUMN world_pois.type IS 'Type of POI as TEXT (village, town, city, capital, fort, outpost, dungeon, ruins, shrine, landmark, cave, temple, etc.)';
+COMMENT ON COLUMN world_pois.position IS 'Location as JSONB with {x: number, y: number} structure';
+
+================================================================================
+END OF MIGRATION SQL
+================================================================================
+
+VERIFICATION QUERIES:
+
+After running the migration, execute these queries to verify success:
+
+1. Check column type:
+   SELECT column_name, data_type
+   FROM information_schema.columns
+   WHERE table_name = 'world_pois' AND column_name = 'type';
+
+   Expected: type | text
+
+2. Check if enum was dropped:
+   SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'poi_type') as enum_exists;
+
+   Expected: false
+
+3. Test insert (optional):
+   INSERT INTO world_pois (name, type, position, campaign_seed)
+   VALUES ('Test Village', 'village', '{"x": 100, "y": 200}', 'test_seed')
+   RETURNING id, name, type;
+
+   Should succeed without error.
+
+================================================================================
+POST-MIGRATION STEPS
+================================================================================
+
+1. Restart backend container:
+   podman compose restart backend
+
+2. Monitor backend logs:
+   podman compose logs -f backend
+
+3. Test road network service:
+   - The error "invalid input value for enum poi_type" should be gone
+   - Settlement queries should work correctly
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+If you see "type poi_type does not exist":
+  - This is fine, it means the enum was already dropped
+  - Continue with the rest of the migration
+
+If you see "cannot drop type poi_type because other objects depend on it":
+  - Other tables may be using the enum
+  - Run this to check dependencies:
+    SELECT * FROM pg_depend
+    WHERE refobjid = (SELECT oid FROM pg_type WHERE typname = 'poi_type');
+
+If migration fails completely:
+  - Contact the database administrator
+  - Check Supabase project status
+  - Verify you have correct permissions (using service role key)
+
+================================================================================
+ALTERNATIVE METHOD: Using Supabase CLI
+================================================================================
+
+If you have Supabase CLI installed:
+
+  supabase login
+  supabase link --project-ref muhlitkerrjparpcuwmc
+  supabase db push
+
+Note: This requires Supabase CLI to be installed and configured.
+
+================================================================================

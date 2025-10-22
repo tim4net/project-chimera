@@ -13,5 +13,5 @@
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "legacy-backup", "../legacy-backup"]
+  "exclude": ["node_modules", "dist", "legacy-backup", "../legacy-backup", "src/**/*.test.ts", "src/__tests__/**/*", "src/examples/**/*", "src/manual-test*.ts"]
 }

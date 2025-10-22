@@ -30,7 +30,7 @@ import type { CharacterRecord } from '../types';
 import { rollD20, rollDice, calculateAbilityModifier, type DiceRollResult, type D20RollResult } from '../game/dice';
 import executeSocialClaim from './socialClaimResolver';
 import { checkForThreats } from './threatChecker';
-import { getEnemyByName } from './enemyService';
+import { getEnemyByName, getEnemyById } from './enemyService';
 import { executeEquipItem, executeUseItem, executeDropItem } from './inventoryService';
 import {
   validateCantripSelection,
@@ -103,8 +103,21 @@ async function executeMeleeAttack(
 ): Promise<ActionResult> {
   const startTime = Date.now();
 
-  // Step 1: Get enemy data (default to goblin if not found)
-  const enemy = await getEnemyByName('Goblin'); // TODO: Get target from action.targetId
+  // Step 1: Get enemy data from targetId
+  let enemy = await getEnemyById(action.targetId);
+
+  // Fallback: Try to parse targetId as enemy name if ID lookup fails
+  if (!enemy && action.targetId) {
+    console.warn(`[RuleEngine] Enemy ID "${action.targetId}" not found, trying as name`);
+    enemy = await getEnemyByName(action.targetId);
+  }
+
+  // Final fallback: Default to goblin with warning
+  if (!enemy) {
+    console.warn(`[RuleEngine] No valid target found for targetId "${action.targetId}", defaulting to Goblin`);
+    enemy = await getEnemyByName('Goblin');
+  }
+
   const targetAC = enemy?.armor_class || 13;
   const targetHP = enemy?.hp_max || 15;
   const enemyCR = enemy?.cr || 1;
@@ -266,8 +279,8 @@ async function executeTravel(
   };
 
   const delta = directionDeltas[action.direction];
-  const newX = character.position.x + delta.x * action.distance;
-  const newY = character.position.y + delta.y * action.distance;
+  const newX = character.position_x + delta.x * action.distance;
+  const newY = character.position_y + delta.y * action.distance;
 
   // Check for threat encounters (kidnapping, assassination, etc.)
   const threatEncounter = await checkForThreats(character, 'travel');
@@ -314,7 +327,7 @@ async function executeTravel(
       entityId: action.actorId,
       entityType: 'character',
       field: 'position_x',
-      oldValue: character.position.x,
+      oldValue: character.position_x,
       newValue: newX,
       delta: delta.x * action.distance,
     },
@@ -322,7 +335,7 @@ async function executeTravel(
       entityId: action.actorId,
       entityType: 'character',
       field: 'position_y',
-      oldValue: character.position.y,
+      oldValue: character.position_y,
       newValue: newY,
       delta: delta.y * action.distance,
     },
@@ -340,13 +353,15 @@ async function executeTravel(
 
   const updatedCharacter: CharacterRecord = {
     ...character,
-    position: { x: newX, y: newY }
+    position_x: newX,
+    position_y: newY
   };
 
   let landmarkHighlights: string[] = [];
   let landmarkDiscoveries: LandmarkDiscoveryResult | null = null;
   try {
-    await landmarkService.ensureLandmarksAroundPosition(character.campaign_seed, updatedCharacter.position, 4);
+    const charPosition = { x: newX, y: newY };
+    await landmarkService.ensureLandmarksAroundPosition(character.campaign_seed, charPosition, 4);
     const discoveries = await landmarkService.recordNearbyDiscoveries(updatedCharacter, 6);
 
     landmarkDiscoveries = discoveries;

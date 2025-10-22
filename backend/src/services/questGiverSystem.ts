@@ -315,8 +315,8 @@ function fillQuestTemplate(
       };
 
     case 'scout':
-      const targetX = character.position.x + (Math.random() > 0.5 ? 5 : -5);
-      const targetY = character.position.y + (Math.random() > 0.5 ? 5 : -5);
+      const targetX = character.position_x + (Math.random() > 0.5 ? 5 : -5);
+      const targetY = character.position_y + (Math.random() > 0.5 ? 5 : -5);
 
       return {
         title: template.title_template,

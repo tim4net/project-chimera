@@ -51,6 +51,7 @@ export interface RoadProximity {
   fromSettlementName: string;
   toSettlementId: string;
   toSettlementName: string;
+  averageTraversalCost?: number;
 }
 
 export interface LocationContext {
