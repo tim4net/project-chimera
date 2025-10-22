@@ -9,6 +9,7 @@ import type {
 import type { SettlementType, SettlementSummary, Vector2 } from '../types/road-types';
 import { supabaseServiceClient } from './supabaseClient';
 import { landmarkService } from './landmarkService';
+import { generateFantasyName } from './nameGenerator';
 
 interface NpcServiceDependencies {
   supabaseClient?: SupabaseClient;
@@ -327,10 +328,32 @@ export class NpcService {
   }): Promise<WorldNpcRecord | null> {
     const race = options.generator.pick(CORE_RACES);
     const charClass = options.generator.pick(CORE_CLASSES);
-    const firstName = options.generator.pick(FIRST_NAMES);
-    const lastName = options.generator.pick(LAST_NAMES);
     const role = options.generator.pick(options.roleOptions);
     const personality = this.buildPersonality(options.generator);
+
+    // Determine gender deterministically from seed
+    const genderOptions: Array<'male' | 'female' | 'nonbinary'> = ['male', 'female', 'nonbinary'];
+    const gender = options.generator.pick(genderOptions);
+
+    // Generate LLM-based fantasy name with context
+    let firstName = '';
+    let lastName = '';
+    try {
+      const nameResult = await generateFantasyName({
+        race,
+        gender,
+        characterClass: charClass,
+        background: role,
+      });
+      firstName = nameResult.firstName;
+      lastName = nameResult.lastName;
+      console.log(`[NpcService] Generated LLM name: ${firstName} ${lastName} (${race} ${gender})`);
+    } catch (error) {
+      console.warn('[NpcService] LLM name generation failed, using fallback:', error instanceof Error ? error.message : String(error));
+      // Fallback to random selection from pools if LLM fails
+      firstName = options.generator.pick(FIRST_NAMES);
+      lastName = options.generator.pick(LAST_NAMES);
+    }
 
     const payload = {
       campaign_seed: options.campaignSeed,

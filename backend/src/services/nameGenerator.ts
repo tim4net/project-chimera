@@ -3,8 +3,7 @@
  * Uses free/local LLM to generate creative, unique fantasy names
  */
 
-// Name generation uses simple logic instead of LLM for now
-// import { generateWithLocalLLM } from './narratorLLM';
+import { generateWithLocalLLM } from './narratorLLM';
 
 interface NameGenerationRequest {
   race: string;
@@ -29,43 +28,69 @@ export async function generateFantasyName(
   const prompt = buildNamePrompt(request);
 
   try {
-    // Name generation currently uses fallback
-    // TODO: Re-implement with proper LLM call when needed
-    return generateFallbackName(request);
+    // Call local LLM for creative name generation
+    // Use higher temperature (0.9) for creative, unique names
+    const llmResponse = await generateWithLocalLLM(prompt, {
+      temperature: 0.9,
+      maxTokens: 200,
+    });
+
+    console.log('[NameGenerator] LLM generated name for', request.race, request.gender);
+
+    // Parse the LLM response
+    return parseNameResponse(llmResponse);
   } catch (error) {
-    console.error('[NameGenerator] Generation failed:', error);
-    // Fallback to simple generation
+    console.warn('[NameGenerator] LLM generation failed, using fallback:', error instanceof Error ? error.message : String(error));
+    // Fallback to deterministic generation on any LLM error
     return generateFallbackName(request);
   }
 }
 
 function buildNamePrompt(request: NameGenerationRequest): string {
   const genderText = request.gender === 'nonbinary' ? 'gender-neutral' : request.gender;
+  const classContext = request.characterClass ? ` ${request.characterClass}` : '';
+  const backgroundContext = request.background ? ` (${request.background})` : '';
 
-  return `Generate a creative fantasy name for a ${genderText} ${request.race}${request.characterClass ? ` ${request.characterClass}` : ''}${request.background ? ` with ${request.background} background` : ''}.
+  // Culture and name inspiration hints by race
+  const culturalHints: Record<string, string> = {
+    Human: 'Anglo-Saxon, Germanic, or Mediterranean inspired',
+    Elf: 'Elvish: flowing, musical, nature-inspired syllables',
+    Dwarf: 'Dwarven: sturdy, earth-inspired with hard consonants',
+    Halfling: 'Halfling: whimsical, agricultural references',
+    Tiefling: 'Infernal or demonic undertones, mysterious',
+    'Half-Orc': 'Orcish honor-based names, strong and commanding',
+    Dragonborn: 'Dragon-inspired, powerful and resonant',
+    Gnome: 'Gnomish: clever, mechanical, whimsical elements',
+  };
 
-Requirements:
-- First name and last name
-- Appropriate for ${request.race} culture in dark fantasy setting
-- Unique and memorable
-- Evocative and mysterious
-- Not common or mundane
+  const cultureHint = culturalHints[request.race] || 'Fantasy-appropriate to the character\'s culture';
 
-Respond ONLY with JSON in this exact format:
+  return `Generate a fantasy name for a ${genderText} ${request.race}${classContext}${backgroundContext}.
+
+CULTURAL CONTEXT: ${cultureHint}
+
+REQUIREMENTS:
+- First name and surname (or title-based last name)
+- Unique and memorable - NOT generic or clichéd
+- Evocative of ${request.race} heritage and culture
+- Mysterious but pronounceable
+- Fits a dark fantasy world (medieval, dangerous, mysterious)
+
+RESPOND ONLY WITH JSON (no markdown, no extra text):
 {
-  "firstName": "...",
-  "lastName": "...",
-  "meaning": "brief meaning or origin"
+  "firstName": "first name only",
+  "lastName": "family name or title-based surname",
+  "meaning": "1-2 sentence origin or meaning"
 }
 
-Example for Female Elf Wizard:
+EXAMPLE for Female Elf Wizard:
 {
-  "firstName": "Selendriel",
-  "lastName": "Starwhisper",
-  "meaning": "Moon-blessed seeker of ancient magic"
+  "firstName": "Selendra",
+  "lastName": "Moonwhisper",
+  "meaning": "Moon-touched seeker of hidden arcane secrets"
 }
 
-Generate name now:`;
+Now generate a UNIQUE name for this character:`;
 }
 
 function parseNameResponse(response: string): NameGenerationResult {
