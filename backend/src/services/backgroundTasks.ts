@@ -104,7 +104,7 @@ Make each quest feel COMPLETELY DIFFERENT from others. Vary:
             console.error(`[BackgroundTasks] Quest ${i + 1} schema validation failed:`, (validateErr as Error).message);
           }
         } catch (parseErr) {
-          console.error(`[BackgroundTasks] Quest ${i + 1} JSON parse failed:`, (parseErr as Error).message);
+          console.warn(`[BackgroundTasks] ⚠ Quest ${i + 1}: LLM returned invalid JSON (skipping, will retry) - ${(parseErr as Error).message.substring(0, 60)}`);
         }
       }
     } catch (error) {
@@ -331,11 +331,11 @@ Make names DIVERSE and UNIQUE. Each NPC should feel completely different.`;
             console.error(`[BackgroundTasks] NPC ${i + 1} schema validation failed:`, (validateErr as Error).message);
           }
         } catch (parseErr) {
-          console.error(`[BackgroundTasks] NPC ${i + 1} JSON parse failed:`, (parseErr as Error).message);
+          console.warn(`[BackgroundTasks] ⚠ NPC ${i + 1}: LLM returned invalid JSON (skipping, will retry) - ${(parseErr as Error).message.substring(0, 60)}`);
         }
       }
     } catch (error) {
-      console.error(`[BackgroundTasks] Failed to generate NPC ${i + 1}:`, error);
+      console.warn(`[BackgroundTasks] ⚠ NPC ${i + 1}: Generation failed (skipping, will retry) - ${error instanceof Error ? error.message.substring(0, 60) : String(error).substring(0, 60)}`);
     }
   }
 
@@ -488,11 +488,11 @@ Make descriptions VIVID with specific details. Give each enemy a DISTINCT memora
             console.error(`[BackgroundTasks] Encounter ${i + 1} schema validation failed: ${validateErr.message}`);
           }
         } catch (parseErr: any) {
-          console.error(`[BackgroundTasks] Encounter ${i + 1} JSON parse failed: ${parseErr.message}`);
+          console.warn(`[BackgroundTasks] ⚠ Encounter ${i + 1}: LLM returned invalid JSON (skipping, will retry) - ${parseErr.message?.substring(0, 60)}`);
         }
       }
     } catch (error) {
-      console.error(`[BackgroundTasks] Failed to generate encounter ${i + 1}:`, error);
+      console.warn(`[BackgroundTasks] ⚠ Encounter ${i + 1}: Generation failed (skipping, will retry)`);
     }
   }
 
@@ -579,11 +579,11 @@ Make it atmospheric and interesting to explore.`;
             console.error(`[BackgroundTasks] Dungeon ${i + 1} schema validation failed:`, (validateErr as Error).message);
           }
         } catch (parseErr) {
-          console.error(`[BackgroundTasks] Dungeon ${i + 1} JSON parse failed:`, (parseErr as Error).message);
+          console.warn(`[BackgroundTasks] ⚠ Dungeon ${i + 1}: LLM returned invalid JSON (skipping, will retry) - ${(parseErr as Error).message.substring(0, 60)}`);
         }
       }
     } catch (error) {
-      console.error(`[BackgroundTasks] Failed to generate dungeon ${i + 1}:`, error);
+      console.warn(`[BackgroundTasks] ⚠ Dungeon ${i + 1}: Generation failed (skipping, will retry)`);
     }
   }
 
