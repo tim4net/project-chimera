@@ -73,26 +73,51 @@ class SupabaseRoadNetworkRepository implements RoadNetworkRepository {
         .order('name', { ascending: true });
 
       if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
+        // If column missing (42703), fallback to unscoped query so gameplay isn't blocked
+        if (error.code === '42703') {
+          console.warn('[RoadNetwork] world_pois.campaign_seed missing; falling back to unscoped settlement query');
+          const fallback = await this.client
+            .from('world_pois')
+            .select('id, name, type, position')
+            .in('type', RoadNetworkService.SUPPORTED_SETTLEMENT_TYPES)
+            .order('name', { ascending: true })
+            .limit(200);
 
-      for (const row of data ?? []) {
-        const position = normalizeVector(row.position);
-        if (!position) continue;
+          for (const row of fallback.data ?? []) {
+            const position = normalizeVector(row.position);
+            if (!position) continue;
+            settlements.push({
+              id: row.id,
+              campaignSeed,
+              name: row.name ?? 'Unknown Settlement',
+              type: normalizeSettlementType(row.type),
+              position,
+              importance: RoadNetworkService.computeImportance(normalizeSettlementType(row.type))
+            });
+          }
+        } else {
+          throw error;
+        }
+      } else {
+        for (const row of data ?? []) {
+          const position = normalizeVector(row.position);
+          if (!position) continue;
 
-        settlements.push({
-          id: row.id,
-          campaignSeed,
-          name: row.name ?? 'Unknown Settlement',
-          type: normalizeSettlementType(row.type),
-          position,
-          importance: RoadNetworkService.computeImportance(normalizeSettlementType(row.type))
-        });
+          settlements.push({
+            id: row.id,
+            campaignSeed,
+            name: row.name ?? 'Unknown Settlement',
+            type: normalizeSettlementType(row.type),
+            position,
+            importance: RoadNetworkService.computeImportance(normalizeSettlementType(row.type))
+          });
+        }
       }
     } catch (err) {
       console.error('[RoadNetwork] Failed to fetch settlements from world_pois:', err);
     }
 
+    console.log(`[RoadNetwork] Loaded ${settlements.length} settlements for campaign ${campaignSeed}`);
     return settlements;
   }
 
@@ -190,34 +215,46 @@ export class RoadNetworkService {
   }
 
   async ensureRoadNetwork(campaignSeed: string): Promise<RoadRecord[]> {
-    const existing = await this.listRoads(campaignSeed);
-    if (existing.length > 0) {
-      return existing;
+    try {
+      const existing = await this.listRoads(campaignSeed);
+      if (existing.length > 0) {
+        return existing;
+      }
+      return this.generateAndPersistRoads(campaignSeed);
+    } catch (err) {
+      // Gracefully handle road network errors to prevent map from failing
+      console.error(`[RoadNetwork] Error generating road network for ${campaignSeed}:`, err);
+      console.warn('[RoadNetwork] Returning empty road network - map will still be functional');
+      return [];
     }
-    return this.generateAndPersistRoads(campaignSeed);
   }
 
   async generateAndPersistRoads(campaignSeed: string): Promise<RoadRecord[]> {
-    const settlements = await this.getSettlementNodes(campaignSeed);
-    if (settlements.length < 2) {
+    try {
+      const settlements = await this.getSettlementNodes(campaignSeed);
+      if (settlements.length < 2) {
+        return [];
+      }
+
+      const existingRows = await this.repository.fetchRoadRecords(campaignSeed);
+      const existingPairs = new Set(existingRows.map(row => pairKey(row.from_settlement_id, row.to_settlement_id)));
+
+      const edges = RoadNetworkService.buildMinimumSpanningTree(campaignSeed, settlements)
+        .filter(edge => !existingPairs.has(pairKey(edge.from.id, edge.to.id)));
+
+      if (edges.length === 0) {
+        return existingRows.map(RoadNetworkService.mapRowToRecord);
+      }
+
+      const inserts = edges.map(edge => RoadNetworkService.buildRoadInsert(campaignSeed, edge));
+      const persisted = await this.repository.upsertRoadRecords(inserts);
+      const combined = [...existingRows, ...persisted];
+
+      return dedupeRoadRecords(combined.map(RoadNetworkService.mapRowToRecord));
+    } catch (err) {
+      console.error(`[RoadNetwork] Error persisting road network for ${campaignSeed}:`, err);
       return [];
     }
-
-    const existingRows = await this.repository.fetchRoadRecords(campaignSeed);
-    const existingPairs = new Set(existingRows.map(row => pairKey(row.from_settlement_id, row.to_settlement_id)));
-
-    const edges = RoadNetworkService.buildMinimumSpanningTree(campaignSeed, settlements)
-      .filter(edge => !existingPairs.has(pairKey(edge.from.id, edge.to.id)));
-
-    if (edges.length === 0) {
-      return existingRows.map(RoadNetworkService.mapRowToRecord);
-    }
-
-    const inserts = edges.map(edge => RoadNetworkService.buildRoadInsert(campaignSeed, edge));
-    const persisted = await this.repository.upsertRoadRecords(inserts);
-    const combined = [...existingRows, ...persisted];
-
-    return dedupeRoadRecords(combined.map(RoadNetworkService.mapRowToRecord));
   }
 
   static buildMinimumSpanningTree(campaignSeed: string, nodes: SettlementNode[]): RoadEdge[] {
@@ -444,7 +481,8 @@ export class RoadNetworkService {
       fromSettlementId: road.fromSettlementId,
       fromSettlementName: road.fromSettlementName,
       toSettlementId: road.toSettlementId,
-      toSettlementName: road.toSettlementName
+      toSettlementName: road.toSettlementName,
+      averageTraversalCost: road.averageTraversalCost
     };
   }
 }
