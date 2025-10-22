@@ -452,8 +452,23 @@ export const CharacterCreationScreen: React.FC = () => {
             });
 
             if (!response.ok) {
-                const errorResponse = await response.json() as { error?: string };
-                throw new Error(errorResponse.error || 'Failed to create character');
+                const contentType = response.headers.get('content-type');
+                let errorMessage = `Server error (${response.status})`;
+
+                try {
+                    if (contentType?.includes('application/json')) {
+                        const errorResponse = await response.json() as { error?: string };
+                        errorMessage = errorResponse.error || errorMessage;
+                    } else {
+                        // Got HTML error page (likely 502 from proxy)
+                        errorMessage = `Backend service error (${response.status} ${response.statusText})`;
+                        console.error('[CharacterCreation] Server returned non-JSON response:', response.status);
+                    }
+                } catch (parseError) {
+                    console.error('[CharacterCreation] Failed to parse error response:', parseError);
+                }
+
+                throw new Error(errorMessage);
             }
 
             const newCharacter = await response.json();
