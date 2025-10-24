@@ -81,6 +81,7 @@ export const cacheGeneratedImage = async (imageData: {
   const promptHash = generateHash(cacheKey);
 
   try {
+    // Try with all new columns first
     const { data, error } = await supabaseServiceClient
       .from('generated_images')
       .insert({
@@ -96,7 +97,29 @@ export const cacheGeneratedImage = async (imageData: {
       .single();
 
     if (error) {
-      console.warn('Error caching generated image (continuing without cache):', error);
+      // Handle schema cache errors - try without new columns
+      if (error.code === 'PGRST204' && (error.message?.includes('style_version_id') || error.message?.includes('prompt_hash'))) {
+        console.warn('[AssetCache] Schema cache mismatch, retrying without new columns:', error.message);
+
+        const { data: fallbackData, error: fallbackError } = await supabaseServiceClient
+          .from('generated_images')
+          .insert({
+            context_type: contextType,
+            image_url: imageUrl,
+            prompt,
+            dimensions,
+            metadata: metadata ?? {}
+          })
+          .select()
+          .single();
+
+        if (!fallbackError) {
+          console.log('[AssetCache] Successfully cached image without new columns');
+          return fallbackData as GeneratedImageRow;
+        }
+      }
+
+      console.warn('[AssetCache] Error caching generated image (continuing without cache):', error);
       // Return a dummy object to continue processing
       return {
         id: 'dummy',
@@ -113,7 +136,7 @@ export const cacheGeneratedImage = async (imageData: {
 
     return data as GeneratedImageRow;
   } catch (err) {
-    console.warn('Failed to cache generated image (continuing without cache):', err);
+    console.warn('[AssetCache] Failed to cache generated image (continuing without cache):', err instanceof Error ? err.message : err);
     // Return a dummy object to continue processing
     return {
       id: 'dummy',
@@ -214,29 +237,83 @@ export const createAssetRequest = async (
   requestHash: string,
   requestType: AssetRequestRow['request_type']
 ): Promise<AssetRequestRow> => {
-  const { data, error } = await supabaseServiceClient
-    .from('asset_requests')
-    .insert({
-      request_hash: requestHash,
-      request_type: requestType,
-      status: 'pending'
-    })
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabaseServiceClient
+      .from('asset_requests')
+      .insert({
+        request_hash: requestHash,
+        request_type: requestType,
+        status: 'pending'
+      })
+      .select()
+      .single();
 
-  if (error) {
-    // Handle duplicate key error gracefully
-    if (error.code === '23505') {
-      console.warn('[AssetCache] Request already exists, fetching existing:', requestHash);
-      const existing = await getExistingRequest(requestHash);
-      if (existing) return existing;
+    if (error) {
+      // Handle duplicate key error gracefully
+      if (error.code === '23505') {
+        console.warn('[AssetCache] Request already exists, fetching existing:', requestHash);
+        const existing = await getExistingRequest(requestHash);
+        if (existing) return existing;
+      }
+
+      // Handle schema cache errors (PGRST204) - try without request_type
+      if (error.code === 'PGRST204' && error.message?.includes('request_type')) {
+        console.warn('[AssetCache] Schema cache mismatch for request_type, retrying with fallback:', error.message);
+        // Fall back to creating without the new column
+        const { data: fallbackData, error: fallbackError } = await supabaseServiceClient
+          .from('asset_requests')
+          .insert({
+            request_hash: requestHash,
+            status: 'pending'
+          })
+          .select()
+          .single();
+
+        if (fallbackError) {
+          console.error('[AssetCache] Fallback insert also failed:', fallbackError);
+          // Return a temporary object to continue processing
+          return {
+            id: 'temp',
+            request_hash: requestHash,
+            request_type: requestType,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          } as any;
+        }
+        return fallbackData as AssetRequestRow;
+      }
+
+      // Handle other schema cache errors similarly
+      if (error.code === 'PGRST204') {
+        console.warn('[AssetCache] Schema cache mismatch, continuing without asset tracking:', error.message);
+        return {
+          id: 'temp',
+          request_hash: requestHash,
+          request_type: requestType,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as any;
+      }
+
+      console.error('[AssetCache] Error creating asset request:', error);
+      throw new Error('Failed to create asset request');
     }
 
-    console.error('Error creating asset request:', error);
-    throw new Error('Failed to create asset request');
+    return data as AssetRequestRow;
+  } catch (err) {
+    console.warn('[AssetCache] Exception in createAssetRequest, continuing without tracking:', err instanceof Error ? err.message : err);
+    // Return a temporary object to continue processing
+    return {
+      id: 'temp',
+      request_hash: requestHash,
+      request_type: requestType,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    } as any;
   }
-
-  return data as AssetRequestRow;
 };
 
 export const updateAssetRequestStatus = async (
