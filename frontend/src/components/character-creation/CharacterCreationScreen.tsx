@@ -9,7 +9,7 @@ import { useImageGeneration } from '../../hooks/useAssetGeneration';
 import { supabase } from '../../lib/supabase';
 import SubclassSelectionModal from '../SubclassSelectionModal';
 import SpellLearningModal from '../level-up/SpellLearningModal';
-import { generateRandomName } from '../../utils/nameGenerator';
+import { generateNameCacheFromLLM, selectRandomNameFromCache } from '../../utils/nameGenerator';
 
 // --- TYPE DEFINITIONS ---
 
@@ -268,6 +268,8 @@ export const CharacterCreationScreen: React.FC = () => {
     const [createdCharacterId, setCreatedCharacterId] = useState<string | null>(null);
     const [showSpellModal, setShowSpellModal] = useState(false);
     const [createdCharacterLevel, setCreatedCharacterLevel] = useState(1);
+    const [nameCache, setNameCache] = useState<{ firstNames: string[]; lastNames: string[] } | null>(null);
+    const [isGeneratingNames, setIsGeneratingNames] = useState(false);
 
     const { imageUrl: generatedPortrait, loading: portraitsLoading } = useImageGeneration(imageGenParams);
     const generatedPortraits = generatedPortrait ? [generatedPortrait] : null;
@@ -280,6 +282,9 @@ export const CharacterCreationScreen: React.FC = () => {
     const totalProficiencies = useMemo(() => new Set([...backgroundProficiencies, ...selectedClassSkills]), [backgroundProficiencies, selectedClassSkills]);
 
     useEffect(() => { setSelectedClassSkills(new Set()); setEquipmentChoice(0); }, [characterClass, background]);
+
+    // Clear name cache when race or gender changes
+    useEffect(() => { setNameCache(null); }, [race, gender]);
 
     const handleScoreChange = useCallback((ability: Ability, delta: 1 | -1) => {
         const currentScore = abilityScores[ability];
@@ -631,13 +636,37 @@ export const CharacterCreationScreen: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={async () => {
-                                    const newName = await generateRandomName(race, gender.toLowerCase() as 'male' | 'female' | 'nonbinary');
-                                    setName(newName);
+                                    setIsGeneratingNames(true);
+                                    try {
+                                        // If cache doesn't exist, generate it from LLM
+                                        let currentCache = nameCache;
+                                        if (!currentCache) {
+                                            const cache = await generateNameCacheFromLLM(
+                                                race as any,
+                                                gender.toLowerCase() as 'male' | 'female' | 'nonbinary',
+                                                characterClass,
+                                                background
+                                            );
+                                            if (cache) {
+                                                currentCache = cache;
+                                                setNameCache(cache);
+                                            }
+                                        }
+
+                                        // Select random name from cache
+                                        if (currentCache) {
+                                            const newName = selectRandomNameFromCache(currentCache);
+                                            setName(newName);
+                                        }
+                                    } finally {
+                                        setIsGeneratingNames(false);
+                                    }
                                 }}
-                                className="px-4 py-3 bg-nuaibria-gold/20 hover:bg-nuaibria-gold/30 text-nuaibria-gold font-semibold rounded-lg border-2 border-nuaibria-gold/40 hover:border-nuaibria-gold transition-all hover:shadow-glow"
+                                disabled={isGeneratingNames}
+                                className="px-4 py-3 bg-nuaibria-gold/20 hover:bg-nuaibria-gold/30 text-nuaibria-gold font-semibold rounded-lg border-2 border-nuaibria-gold/40 hover:border-nuaibria-gold transition-all hover:shadow-glow disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Generate unique fantasy name using AI (falls back to curated list if unavailable)"
                             >
-                                ✨ Generate
+                                {isGeneratingNames ? '⏳ Generating...' : '✨ Generate'}
                             </button>
                             <div className="flex gap-2">
                                 <button

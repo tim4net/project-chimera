@@ -26,16 +26,30 @@ export const checkImageCache = async (
   dimensions: ImageDimensions,
   contextType: ImageGenerationParams['contextType']
 ): Promise<GeneratedImageRow | null> => {
-  const cacheKey = `${prompt}|${dimensions.width}x${dimensions.height}|${contextType}`;
-  const promptHash = generateHash(cacheKey);
+  try {
+    const cacheKey = `${prompt}|${dimensions.width}x${dimensions.height}|${contextType}`;
+    const promptHash = generateHash(cacheKey);
 
-  const { data, error } = await supabaseServiceClient
-    .from('generated_images')
-    .select('*')
-    .eq('prompt_hash', promptHash)
-    .single();
+    const { data, error } = await supabaseServiceClient
+      .from('generated_images')
+      .select('*')
+      .eq('prompt_hash', promptHash)
+      .single();
 
-  return handleNotFound(error, data as GeneratedImageRow | null);
+    if (error) {
+      // Silently return null for not found or table doesn't exist
+      if (error.code === 'PGRST116' || error.code === '42P01') {
+        return null;
+      }
+      console.warn('[AssetCache] Warning checking image cache:', error.message);
+      return null;
+    }
+
+    return data as GeneratedImageRow | null;
+  } catch (err) {
+    console.warn('[AssetCache] Exception checking image cache:', err instanceof Error ? err.message : err);
+    return null;
+  }
 };
 
 export const checkTextCache = async (

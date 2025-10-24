@@ -68,11 +68,14 @@ const tryGenerationPipeline = async (
   styleConfig: StyleConfig,
   contextType?: string
 ): Promise<Buffer> => {
-  const priority = (process.env.IMAGE_GENERATION_PRIORITY ?? 'LOCAL,GOOGLE_FREE,GOOGLE_PAID')
+  const priority = (process.env.IMAGE_GENERATION_PRIORITY ?? 'LOCAL,GOOGLE_FREE,GEMINI_FLASH_IMAGE')
     .split(',')
     .map(provider => provider.trim());
 
+  console.info(`[ImageGen] Provider pipeline: ${priority.join(' -> ')}`);
+
   for (const provider of priority) {
+    console.info(`[ImageGen] Attempting provider: ${provider}`);
     try {
       switch (provider) {
         case 'LOCAL':
@@ -81,6 +84,8 @@ const tryGenerationPipeline = async (
           return await generateWithGemini(prompt, dimensions, 'free', contextType);
         case 'GOOGLE_PAID':
           return await generateWithGemini(prompt, dimensions, 'paid', contextType);
+        case 'GEMINI_FLASH_IMAGE':
+          return await generateWithGeminiFlashImage(prompt, dimensions, contextType);
         default:
           console.warn(`[ImageGen] Unknown provider: ${provider}`);
       }
@@ -248,6 +253,86 @@ const generateWithGemini = async (
   throw lastError instanceof Error ? lastError : new Error('Image generation failed');
 };
 
+const generateWithGeminiFlashImage = async (
+  prompt: string,
+  dimensions: ImageDimensions,
+  contextType?: string
+): Promise<Buffer> => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured');
+  }
+
+  console.info(`[ImageGen] Generating with Gemini 2.5 Flash Image (Nano Banana)...`);
+  const fetchFn = await ensureFetch();
+
+  const maxRetries = 2;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    try {
+      console.info(`[ImageGen] Attempt ${attempt}/${maxRetries}: Calling Gemini 2.5 Flash Image API...`);
+
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          width: dimensions.width,
+          height: dimensions.height
+        }
+      };
+
+      const response = await fetchFn(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Nuaibria/1.0'
+          },
+          body: JSON.stringify(requestBody),
+          signal: AbortSignal.timeout(60_000)
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini API returned ${response.status}: ${errorText}`);
+      }
+
+      const responseData = await response.json() as any;
+
+      // Extract base64 image from response
+      if (responseData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+        const base64Data = responseData.candidates[0].content.parts[0].inlineData.data;
+        const buffer = Buffer.from(base64Data, 'base64');
+        console.info(`[ImageGen] ✓ Generated image with Gemini (${buffer.length} bytes) in attempt ${attempt}`);
+        return buffer;
+      }
+
+      throw new Error('No image data in Gemini response');
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[ImageGen] Attempt ${attempt} failed: ${message}`);
+      if (attempt < maxRetries) {
+        const delay = 1000;
+        console.info(`[ImageGen] Retrying in ${delay}ms...`);
+        await sleep(delay);
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Gemini image generation failed');
+};
+
 const createPlaceholderImage = (): Buffer => {
   const placeholderPath = path.join(__dirname, '../assets/placeholder.svg');
   return fs.readFileSync(placeholderPath);
@@ -320,13 +405,23 @@ const pollForCompletion = async (
 };
 
 const getStyleVersionId = async (): Promise<string | null> => {
-  const { data } = await supabaseServiceClient
-    .from('style_versions')
-    .select('id')
-    .eq('is_active', true)
-    .single();
+  try {
+    const { data, error } = await supabaseServiceClient
+      .from('style_versions')
+      .select('id')
+      .eq('is_active', true)
+      .single();
 
-  return (data ?? null)?.id ?? null;
+    if (error) {
+      console.warn('[ImageGen] Warning getting style version ID:', error.message);
+      return null;
+    }
+
+    return (data ?? null)?.id ?? null;
+  } catch (error) {
+    console.warn('[ImageGen] Exception getting style version ID:', error instanceof Error ? error.message : error);
+    return null;
+  }
 };
 
 const logImageGenerationFallback = async (
@@ -357,6 +452,7 @@ export const generateImage = async ({
   contextType,
   context = {}
 }: ImageGenerationParams): Promise<ImageGenerationResult> => {
+  console.info(`[ImageGen] === NEW IMAGE GENERATION REQUEST ===${new Date().toISOString()}`);
   const cached = await checkImageCache(prompt, dimensions, contextType);
   if (cached) {
     return {
@@ -397,34 +493,46 @@ export const generateImage = async ({
       console.error('[ImageGen] Generation pipeline failed, creating and uploading placeholder:', message);
       imageBuffer = createPlaceholderImage();
 
-      // Upload the placeholder and return its URL directly
-      const fileName = `${contextType}/${Date.now()}_placeholder.svg`;
-      const storedUrl = await uploadToStorage(imageBuffer, fileName, 'image/svg+xml');
+      try {
+        // Upload the placeholder and return its URL directly
+        const fileName = `${contextType}/${Date.now()}_placeholder.svg`;
+        const storedUrl = await uploadToStorage(imageBuffer, fileName, 'image/svg+xml');
 
-      // Cache the placeholder result
-      await cacheGeneratedImage({
-        prompt,
-        imageUrl: storedUrl,
-        dimensions,
-        contextType,
-        styleVersionId,
-        metadata: {
-          generatedAt: new Date().toISOString(),
-          model: 'placeholder',
-          contextProvided: Object.keys(context),
-          error: message
+        // Cache the placeholder result
+        await cacheGeneratedImage({
+          prompt,
+          imageUrl: storedUrl,
+          dimensions,
+          contextType,
+          styleVersionId,
+          metadata: {
+            generatedAt: new Date().toISOString(),
+            model: 'placeholder',
+            contextProvided: Object.keys(context),
+            error: message
+          }
+        });
+
+        if (request) {
+          await updateAssetRequestStatus(request.id, 'completed');
         }
-      });
 
-      if (request) {
-        await updateAssetRequestStatus(request.id, 'completed');
+        return {
+          imageUrl: storedUrl,
+          cached: false,
+          metadata: { generatedAt: new Date().toISOString(), placeholder: true }
+        };
+      } catch (storageError) {
+        const storageMessage = storageError instanceof Error ? storageError.message : String(storageError);
+        console.error('[ImageGen] Storage upload failed:', storageMessage);
+
+        // If storage upload fails, return error with placeholder message
+        if (request) {
+          await updateAssetRequestStatus(request.id, 'failed');
+        }
+
+        throw new Error(`Failed to upload image to storage: ${storageMessage}`);
       }
-
-      return {
-        imageUrl: storedUrl,
-        cached: false,
-        metadata: { generatedAt: new Date().toISOString(), placeholder: true }
-      };
     }
 
     const fileName = `${contextType}/${Date.now()}_${generateHash(prompt).substring(0, 16)}.png`;

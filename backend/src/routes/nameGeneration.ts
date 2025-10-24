@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { generateFantasyName, generateNameOptions } from '../services/nameGenerator';
+import { generateFantasyName, generateNameOptions, generateNameCache } from '../services/nameGenerator';
 
 const router = Router();
 
@@ -54,6 +54,33 @@ router.post('/options', async (req, res) => {
   } catch (error) {
     console.error('[NameGeneration] Error:', error);
     return res.status(500).json({ error: 'Failed to generate names' });
+  }
+});
+
+/**
+ * POST /api/names/cache
+ * Generate 10 first names and 10 last names for caching
+ * Frontend will randomly select one from each list on subsequent clicks
+ */
+router.post('/cache', async (req, res) => {
+  try {
+    const { race, gender, characterClass, background } = req.body;
+
+    if (!race || !gender) {
+      return res.status(400).json({ error: 'Race and gender are required' });
+    }
+
+    const nameCache = await generateNameCache({
+      race,
+      gender,
+      characterClass,
+      background,
+    });
+
+    return res.status(200).json(nameCache);
+  } catch (error) {
+    console.error('[NameGeneration] Error generating name cache:', error);
+    return res.status(500).json({ error: 'Failed to generate name cache' });
   }
 });
 

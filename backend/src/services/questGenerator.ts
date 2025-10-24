@@ -8,6 +8,7 @@
 import { supabaseServiceClient } from '../services/supabaseClient';
 import type { QuestTemplate, CharacterQuest } from '../types/quests';
 import type { CharacterRecord } from '../types';
+import { generateTile } from '../game/map';
 
 // ============================================================================
 // GENERATE QUEST FROM TEMPLATE
@@ -75,6 +76,14 @@ async function fillQuestTemplate(
   character: CharacterRecord
 ): Promise<{ title: string; description: string; target: string }> {
 
+  // Determine character's current biome
+  const currentTile = generateTile(
+    Math.floor(character.position_x),
+    Math.floor(character.position_y),
+    character.campaign_seed
+  );
+  const characterBiome = currentTile.biome;
+
   // Query nearby enemies for dynamic quest targets
   const { data: nearbyEnemies } = await supabaseServiceClient
     .from('enemies')
@@ -85,14 +94,17 @@ async function fillQuestTemplate(
 
   switch (template.template_type) {
     case 'fetch':
-      // Use biome-appropriate items
-      const biomeItems = {
+      // Use biome-appropriate items based on character's actual location
+      const biomeItems: Record<string, string> = {
         forest: 'wolf_pelt',
         mountains: 'ore_sample',
         desert: 'scorpion_venom',
         plains: 'herbs',
+        water: 'pearl_shell',
       };
-      const item = biomeItems['forest'] || 'wolf_pelt'; // Default to forest for now
+      const item = biomeItems[characterBiome] || 'wolf_pelt';
+
+      console.log(`[QuestGenerator] Generating fetch quest in ${characterBiome} biome (item: ${item})`);
 
       return {
         title: template.title_template,
@@ -101,8 +113,10 @@ async function fillQuestTemplate(
       };
 
     case 'clear':
-      // Use actual enemy types from database
+      // Use actual enemy types from database (biome-aware via context)
       const enemyTarget = enemyNames[Math.floor(Math.random() * Math.min(3, enemyNames.length))];
+
+      console.log(`[QuestGenerator] Generating clear quest in ${characterBiome} biome (enemy: ${enemyTarget})`);
 
       return {
         title: template.title_template,
@@ -111,13 +125,20 @@ async function fillQuestTemplate(
       };
 
     case 'scout':
-      // Generate coordinates near player
-      const targetX = character.position_x + (Math.random() > 0.5 ? 5 : -5);
-      const targetY = character.position_y + (Math.random() > 0.5 ? 5 : -5);
+      // Generate coordinates near player in adjacent biomes for exploration
+      const offsetDistance = 5 + Math.floor(Math.random() * 5); // 5-10 tiles away
+      const angle = Math.random() * Math.PI * 2;
+      const targetX = Math.floor(character.position_x + Math.cos(angle) * offsetDistance);
+      const targetY = Math.floor(character.position_y + Math.sin(angle) * offsetDistance);
+
+      // Check the biome at the target location for context
+      const targetTile = generateTile(targetX, targetY, character.campaign_seed);
+
+      console.log(`[QuestGenerator] Generating scout quest from ${characterBiome} to ${targetTile.biome} biome at (${targetX}, ${targetY})`);
 
       return {
         title: template.title_template,
-        description: `Travel to coordinates (${targetX}, ${targetY}) and report your findings.`,
+        description: `Travel to coordinates (${targetX}, ${targetY}) in the ${targetTile.biome} and report your findings.`,
         target: `${targetX},${targetY}`,
       };
 

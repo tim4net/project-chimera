@@ -103,6 +103,109 @@ ALTER TABLE public.generated_text ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.style_versions ENABLE ROW LEVEL SECURITY;
 `;
 
+// Create quest system tables for character-based quest tracking
+const MIGRATION_015 = `
+CREATE TABLE IF NOT EXISTS public.quest_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_type TEXT NOT NULL CHECK (template_type IN ('fetch', 'clear', 'scout', 'deliver')),
+  title_template TEXT NOT NULL,
+  description_template TEXT NOT NULL,
+  objective_type TEXT NOT NULL CHECK (objective_type IN ('collect_items', 'kill_enemies', 'reach_location')),
+  target_quantity INT DEFAULT 1,
+  xp_reward INT DEFAULT 100,
+  gold_reward INT DEFAULT 50,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.character_quests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  character_id UUID NOT NULL REFERENCES public.characters(id) ON DELETE CASCADE,
+  template_id UUID REFERENCES public.quest_templates(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  objective_type TEXT NOT NULL CHECK (objective_type IN ('collect_items', 'kill_enemies', 'reach_location')),
+  objective_target TEXT,
+  current_progress INT NOT NULL DEFAULT 0,
+  target_quantity INT NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'failed', 'abandoned')),
+  xp_reward INT NOT NULL DEFAULT 100,
+  gold_reward INT NOT NULL DEFAULT 50,
+  item_rewards JSONB DEFAULT '[]'::jsonb,
+  offered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  accepted_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days')
+);
+
+CREATE INDEX IF NOT EXISTS character_quests_character_id_idx ON public.character_quests(character_id);
+CREATE INDEX IF NOT EXISTS character_quests_status_idx ON public.character_quests(status);
+CREATE INDEX IF NOT EXISTS character_quests_character_status_idx ON public.character_quests(character_id, status);
+CREATE INDEX IF NOT EXISTS character_quests_expires_at_idx ON public.character_quests(expires_at);
+
+ALTER TABLE public.quest_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.character_quests ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "quest_templates_read" ON public.quest_templates FOR SELECT USING (true);
+
+CREATE POLICY "character_quests_read_own" ON public.character_quests FOR SELECT USING (
+  character_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid())
+);
+
+CREATE POLICY "character_quests_insert_own" ON public.character_quests FOR INSERT WITH CHECK (
+  character_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid())
+);
+
+CREATE POLICY "character_quests_update_own" ON public.character_quests FOR UPDATE
+USING (character_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid()))
+WITH CHECK (character_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid()));
+`;
+
+// Create party system tables for multiplayer (future feature)
+const MIGRATION_016 = `
+CREATE TABLE IF NOT EXISTS public.parties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  party_name TEXT NOT NULL,
+  leader_id UUID NOT NULL REFERENCES public.characters(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  disbanded_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS public.party_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  party_id UUID NOT NULL REFERENCES public.parties(id) ON DELETE CASCADE,
+  character_id UUID NOT NULL REFERENCES public.characters(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  left_at TIMESTAMPTZ,
+  UNIQUE(party_id, character_id)
+);
+
+CREATE INDEX IF NOT EXISTS parties_leader_id_idx ON public.parties(leader_id);
+CREATE INDEX IF NOT EXISTS party_members_party_id_idx ON public.party_members(party_id);
+CREATE INDEX IF NOT EXISTS party_members_character_id_idx ON public.party_members(character_id);
+
+ALTER TABLE public.parties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.party_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "parties_read_own" ON public.parties FOR SELECT USING (
+  leader_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid())
+  OR id IN (SELECT party_id FROM public.party_members WHERE character_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid()))
+);
+
+CREATE POLICY "parties_insert_own" ON public.parties FOR INSERT WITH CHECK (
+  leader_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid())
+);
+
+CREATE POLICY "party_members_read_own" ON public.party_members FOR SELECT USING (
+  character_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid())
+  OR party_id IN (SELECT id FROM public.parties WHERE leader_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid()))
+);
+
+CREATE POLICY "party_members_insert_own" ON public.party_members FOR INSERT WITH CHECK (
+  character_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid())
+  OR party_id IN (SELECT id FROM public.parties WHERE leader_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid()))
+);
+`;
+
 /**
  * Apply database migrations directly via Supabase REST API using exec_raw_sql RPC
  */
@@ -161,6 +264,14 @@ export async function applyMigrations(): Promise<MigrationResult[]> {
     {
       name: '014_create_asset_tables',
       sql: MIGRATION_014
+    },
+    {
+      name: '015_create_quest_tables',
+      sql: MIGRATION_015
+    },
+    {
+      name: '016_create_party_tables',
+      sql: MIGRATION_016
     }
   ];
 
@@ -216,6 +327,8 @@ export async function checkMigrationsApplied(): Promise<{
   travel_events_table: boolean;
   armor_class_column: boolean;
   asset_tables: boolean;
+  quest_tables: boolean;
+  party_tables: boolean;
 }> {
   try {
     // Check if characters table has game_time_minutes column
@@ -258,12 +371,30 @@ export async function checkMigrationsApplied(): Promise<{
 
     const asset_tables = !assetError;
 
+    // Check if character_quests table exists
+    const { error: questError } = await supabaseServiceClient
+      .from('character_quests')
+      .select('id')
+      .limit(1);
+
+    const quest_tables = !questError;
+
+    // Check if parties table exists
+    const { error: partyError } = await supabaseServiceClient
+      .from('parties')
+      .select('id')
+      .limit(1);
+
+    const party_tables = !partyError;
+
     return {
       game_time_columns,
       travel_sessions_table,
       travel_events_table,
       armor_class_column,
-      asset_tables
+      asset_tables,
+      quest_tables,
+      party_tables
     };
   } catch (err) {
     console.error('[Migration] Error checking migrations:', err);
@@ -272,7 +403,9 @@ export async function checkMigrationsApplied(): Promise<{
       travel_sessions_table: false,
       travel_events_table: false,
       armor_class_column: false,
-      asset_tables: false
+      asset_tables: false,
+      quest_tables: false,
+      party_tables: false
     };
   }
 }

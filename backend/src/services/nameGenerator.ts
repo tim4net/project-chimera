@@ -210,3 +210,155 @@ export async function generateNameOptions(
 
   return names;
 }
+
+/**
+ * Generate 10 first names and 10 last names separately
+ * Used for caching on the frontend - select random combinations
+ */
+export interface NameCache {
+  firstNames: string[];
+  lastNames: string[];
+}
+
+function buildNameCachePrompt(request: NameGenerationRequest): string {
+  const genderText = request.gender === 'nonbinary' ? 'gender-neutral' : request.gender;
+  const classContext = request.characterClass ? ` ${request.characterClass}` : '';
+  const backgroundContext = request.background ? ` (${request.background})` : '';
+
+  // Culture and name inspiration hints by race
+  const culturalHints: Record<string, string> = {
+    Human: 'Anglo-Saxon, Germanic, or Mediterranean inspired',
+    Elf: 'Elvish: flowing, musical, nature-inspired syllables',
+    Dwarf: 'Dwarven: sturdy, earth-inspired with hard consonants',
+    Halfling: 'Halfling: whimsical, agricultural references',
+    Tiefling: 'Infernal or demonic undertones, mysterious',
+    'Half-Orc': 'Orcish honor-based names, strong and commanding',
+    Dragonborn: 'Dragon-inspired, powerful and resonant',
+    Gnome: 'Gnomish: clever, mechanical, whimsical elements',
+  };
+
+  const cultureHint = culturalHints[request.race] || 'Fantasy-appropriate to the character\'s culture';
+
+  return `You are a fantasy name generator. Generate EXACTLY 10 first names and 10 last names for ${genderText} ${request.race}${classContext}${backgroundContext} characters.
+
+CULTURAL CONTEXT: ${cultureHint}
+
+CRITICAL: YOU MUST OUTPUT EXACTLY this JSON format with NO markdown, NO code blocks, NO extra text:
+{"firstNames":["NAME1","NAME2",...,"NAME10"],"lastNames":["SURNAME1","SURNAME2",...,"SURNAME10"]}
+
+REQUIREMENTS:
+- firstNames (array of 10 strings): Evocative of ${request.race} culture. Pronounceable but mysterious. 5-15 chars each. All UNIQUE.
+  Examples: Selendra, Thorin, Aeliana, Kael, Sylvira, Meridian, Kassian, Lysander, Thalia, Elowen
+- lastNames (array of 10 strings): Family names or title-based surnames. 5-20 chars each. All UNIQUE.
+  Examples: Moonwhisper, Stonehelm, Shadowbane, Embercrest, Ironveil, Frostwhisper, Darkbane, Starweaver, Nightbloom, Crystalwing
+
+INVALID OUTPUT EXAMPLES (DO NOT DO THESE):
+- {"firstNames":["A","B",...]} - WRONG: Names too short
+- {"firstNames":["Bob","Smith",...]} - WRONG: Not fantasy-appropriate
+- ["name1", "name2"] - WRONG: Must be JSON object with firstNames and lastNames arrays
+- \`\`\`json {...}\`\`\` - WRONG: Don't use code blocks
+- Duplicate names in either array - WRONG: All names must be unique
+
+VALID OUTPUT EXAMPLE:
+{"firstNames":["Selendra","Thorin","Aeliana","Kael","Sylvira","Meridian","Kassian","Lysander","Thalia","Elowen"],"lastNames":["Moonwhisper","Stonehelm","Shadowbane","Embercrest","Ironveil","Frostwhisper","Darkbane","Starweaver","Nightbloom","Crystalwing"]}
+
+Generate NOW. Output ONLY the JSON on a single line, nothing else:`;
+}
+
+function parseNameCacheResponse(response: string): NameCache | null {
+  try {
+    // Use centralized JSON parser with automatic cleanup
+    const parseResult = parseJsonFromResponse<NameCache>(response, {
+      fixCommonErrors: true,
+    });
+
+    if (parseResult.success && parseResult.data) {
+      const data = parseResult.data;
+
+      // Validate required fields
+      if (
+        validateJsonStructure(data, ['firstNames', 'lastNames']) &&
+        Array.isArray(data.firstNames) &&
+        Array.isArray(data.lastNames) &&
+        data.firstNames.length === 10 &&
+        data.lastNames.length === 10 &&
+        data.firstNames.every((n: any) => typeof n === 'string' && n.length > 0) &&
+        data.lastNames.every((n: any) => typeof n === 'string' && n.length > 0)
+      ) {
+        return {
+          firstNames: data.firstNames,
+          lastNames: data.lastNames,
+        };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.warn(
+      '[NameGenerator] ⚠ Failed to parse name cache response:',
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  }
+}
+
+export async function generateNameCache(
+  request: NameGenerationRequest
+): Promise<NameCache> {
+  try {
+    const prompt = buildNameCachePrompt(request);
+
+    // Call local LLM once to generate all 10 first and 10 last names
+    const llmResponse = await generateWithLocalLLM(prompt, {
+      temperature: 0.9,
+      maxTokens: 500,
+    });
+
+    const parsedCache = parseNameCacheResponse(llmResponse);
+    if (parsedCache) {
+      console.info('[NameGenerator] ✅ Successfully generated 10 first + 10 last names in single LLM request');
+      return parsedCache;
+    }
+  } catch (error) {
+    console.warn(
+      `[NameGenerator] ⚠ LLM name cache generation failed for ${request.race} ${request.gender}, using fallback names`
+    );
+  }
+
+  // Fallback: Generate using our curated list approach
+  const seenFirstNames = new Set<string>();
+  const seenLastNames = new Set<string>();
+  const firstNames: string[] = [];
+  const lastNames: string[] = [];
+
+  for (let i = 0; i < 10; i++) {
+    const name = generateFallbackName(request);
+    if (!seenFirstNames.has(name.firstName)) {
+      firstNames.push(name.firstName);
+      seenFirstNames.add(name.firstName);
+    }
+    if (!seenLastNames.has(name.lastName)) {
+      lastNames.push(name.lastName);
+      seenLastNames.add(name.lastName);
+    }
+  }
+
+  // Ensure we have exactly 10 of each
+  while (firstNames.length < 10) {
+    const name = generateFallbackName(request);
+    if (!seenFirstNames.has(name.firstName)) {
+      firstNames.push(name.firstName);
+      seenFirstNames.add(name.firstName);
+    }
+  }
+
+  while (lastNames.length < 10) {
+    const name = generateFallbackName(request);
+    if (!seenLastNames.has(name.lastName)) {
+      lastNames.push(name.lastName);
+      seenLastNames.add(name.lastName);
+    }
+  }
+
+  return { firstNames: firstNames.slice(0, 10), lastNames: lastNames.slice(0, 10) };
+}

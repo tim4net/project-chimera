@@ -242,3 +242,52 @@ function randomChoice<T>(array: T[]): T {
 export function getAvailableRaces(): Race[] {
   return Object.keys(NAME_LISTS) as Race[];
 }
+
+/**
+ * Generate and cache 10 first names + 10 last names
+ * Returns the cache object with firstNames and lastNames arrays
+ */
+export async function generateNameCacheFromLLM(
+  race: Race,
+  gender: Gender,
+  characterClass?: string,
+  background?: string
+): Promise<{ firstNames: string[]; lastNames: string[] } | null> {
+  try {
+    const response = await fetch('/api/names/cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ race, gender, characterClass, background }),
+    }).catch((fetchError) => {
+      console.warn('[NameGenerator] Fetch cache failed:', fetchError);
+      return null;
+    });
+
+    if (response && response.ok) {
+      try {
+        const data = await response.json();
+        if (data.firstNames && Array.isArray(data.firstNames) && data.lastNames && Array.isArray(data.lastNames)) {
+          return { firstNames: data.firstNames, lastNames: data.lastNames };
+        }
+      } catch (parseError) {
+        console.warn('[NameGenerator] JSON parse failed for cache:', parseError);
+      }
+    }
+  } catch (error) {
+    console.warn('[NameGenerator] LLM cache generation failed:', error);
+  }
+
+  return null;
+}
+
+/**
+ * Select a random combination from cached name lists
+ */
+export function selectRandomNameFromCache(nameCache: { firstNames: string[]; lastNames: string[] }): string {
+  if (!nameCache.firstNames?.length || !nameCache.lastNames?.length) {
+    return '';
+  }
+  const firstName = nameCache.firstNames[Math.floor(Math.random() * nameCache.firstNames.length)];
+  const lastName = nameCache.lastNames[Math.floor(Math.random() * nameCache.lastNames.length)];
+  return `${firstName} ${lastName}`;
+}
