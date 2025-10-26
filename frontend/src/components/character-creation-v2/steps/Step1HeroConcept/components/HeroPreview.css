@@ -1,0 +1,159 @@
+.hero-preview {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(212, 175, 55, 0.3);
+  border-radius: 16px;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-empty {
+  text-align: center;
+  opacity: 0.6;
+}
+
+.preview-placeholder {
+  margin-bottom: 1.5rem;
+}
+
+.preview-text {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.preview-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.hero-silhouette {
+  width: 200px;
+  height: 300px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 4px 12px rgba(212, 175, 55, 0.3));
+  transition: all 0.5s ease;
+}
+
+.hero-head {
+  width: 60px;
+  height: 70px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.6), rgba(212, 175, 55, 0.4));
+  border-radius: 50%;
+  margin-bottom: 10px;
+  animation: fadeIn 0.5s ease;
+}
+
+.hero-body {
+  width: 80px;
+  height: 120px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.5), rgba(212, 175, 55, 0.3));
+  border-radius: 10px;
+  animation: fadeIn 0.6s ease;
+}
+
+.hero-arms {
+  width: 140px;
+  height: 20px;
+  background: linear-gradient(90deg,
+    rgba(212, 175, 55, 0.4) 0%,
+    transparent 45%,
+    transparent 55%,
+    rgba(212, 175, 55, 0.4) 100%
+  );
+  position: absolute;
+  top: 100px;
+  border-radius: 10px;
+  animation: fadeIn 0.7s ease;
+}
+
+.hero-legs {
+  width: 60px;
+  height: 80px;
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.4), rgba(212, 175, 55, 0.2));
+  border-radius: 0 0 10px 10px;
+  margin-top: 10px;
+  animation: fadeIn 0.8s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Race-specific adjustments */
+.hero-silhouette.dwarf .hero-body {
+  height: 100px;
+  width: 90px;
+}
+
+.hero-silhouette.elf .hero-body {
+  height: 140px;
+  width: 70px;
+}
+
+.hero-silhouette.halfling .hero-silhouette {
+  transform: scale(0.8);
+}
+
+.hero-silhouette.dragonborn .hero-head {
+  border-radius: 30% 30% 50% 50%;
+}
+
+/* Class-specific adjustments */
+.hero-silhouette.barbarian .hero-body {
+  width: 100px;
+}
+
+.hero-silhouette.wizard .hero-body {
+  width: 70px;
+}
+
+.hero-silhouette.fighter .hero-arms {
+  width: 160px;
+}
+
+.hero-silhouette.rogue .hero-body {
+  width: 70px;
+  height: 130px;
+}
+
+.preview-info {
+  text-align: center;
+}
+
+.preview-race {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #D4AF37;
+  margin-bottom: 0.5rem;
+}
+
+.preview-class {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.8);
+}
