@@ -8,33 +8,57 @@ export default {
     extend: {
       colors: {
         nuaibria: {
-          // Primary backgrounds (deep midnight blue)
+          // Primary backgrounds (deep midnight blue) - Legacy
           bg: '#0a0e1a',
           surface: '#1a1f2e',
           elevated: '#252b3d',
           border: '#3d4563',
 
-          // Accent colors (rich jewel tones)
-          gold: '#d4af37',
+          // Accent colors (rich jewel tones) - Legacy
           ember: '#ff6b35',
           arcane: '#8b5cf6',
           poison: '#10b981',
           ice: '#06b6d4',
 
-          // Semantic colors
+          // Semantic colors - Legacy
           health: '#dc2626',
           mana: '#3b82f6',
           stamina: '#f59e0b',
-          success: '#059669',
           danger: '#991b1b',
-          warning: '#d97706',
 
-          // Text colors
+          // NEW DESIGN SYSTEM COLORS (Character Creation)
+          // Primary Purple (Dark Fantasy)
+          purple: {
+            0: '#2D1B69', // Darkest - Deep backgrounds, base layer
+            1: '#3D2B7D', // Darker - Card backgrounds, elevated surfaces
+            2: '#4D3B8D', // Mid - Interactive surfaces, hovers
+            3: '#5D4B9D', // Lighter - Hover states, highlights
+          },
+
+          // Gold Accent (Primary)
+          gold: '#D4AF37',         // Standard gold
+          'gold-light': '#F0E68C', // Light highlights, glows
+          'gold-dark': '#B8860B',  // Dark shadows, pressed states
+
+          // Secondary Teal/Blue
+          teal: {
+            0: '#1B4D5C', // Dark teal
+            1: '#2B6D7C', // Mid teal
+            2: '#3B8D9C', // Light teal
+          },
+
+          // Status Colors (Semantic)
+          success: '#10B981', // Green
+          error: '#EF4444',   // Red
+          warning: '#F59E0B', // Amber/Yellow
+          info: '#3B82F6',    // Blue
+
+          // Text Colors
           text: {
-            primary: '#f3f4f6',
-            secondary: '#d1d5db',
-            muted: '#9ca3af',
-            accent: '#fbbf24',
+            primary: '#F3F4F6',   // Near white
+            secondary: '#D1D5DB', // Light gray
+            muted: '#9CA3AF',     // Medium gray
+            accent: '#fbbf24',    // Legacy accent
           }
         }
       },
@@ -52,12 +76,19 @@ export default {
       },
       animation: {
         'fade-in': 'fadeIn 200ms ease-in',
+        'fade-in-300': 'fadeIn 300ms ease-out',
         'slide-up': 'slideUp 300ms ease-out',
         'slide-in-right': 'slideInRight 300ms ease-out',
         'glow-pulse': 'glowPulse 2s ease-in-out infinite',
         // Text-specific glow animation without opacity/filter changes to avoid flicker
         'text-glow': 'textGlow 2500ms ease-in-out infinite',
         'golden-glow': 'goldenGlow 3000ms ease-in-out infinite',
+        // New design system animations
+        'spin': 'spin 1s linear infinite',
+        'shimmer': 'shimmer 2s ease-in-out infinite',
+        'shake': 'shake 300ms ease',
+        'checkmark': 'checkmark 400ms ease',
+        'error-pulse': 'errorPulse 1s ease infinite',
       },
       keyframes: {
         fadeIn: {
@@ -97,6 +128,36 @@ export default {
           },
           '50%': {
             filter: 'drop-shadow(0 0 4px rgba(212, 175, 55, 0.45)) drop-shadow(0 0 10px rgba(212, 175, 55, 0.25))'
+          },
+        },
+        // New design system keyframes
+        spin: {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(360deg)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '25%': { transform: 'translateX(-5px)' },
+          '50%': { transform: 'translateX(5px)' },
+          '75%': { transform: 'translateX(-5px)' },
+        },
+        checkmark: {
+          '0%': { transform: 'scale(0) rotate(0deg)' },
+          '50%': { transform: 'scale(1.2) rotate(180deg)' },
+          '100%': { transform: 'scale(1) rotate(360deg)' },
+        },
+        errorPulse: {
+          '0%, 100%': {
+            borderColor: '#EF4444',
+            boxShadow: '0 0 8px rgba(239,68,68,0.3)',
+          },
+          '50%': {
+            borderColor: '#DC2626',
+            boxShadow: '0 0 12px rgba(239,68,68,0.5)',
           },
         },
       },

@@ -1,0 +1,427 @@
+/**
+ * Nuaibria Design System - Global Styles
+ *
+ * Base styles, resets, and global utilities for the character creation wizard.
+ */
+
+/* =======================
+   TAILWIND BASE LAYERS
+   ======================= */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =======================
+   BASE STYLES
+   ======================= */
+
+@layer base {
+  /* Reset box-sizing */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* Root HTML element */
+  html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Body defaults */
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #F3F4F6;
+    background-color: #111827;
+  }
+
+  /* Heading defaults */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0;
+    padding: 0;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  /* Paragraph defaults */
+  p {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Link defaults */
+  a {
+    color: #D4AF37;
+    text-decoration: none;
+    transition: color 200ms ease;
+  }
+
+  a:hover {
+    color: #F0E68C;
+  }
+
+  /* Button reset */
+  button {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+  }
+
+  /* Input defaults */
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  /* Remove default input styles */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+  }
+
+  /* Image defaults */
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+}
+
+/* =======================
+   CUSTOM COMPONENTS
+   ======================= */
+
+@layer components {
+  /* Typography Classes */
+  .typography-h1 {
+    @apply text-5xl font-bold tracking-tighter leading-tight;
+  }
+
+  .typography-h2 {
+    @apply text-4xl font-bold tracking-tight leading-tight;
+  }
+
+  .typography-h3 {
+    @apply text-3xl font-bold tracking-tight;
+  }
+
+  .typography-h4 {
+    @apply text-2xl font-semibold;
+  }
+
+  .typography-body {
+    @apply text-base font-normal leading-normal;
+  }
+
+  .typography-body-large {
+    @apply text-lg font-normal leading-relaxed;
+  }
+
+  .typography-caption {
+    @apply text-sm font-normal text-nuaibria-text-muted;
+  }
+
+  /* Card Component */
+  .card {
+    @apply bg-nuaibria-purple-1 border border-nuaibria-border rounded-lg p-5;
+    @apply shadow-card transition-all duration-200 cursor-pointer;
+  }
+
+  .card:hover {
+    @apply border-nuaibria-gold shadow-card-hover -translate-y-0.5;
+  }
+
+  .card.selected {
+    @apply border-nuaibria-gold bg-nuaibria-purple-2;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+  }
+
+  .card.disabled {
+    @apply opacity-50 cursor-not-allowed pointer-events-none;
+  }
+
+  /* Button Components */
+  .btn-primary {
+    @apply bg-nuaibria-gold text-nuaibria-bg font-semibold px-6 py-3 rounded-lg;
+    @apply hover:bg-nuaibria-gold-light hover:shadow-lg hover:-translate-y-px;
+    @apply active:bg-nuaibria-gold-dark transition-all duration-200;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent border-2 border-nuaibria-gold text-nuaibria-gold;
+    @apply font-semibold px-6 py-2.5 rounded-lg;
+    @apply hover:bg-nuaibria-gold/10 transition-all duration-200;
+  }
+
+  /* Input Field */
+  .input-field {
+    @apply h-11 px-4 bg-nuaibria-purple-0 border-2 border-nuaibria-border rounded-lg;
+    @apply text-nuaibria-text-primary;
+    @apply focus:border-nuaibria-gold focus:outline-none focus:shadow-glow;
+    @apply transition-all duration-200;
+  }
+
+  .input-field.error {
+    @apply border-nuaibria-error;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+  }
+
+  .input-field.success {
+    @apply border-nuaibria-success;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+  }
+}
+
+/* =======================
+   CUSTOM UTILITIES
+   ======================= */
+
+@layer utilities {
+  /* Text selection */
+  ::selection {
+    background-color: rgba(212, 175, 55, 0.3);
+    color: #F3F4F6;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #2D1B69;
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #D4AF37 0%, #B8860B 100%);
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #F0E68C 0%, #D4AF37 100%);
+  }
+
+  /* Focus visible (keyboard navigation only) */
+  .focus-visible:focus-visible {
+    @apply outline-none ring-2 ring-nuaibria-gold ring-offset-2 ring-offset-nuaibria-bg;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  /* Glass effect */
+  .glass {
+    background: rgba(61, 43, 125, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Truncate text with ellipsis */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* =======================
+   INPUT AUTOFILL OVERRIDE
+   ======================= */
+
+/* Override browser autofill styles for dark theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #F3F4F6;
+  -webkit-box-shadow: 0 0 0 1000px #2D1B69 inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* =======================
+   SLIDER STYLES (MODERN)
+   ======================= */
+
+/* Range input (slider) */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #374151;
+  border-radius: 3px;
+  outline: none;
+  transition: all 200ms ease;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #D4AF37;
+  border: 2px solid #111827;
+  border-radius: 50%;
+  cursor: grab;
+  transition: all 200ms ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  width: 24px;
+  height: 24px;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.6);
+}
+
+input[type='range']::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+/* Firefox */
+input[type='range']::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #D4AF37;
+  border: 2px solid #111827;
+  border-radius: 50%;
+  cursor: grab;
+  transition: all 200ms ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input[type='range']::-moz-range-thumb:hover {
+  width: 24px;
+  height: 24px;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.6);
+}
+
+input[type='range']::-moz-range-thumb:active {
+  cursor: grabbing;
+}
+
+input[type='range']::-moz-range-track {
+  background: #374151;
+  border-radius: 3px;
+}
+
+/* Focus state */
+input[type='range']:focus {
+  outline: 2px solid #D4AF37;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+}
+
+/* =======================
+   ACCESSIBILITY
+   ======================= */
+
+/* Skip to content link (for screen readers) */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #D4AF37;
+  color: #111827;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 100;
+}
+
+.skip-to-content:focus {
+  top: 0;
+}
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid #D4AF37;
+  outline-offset: 2px;
+}
+
+/* =======================
+   RESPONSIVE UTILITIES
+   ======================= */
+
+/* Container with max-width */
+.container-custom {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 768px) {
+  .container-custom {
+    padding: 0 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-custom {
+    padding: 0 3rem;
+  }
+}
+
+/* =======================
+   PRINT STYLES
+   ======================= */
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+
+  .no-print {
+    display: none;
+  }
+}

@@ -77,12 +77,13 @@ const validStep2Data = {
 };
 
 const validStep3AbilityScores: AbilityScores = {
-  STR: 15,
-  DEX: 12,
-  CON: 14,
-  INT: 10,
-  WIS: 11,
-  CHA: 8,
+  STR: 15, // 9 points
+  DEX: 14, // 7 points
+  CON: 13, // 5 points
+  INT: 12, // 4 points
+  WIS: 10, // 2 points
+  CHA: 8,  // 0 points
+  // Total: 27 points
 };
 
 const validStep3Skills: SkillName[] = ['Athletics', 'Intimidation'];
@@ -150,6 +151,11 @@ describe('CharacterDraftContextV2 - Step 1: Hero Concept', () => {
     });
 
     expect(result.current.validateStep1()).toBe(false);
+
+    // Reset and test missing name scenario
+    act(() => {
+      result.current.resetDraft();
+    });
 
     // Missing name
     act(() => {
@@ -754,8 +760,17 @@ describe('CharacterDraftContextV2 - Navigation', () => {
     // Complete steps 1 and 2
     act(() => {
       result.current.updateDraft(validStep1Data);
+    });
+
+    act(() => {
       result.current.nextPage();
+    });
+
+    act(() => {
       result.current.updateDraft(validStep2Data);
+    });
+
+    act(() => {
       result.current.nextPage();
     });
 
@@ -837,6 +852,9 @@ describe('CharacterDraftContextV2 - Context Actions', () => {
 
     act(() => {
       result.current.updateDraft({ alignment: 'Lawful Good' });
+    });
+
+    act(() => {
       result.current.nextPage();
     });
 
@@ -1038,10 +1056,10 @@ describe('CharacterDraftContextV2 - Data Transformation', () => {
 
     expect(backendFormat.ability_scores).toEqual({
       STR: 15,
-      DEX: 12,
-      CON: 14,
-      INT: 10,
-      WIS: 11,
+      DEX: 14,
+      CON: 13,
+      INT: 12,
+      WIS: 10,
       CHA: 8,
     });
     expect(backendFormat.proficient_skills).toEqual(['Athletics', 'Intimidation']);

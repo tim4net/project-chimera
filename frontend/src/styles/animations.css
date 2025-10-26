@@ -1,0 +1,426 @@
+/**
+ * Nuaibria Design System - Animations
+ *
+ * Custom animations and transitions for the character creation wizard.
+ * All animations are optimized for 60 FPS performance.
+ */
+
+/* =======================
+   PAGE TRANSITIONS
+   ======================= */
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 300ms ease-out;
+}
+
+/* Slide Up Animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-up {
+  animation: slideUp 300ms ease-out;
+}
+
+/* Combined Fade + Slide Up */
+.fade-slide-up {
+  animation: fadeIn 300ms ease-out, slideUp 300ms ease-out;
+}
+
+/* Slide In from Right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 300ms ease-out;
+}
+
+/* =======================
+   LOADING STATES
+   ======================= */
+
+/* Spinner Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #374151;
+  border-top-color: #D4AF37;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.spinner-lg {
+  width: 48px;
+  height: 48px;
+  border-width: 4px;
+}
+
+.spinner-sm {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+/* Skeleton Loader (Shimmer Effect) */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #2D1B69 0%,
+    #3D2B7D 50%,
+    #2D1B69 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Pulse Animation (Alternative Loading) */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* =======================
+   HOVER EFFECTS
+   ======================= */
+
+/* Card Hover Effect */
+.card-hover {
+  transition: all 200ms ease-out;
+}
+
+.card-hover:hover {
+  transform: scale(1.02) translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+/* Button Hover Effect */
+.button-hover {
+  transition: all 150ms ease;
+}
+
+.button-hover:hover {
+  transform: translateY(-1px);
+}
+
+.button-hover:active {
+  transform: translateY(0);
+}
+
+/* Icon Hover Effect */
+.icon-hover {
+  transition: transform 200ms ease;
+}
+
+.icon-hover:hover {
+  transform: scale(1.1);
+}
+
+/* Glow Effect on Hover */
+.glow-on-hover {
+  transition: all 200ms ease;
+}
+
+.glow-on-hover:hover {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+}
+
+/* =======================
+   SUCCESS/ERROR ANIMATIONS
+   ======================= */
+
+/* Success Checkmark */
+@keyframes checkmark {
+  0% {
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+  }
+}
+
+.success-checkmark {
+  animation: checkmark 400ms ease;
+}
+
+/* Error Shake */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-5px);
+  }
+}
+
+.error-shake {
+  animation: shake 300ms ease;
+}
+
+/* Error Border Pulse */
+@keyframes errorPulse {
+  0%, 100% {
+    border-color: #EF4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    border-color: #DC2626;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+  }
+}
+
+.error-pulse {
+  animation: errorPulse 1s ease infinite;
+}
+
+/* Success Glow */
+@keyframes successGlow {
+  0%, 100% {
+    border-color: #10B981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    border-color: #059669;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+  }
+}
+
+.success-glow {
+  animation: successGlow 1s ease infinite;
+}
+
+/* =======================
+   PROGRESS INDICATORS
+   ======================= */
+
+/* Progress Bar */
+.progress-bar {
+  position: relative;
+  height: 4px;
+  background: #3D2B7D;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #D4AF37;
+  transition: width 300ms ease;
+}
+
+/* Indeterminate Progress */
+@keyframes indeterminateProgress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.progress-indeterminate {
+  position: relative;
+  height: 4px;
+  background: #3D2B7D;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-indeterminate::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 25%;
+  height: 100%;
+  background: #D4AF37;
+  animation: indeterminateProgress 1.5s ease-in-out infinite;
+}
+
+/* =======================
+   GOLD GLOW EFFECTS
+   ======================= */
+
+/* Text Glow (No flicker) */
+@keyframes textGlow {
+  0%, 100% {
+    text-shadow: 0 0 6px rgba(212, 175, 55, 0.25), 0 0 12px rgba(212, 175, 55, 0.15);
+  }
+  50% {
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.45), 0 0 20px rgba(212, 175, 55, 0.25);
+  }
+}
+
+.text-glow {
+  animation: textGlow 2500ms ease-in-out infinite;
+}
+
+/* Golden Glow (For elements with images/icons) */
+@keyframes goldenGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(212, 175, 55, 0.35)) drop-shadow(0 0 6px rgba(212, 175, 55, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 4px rgba(212, 175, 55, 0.45)) drop-shadow(0 0 10px rgba(212, 175, 55, 0.25));
+  }
+}
+
+.golden-glow {
+  animation: goldenGlow 3000ms ease-in-out infinite;
+}
+
+/* Glow Pulse (For borders/boxes) */
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(212, 175, 55, 0.5);
+  }
+}
+
+.glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+/* =======================
+   UTILITY ANIMATIONS
+   ======================= */
+
+/* Fade Out */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.fade-out {
+  animation: fadeOut 300ms ease-out;
+}
+
+/* Scale In */
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.scale-in {
+  animation: scaleIn 200ms ease-out;
+}
+
+/* Bounce */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.bounce {
+  animation: bounce 600ms ease-in-out;
+}
+
+/* =======================
+   TRANSITION UTILITIES
+   ======================= */
+
+/* Standard transition for most elements */
+.transition-standard {
+  transition: all 200ms ease;
+}
+
+/* Fast transition for hover effects */
+.transition-fast {
+  transition: all 150ms ease;
+}
+
+/* Slow transition for large elements */
+.transition-slow {
+  transition: all 300ms ease;
+}
+
+/* Transform-only transition (better performance) */
+.transition-transform {
+  transition: transform 200ms ease;
+}
+
+/* Opacity-only transition */
+.transition-opacity {
+  transition: opacity 200ms ease;
+}
+
+/* Color transition */
+.transition-colors {
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
+}
