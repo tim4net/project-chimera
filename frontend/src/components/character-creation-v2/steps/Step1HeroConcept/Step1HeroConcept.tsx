@@ -3,7 +3,6 @@ import { Step1Draft } from '../../../../test/testUtils';
 import RaceCard from './components/RaceCard';
 import ClassCard from './components/ClassCard';
 import BackgroundCard from './components/BackgroundCard';
-import HeroPreview from './components/HeroPreview';
 import './Step1HeroConcept.css';
 
 interface Step1HeroConceptProps {
@@ -113,10 +112,6 @@ const Step1HeroConcept: React.FC<Step1HeroConceptProps> = ({ draft, updateDraft,
   return (
     <div className="step1-hero-concept">
       <div className="hero-concept-container">
-        <div className="hero-preview-section">
-          <HeroPreview race={draft.race} className={draft.class} />
-        </div>
-
         <div className="hero-form-section">
           <h2>Step 1: Hero Concept</h2>
           <p className="step-description">

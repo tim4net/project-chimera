@@ -14,7 +14,7 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 const supabase = supabaseServiceClient;
 
 interface GenerateImageRequest {
-  type: 'race' | 'class';
+  type: 'race' | 'class' | 'background';
   name: string;
 }
 
@@ -34,9 +34,9 @@ router.post('/generate', async (req: Request, res: Response) => {
       });
     }
 
-    if (type !== 'race' && type !== 'class') {
+    if (type !== 'race' && type !== 'class' && type !== 'background') {
       return res.status(400).json({
-        error: 'Invalid type. Must be "race" or "class"',
+        error: 'Invalid type. Must be "race", "class", or "background"',
       });
     }
 
@@ -66,7 +66,7 @@ router.post('/generate', async (req: Request, res: Response) => {
 /**
  * Create a detailed image generation prompt for a fantasy character
  */
-function generateImagePrompt(type: 'race' | 'class', name: string): string {
+function generateImagePrompt(type: 'race' | 'class' | 'background', name: string): string {
   const raceDescriptions: Record<string, string> = {
     Aasimar: 'celestial humanoid with radiant features, divine aura, ethereal appearance',
     Dragonborn: 'powerful draconic humanoid with scales, horns, and draconic features',
@@ -95,23 +95,51 @@ function generateImagePrompt(type: 'race' | 'class', name: string): string {
     Wizard: 'arcane scholar with spellbook and magical apparatus',
   };
 
-  const baseDescription = type === 'race'
-    ? raceDescriptions[name] || name
-    : classDescriptions[name] || name;
+  const backgroundDescriptions: Record<string, string> = {
+    Acolyte: 'religious cleric in temple robes, divine symbols, spiritual wisdom',
+    Charlatan: 'cunning con artist with rogueish charm, dressed in fine stolen clothes',
+    Criminal: 'street-hardened thief in dark leather, weapons and lock picks visible',
+    Entertainer: 'charismatic performer on stage with instruments and stage presence',
+    'Folk Hero': 'noble peasant champion, humble clothing but heroic bearing',
+    'Guild Artisan': 'skilled craftsperson at work, tools and creations surrounding',
+    Hermit: 'wise sage in meditation, robes of seclusion, mystical atmosphere',
+    Noble: 'aristocrat in fine clothing and jewelry, proud and dignified',
+    Outlander: 'rugged wilderness wanderer with furs and survival gear',
+    Sage: 'scholar surrounded by books and scrolls, intellectual and focused',
+    Sailor: 'seasoned sailor with nautical attire, ship or ocean in background',
+    Soldier: 'military warrior in armor and uniform, disciplined and battle-worn',
+    Urchin: 'street urchin in tattered clothes, scrappy and resourceful',
+  };
+
+  let typeLabel = type;
+  let baseDescription = name;
+
+  if (type === 'race') {
+    baseDescription = raceDescriptions[name] || name;
+    typeLabel = 'race';
+  } else if (type === 'class') {
+    baseDescription = classDescriptions[name] || name;
+    typeLabel = 'class';
+  } else if (type === 'background') {
+    baseDescription = backgroundDescriptions[name] || name;
+    typeLabel = 'background';
+  }
 
   return `
-    Create a fantasy character portrait for a D&D-style ${type === 'race' ? 'race' : 'class'}.
+    Create a fantasy character portrait for a D&D-style ${typeLabel}.
 
-    ${type === 'race'
+    ${typeLabel === 'race'
       ? `Race: ${name} - ${baseDescription}`
-      : `Class: ${name} - ${baseDescription}`
+      : typeLabel === 'class'
+      ? `Class: ${name} - ${baseDescription}`
+      : `Background: ${name} - ${baseDescription}`
     }
 
     Style: Dark fantasy, detailed character art, professional fantasy illustration
     Composition: Character portrait, upper body visible, dramatic lighting
     Quality: High resolution, vibrant colors, suitable for D&D character portraits
 
-    Generate a unique, visually striking character image that captures the essence of this ${type}.
+    Generate a unique, visually striking character image that captures the essence of this ${typeLabel}.
   `;
 }
 
@@ -119,9 +147,9 @@ function generateImagePrompt(type: 'race' | 'class', name: string): string {
  * Generate a fallback image URL using DiceBear
  * This provides a consistent avatar while we wait for real AI generation
  */
-function generateFallbackImageUrl(type: 'race' | 'class', name: string): string {
+function generateFallbackImageUrl(type: 'race' | 'class' | 'background', name: string): string {
   const seed = encodeURIComponent(`${type}-${name}`);
-  return `https://api.dicebear.com/7.x/fantasy/svg?seed=${seed}&scale=90&backgroundColor=transparent`;
+  return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&scale=90&backgroundColor=transparent`;
 }
 
 export default router;

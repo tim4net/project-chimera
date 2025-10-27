@@ -6,22 +6,8 @@
 }
 
 .hero-concept-container {
-  display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 2rem;
-  min-height: 600px;
-}
-
-@media (max-width: 1024px) {
-  .hero-concept-container {
-    grid-template-columns: 1fr;
-  }
-}
-
-.hero-preview-section {
-  position: sticky;
-  top: 2rem;
-  height: fit-content;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .hero-form-section h2 {

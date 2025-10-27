@@ -25,6 +25,36 @@
 .background-card .card-icon {
   font-size: 2.5rem;
   margin-bottom: 0.75rem;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.background-card .card-image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.background-card .loading-spinner {
+  font-size: 2rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.background-card .fallback-icon {
+  font-size: 3rem;
 }
 
 .background-card .card-name {

@@ -13,8 +13,6 @@ interface GenderSelectorProps {
 const GENDER_OPTIONS = [
   'Male',
   'Female',
-  'Non-binary',
-  'Prefer not to say',
 ];
 
 const GenderSelector: React.FC<GenderSelectorProps> = ({ value, onChange }) => {

@@ -7,13 +7,13 @@
 const imageCache = new Map<string, string>();
 
 /**
- * Fetches an AI-generated image for a race or class
- * @param type - 'race' or 'class'
- * @param name - The race or class name
+ * Fetches an AI-generated image for a race, class, or background
+ * @param type - 'race', 'class', or 'background'
+ * @param name - The race, class, or background name
  * @returns A promise resolving to the image URL
  */
 export const getCharacterImage = async (
-  type: 'race' | 'class',
+  type: 'race' | 'class' | 'background',
   name: string
 ): Promise<string> => {
   const cacheKey = `${type}:${name}`;
@@ -58,20 +58,21 @@ export const getCharacterImage = async (
  * Gets a fallback image URL when AI generation fails
  * Uses DiceBear avatars as a temporary placeholder
  */
-const getFallbackImageUrl = (type: 'race' | 'class', name: string): string => {
+const getFallbackImageUrl = (type: 'race' | 'class' | 'background', name: string): string => {
   // Use DiceBear avatars as fallback (free, no API key needed)
   // Maps name to a seed for consistent avatars
   const seed = encodeURIComponent(`${type}-${name}`);
-  return `https://api.dicebear.com/7.x/fantasy/svg?seed=${seed}&scale=90`;
+  return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&scale=90&backgroundColor=transparent`;
 };
 
 /**
- * Pre-loads all race and class images
+ * Pre-loads all race, class, and background images
  * Useful for warming up the cache before showing the selection screen
  */
 export const preloadCharacterImages = async (
   races: string[],
-  classes: string[]
+  classes: string[],
+  backgrounds?: string[]
 ): Promise<void> => {
   const allPromises: Promise<string>[] = [];
 
@@ -81,6 +82,10 @@ export const preloadCharacterImages = async (
 
   classes.forEach((className) => {
     allPromises.push(getCharacterImage('class', className));
+  });
+
+  backgrounds?.forEach((background) => {
+    allPromises.push(getCharacterImage('background', background));
   });
 
   try {
