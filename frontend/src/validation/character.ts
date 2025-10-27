@@ -139,24 +139,16 @@ export const identitySchema = z.object({
  * Step 2: Core Attributes Schema
  */
 export const coreAttributesSchema = z.object({
-  race: z.enum(RACES as [Race, ...Race[]], {
-    errorMap: () => ({ message: 'Please select a valid race' }),
-  }),
-  class: z.enum(CLASSES as [CharacterClass, ...CharacterClass[]], {
-    errorMap: () => ({ message: 'Please select a valid class' }),
-  }),
-  background: z.enum(BACKGROUNDS as [Background, ...Background[]], {
-    errorMap: () => ({ message: 'Please select a valid background' }),
-  }),
+  race: z.enum(RACES as [Race, ...Race[]]).describe('Please select a valid race'),
+  class: z.enum(CLASSES as [CharacterClass, ...CharacterClass[]]).describe('Please select a valid class'),
+  background: z.enum(BACKGROUNDS as [Background, ...Background[]]).describe('Please select a valid background'),
 });
 
 /**
  * Step 3: Alignment Schema
  */
 export const alignmentSchema = z.object({
-  alignment: z.enum(ALIGNMENTS as [Alignment, ...Alignment[]], {
-    errorMap: () => ({ message: 'Please select a valid alignment' }),
-  }),
+  alignment: z.enum(ALIGNMENTS as [Alignment, ...Alignment[]]).describe('Please select a valid alignment'),
   personalityTraits: z
     .array(
       z
@@ -230,9 +222,7 @@ export const abilityScoresSchema = z.object({
 export const skillsSchema = z.object({
   proficientSkills: z
     .array(
-      z.enum(SKILLS as [SkillName, ...SkillName[]], {
-        errorMap: () => ({ message: 'Invalid skill name' }),
-      })
+      z.enum(SKILLS as [SkillName, ...SkillName[]]).describe('Invalid skill name')
     )
     .min(2, 'At least 2 skills are required')
     .max(10, 'Maximum of 10 proficient skills allowed'),
@@ -339,8 +329,8 @@ export const characterFinalSchema = z.object({
   bonds: z.array(z.string()).nullable().optional(),
   flaws: z.array(z.string()).nullable().optional(),
   alignment: z.string().nullable().optional(),
-  proficiencies: z.record(z.unknown()).nullable().optional(),
-  spells: z.record(z.unknown()).nullable().optional(),
+  proficiencies: z.record(z.string(), z.unknown()).nullable().optional(),
+  spells: z.record(z.string(), z.unknown()).nullable().optional(),
   avatarUrl: z.string().nullable().optional(),
 });
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthProvider.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
@@ -7,10 +7,36 @@ import SignupPage from './pages/SignupPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
 import WelcomePage from './pages/WelcomePage.tsx';
-import CharacterCreationScreen from './components/character-creation/CharacterCreationScreen.tsx';
+import CharacterCreationWizardV2 from './components/character-creation-v2/CharacterCreationWizardV2.tsx';
 import AuthCallback from './pages/AuthCallback.tsx';
 import AuthenticatedLayout from './components/AuthenticatedLayout';
 import PreviewLayout from './components/PreviewLayout';
+
+// Error boundary wrapper
+const WizardWithErrorBoundary: React.FC = () => {
+  const [hasError, setHasError] = React.useState(false);
+
+  React.useEffect(() => {
+    console.log('[Wizard] ✅ Component mounted at', new Date().toISOString());
+    window.location.hash = '#wizard-loaded';
+    return () => console.log('[Wizard] Component unmounted');
+  }, []);
+
+  if (hasError) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', backgroundColor: '#fee', border: '2px solid red' }}>
+        <h2>Error Loading Character Creation</h2>
+        <p>Please try refreshing the page or contact support.</p>
+      </div>
+    );
+  }
+
+  return (
+    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>}>
+      <CharacterCreationWizardV2 />
+    </Suspense>
+  );
+};
 
 // Public route wrapper (redirects to dashboard if already logged in)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -79,7 +105,7 @@ const AppRoutes = () => {
         path="/create-character"
         element={
           <ProtectedRoute>
-            <CharacterCreationScreen />
+            <WizardWithErrorBoundary />
           </ProtectedRoute>
         }
       />

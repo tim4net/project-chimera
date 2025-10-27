@@ -56,6 +56,14 @@ export function characterDraftReducer(
         payload.portraitUrl = payload.avatarUrl;
       }
 
+      // Normalize skills fields: skills ↔ proficientSkills
+      if (payload.skills && !payload.proficientSkills) {
+        payload.proficientSkills = payload.skills;
+      }
+      if (payload.proficientSkills && !payload.skills) {
+        payload.skills = payload.proficientSkills;
+      }
+
       return {
         ...state,
         draft: {

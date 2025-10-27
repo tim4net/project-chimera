@@ -1,0 +1,174 @@
+.character-card {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.card-section:last-child {
+  border-bottom: none;
+}
+
+.card-section h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.card-section h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  color: #555;
+}
+
+/* Hero Section */
+.hero-info .info-row {
+  display: flex;
+  margin-bottom: 0.5rem;
+}
+
+.info-row .label {
+  font-weight: 600;
+  min-width: 120px;
+  color: #555;
+}
+
+.info-row .value {
+  color: #333;
+}
+
+/* Identity Section */
+.portrait-container {
+  margin: 1rem 0;
+}
+
+.character-portrait {
+  max-width: 200px;
+  height: auto;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+}
+
+.backstory-section {
+  margin-top: 1rem;
+}
+
+.backstory-section ul {
+  list-style: disc;
+  margin-left: 1.5rem;
+}
+
+.backstory-section li {
+  margin-bottom: 0.25rem;
+  color: #555;
+}
+
+/* Abilities Section */
+.abilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.ability-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.ability-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.ability-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.ability-modifier {
+  font-size: 1rem;
+  color: #4a90e2;
+}
+
+.calculated-stats {
+  margin: 1rem 0;
+}
+
+.stat-row {
+  display: flex;
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  font-weight: 600;
+  min-width: 150px;
+  color: #555;
+}
+
+.stat-value {
+  color: #4a90e2;
+  font-weight: 600;
+}
+
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+}
+
+.skills-list li {
+  background-color: #f0f0f0;
+  padding: 0.3rem 0.8rem;
+  border-radius: 16px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* Equipment Section */
+.equipment-list {
+  list-style: disc;
+  margin-left: 1.5rem;
+}
+
+.equipment-list li {
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.gold-display {
+  display: flex;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.gold-label {
+  font-weight: 600;
+  min-width: 150px;
+  color: #555;
+}
+
+.gold-value {
+  color: #d4af37;
+  font-weight: 600;
+}

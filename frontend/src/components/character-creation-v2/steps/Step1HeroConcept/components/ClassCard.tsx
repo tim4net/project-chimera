@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getCharacterImage } from '../../../../../services/raceClassImageService';
 import './ClassCard.css';
 
 interface ClassCardProps {
@@ -22,6 +23,7 @@ const CLASS_DESCRIPTIONS: Record<string, string> = {
   Wizard: 'Arcane scholar, spellbook master'
 };
 
+// Fallback emoji icons in case image loading fails
 const CLASS_ICONS: Record<string, string> = {
   Barbarian: '🪓',
   Bard: '🎵',
@@ -38,6 +40,28 @@ const CLASS_ICONS: Record<string, string> = {
 };
 
 const ClassCard: React.FC<ClassCardProps> = ({ className, selected, onSelect }) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      setIsLoading(true);
+      setHasError(false);
+      try {
+        const url = await getCharacterImage('class', className);
+        setImageUrl(url);
+      } catch (error) {
+        console.error(`Failed to load image for class ${className}:`, error);
+        setHasError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadImage();
+  }, [className]);
+
   return (
     <div
       className={`class-card ${selected ? 'selected' : ''}`}
@@ -51,7 +75,20 @@ const ClassCard: React.FC<ClassCardProps> = ({ className, selected, onSelect }) 
         }
       }}
     >
-      <div className="card-icon">{CLASS_ICONS[className]}</div>
+      <div className="card-icon">
+        {isLoading ? (
+          <div className="loading-spinner">⏳</div>
+        ) : hasError || !imageUrl ? (
+          <span className="fallback-icon">{CLASS_ICONS[className]}</span>
+        ) : (
+          <img
+            src={imageUrl}
+            alt={`${className} class`}
+            className="card-image"
+            onError={() => setHasError(true)}
+          />
+        )}
+      </div>
       <div className="card-name">{className}</div>
       <div className="card-description">{CLASS_DESCRIPTIONS[className]}</div>
     </div>

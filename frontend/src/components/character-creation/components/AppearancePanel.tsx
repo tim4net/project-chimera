@@ -59,8 +59,8 @@ export const AppearancePanel: React.FC<AppearancePanelProps> = ({
 
   const handleGeneratePortrait = async () => {
     // Validate character has required fields
-    if (!character.race || !character.class || !character.background) {
-      setError('Please complete race, class, and background selection first');
+    if (!character.race || !character.class) {
+      setError('Please complete race and class selection first');
       return;
     }
 

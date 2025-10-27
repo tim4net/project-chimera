@@ -318,3 +318,17 @@ export const ABILITY_SCORE_MAX = 15;
  * Max ability score after racial bonuses
  */
 export const ABILITY_SCORE_MAX_WITH_RACIAL = 20;
+
+/**
+ * Equipment item type
+ */
+export type EquipmentType = 'weapon' | 'armor' | 'gear';
+
+/**
+ * Equipment item definition
+ */
+export interface Equipment {
+  name: string;
+  type: EquipmentType;
+  weight: number;
+}

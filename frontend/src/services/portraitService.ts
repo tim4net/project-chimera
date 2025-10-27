@@ -28,8 +28,8 @@ export async function generatePortrait(
   const { character, customDescription } = options;
 
   // Validate required fields
-  if (!character.race || !character.class || !character.background) {
-    throw new Error('Character must have race, class, and background to generate portrait');
+  if (!character.race || !character.class) {
+    throw new Error('Character must have race and class to generate portrait');
   }
 
   try {
@@ -41,7 +41,7 @@ export async function generatePortrait(
       body: JSON.stringify({
         race: character.race,
         class: character.class,
-        background: character.background,
+        description: character.description || customDescription,
         alignment: character.alignment,
         name: character.name,
         customDescription,

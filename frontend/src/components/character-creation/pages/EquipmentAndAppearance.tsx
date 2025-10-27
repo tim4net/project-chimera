@@ -75,7 +75,7 @@ export const EquipmentAndAppearance: React.FC<EquipmentAndAppearanceProps> = ({
               <div className="bg-nuaibria-surface border border-nuaibria-gold/20 rounded-lg p-6 shadow-card-hover animate-fade-in">
                 {character.class ? (
                   <EquipmentSelector
-                    characterClass={character.class}
+                    characterClass={character.class as any}
                     selectedPackageIndex={selectedPackageIndex}
                     onSelectPackage={setSelectedPackageIndex}
                   />

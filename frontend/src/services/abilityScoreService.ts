@@ -3,7 +3,7 @@
  * @description D&D 5e ability score calculations and racial bonuses
  */
 
-import type { AbilityScores } from '../types/wizard';
+import type { AbilityScores } from '../types';
 
 /**
  * Calculate ability modifier from ability score using D&D 5e formula
@@ -27,38 +27,38 @@ export function applyRacialBonuses(
 
   switch (race) {
     case 'Dwarf':
-      result.constitution += 2;
+      result.CON += 2;
       break;
     case 'Elf':
-      result.dexterity += 2;
+      result.DEX += 2;
       break;
     case 'Halfling':
-      result.dexterity += 2;
+      result.DEX += 2;
       break;
     case 'Human':
-      result.strength += 1;
-      result.dexterity += 1;
-      result.constitution += 1;
-      result.intelligence += 1;
-      result.wisdom += 1;
-      result.charisma += 1;
+      result.STR += 1;
+      result.DEX += 1;
+      result.CON += 1;
+      result.INT += 1;
+      result.WIS += 1;
+      result.CHA += 1;
       break;
     case 'Dragonborn':
-      result.strength += 2;
-      result.charisma += 1;
+      result.STR += 2;
+      result.CHA += 1;
       break;
     case 'Gnome':
-      result.intelligence += 2;
+      result.INT += 2;
       break;
     case 'Half-Elf':
-      result.charisma += 2;
+      result.CHA += 2;
       // +1 to two other abilities (default to STR and DEX for simplicity)
-      result.strength += 1;
-      result.dexterity += 1;
+      result.STR += 1;
+      result.DEX += 1;
       break;
     case 'Half-Orc':
-      result.strength += 2;
-      result.constitution += 1;
+      result.STR += 2;
+      result.CON += 1;
       break;
     default:
       // Invalid race - return unchanged scores

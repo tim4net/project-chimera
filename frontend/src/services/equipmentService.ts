@@ -155,8 +155,8 @@ export function getEquipmentPresetsByClass(className: string): EquipmentPreset[]
     ],
     Fighter: [
       {
-        name: 'Knight',
-        description: 'Heavily armored sword and board fighter',
+        name: 'Defensive Fighter',
+        description: 'Sword and shield specialist - balanced defense',
         equipment: [
           { name: 'Longsword', type: 'weapon', weight: 3 },
           { name: 'Chain Mail', type: 'armor', weight: 55 },
@@ -176,7 +176,7 @@ export function getEquipmentPresetsByClass(className: string): EquipmentPreset[]
       },
       {
         name: 'Champion',
-        description: 'Two-handed weapon specialist',
+        description: 'Two-handed greatsword specialist',
         equipment: [
           { name: 'Greatsword', type: 'weapon', weight: 6 },
           { name: 'Chain Mail', type: 'armor', weight: 55 },

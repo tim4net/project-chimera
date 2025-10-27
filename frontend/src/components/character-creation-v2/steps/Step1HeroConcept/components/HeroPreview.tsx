@@ -88,7 +88,7 @@ const HeroPreview: React.FC<HeroPreviewProps> = ({ race, className }) => {
           </div>
         ) : (
           <div className="preview-hero">
-            <div className={`hero-silhouette ${race.toLowerCase()} ${className.toLowerCase()}`}>
+            <div className={`hero-silhouette ${race?.toLowerCase() || ''} ${className?.toLowerCase() || ''}`}>
               <div className="hero-head" />
               <div className="hero-body" />
               <div className="hero-arms" />

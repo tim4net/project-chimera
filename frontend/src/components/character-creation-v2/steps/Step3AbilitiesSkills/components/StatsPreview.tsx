@@ -46,7 +46,7 @@ export const StatsPreview: React.FC<StatsPreviewProps> = ({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .stats-preview {
           display: flex;
           flex-direction: column;

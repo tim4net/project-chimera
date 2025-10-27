@@ -89,7 +89,7 @@ export const AbilitySlider: React.FC<AbilitySliderProps> = ({
         <div className="score-cost">Cost: {currentCost} pts</div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .ability-slider {
           display: flex;
           flex-direction: column;

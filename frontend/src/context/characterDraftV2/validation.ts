@@ -27,11 +27,13 @@ export interface CharacterDraft {
   // Step 3: Abilities & Skills
   abilityScores?: AbilityScores;
   proficientSkills?: SkillName[];
+  skills?: SkillName[]; // Alias for proficientSkills (normalized in reducer)
 
   // Step 4: Loadout
   equipment?: string[];
   startingGold?: number;
   selectedEquipment?: string[];
+  appearance?: string;
   portraitUrl?: string;
 }
 

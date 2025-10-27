@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getCharacterImage } from '../../../../../services/raceClassImageService';
 import './RaceCard.css';
 
 interface RaceCardProps {
@@ -20,6 +21,7 @@ const RACE_DESCRIPTIONS: Record<string, string> = {
   Tiefling: 'Infernal heritage, otherworldly'
 };
 
+// Fallback emoji icons in case image loading fails
 const RACE_ICONS: Record<string, string> = {
   Aasimar: '✨',
   Dragonborn: '🐉',
@@ -34,6 +36,28 @@ const RACE_ICONS: Record<string, string> = {
 };
 
 const RaceCard: React.FC<RaceCardProps> = ({ race, selected, onSelect }) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      setIsLoading(true);
+      setHasError(false);
+      try {
+        const url = await getCharacterImage('race', race);
+        setImageUrl(url);
+      } catch (error) {
+        console.error(`Failed to load image for race ${race}:`, error);
+        setHasError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadImage();
+  }, [race]);
+
   return (
     <div
       className={`race-card ${selected ? 'selected' : ''}`}
@@ -47,7 +71,20 @@ const RaceCard: React.FC<RaceCardProps> = ({ race, selected, onSelect }) => {
         }
       }}
     >
-      <div className="card-icon">{RACE_ICONS[race]}</div>
+      <div className="card-icon">
+        {isLoading ? (
+          <div className="loading-spinner">⏳</div>
+        ) : hasError || !imageUrl ? (
+          <span className="fallback-icon">{RACE_ICONS[race]}</span>
+        ) : (
+          <img
+            src={imageUrl}
+            alt={`${race} character`}
+            className="card-image"
+            onError={() => setHasError(true)}
+          />
+        )}
+      </div>
       <div className="card-name">{race}</div>
       <div className="card-description">{RACE_DESCRIPTIONS[race]}</div>
     </div>

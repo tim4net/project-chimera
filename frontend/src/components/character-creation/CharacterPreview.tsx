@@ -34,7 +34,7 @@ export const CharacterPreview: React.FC<CharacterPreviewProps> = ({
   portraitUrl,
   className = '',
 }) => {
-  const { name, race, class: characterClass, background, alignment } = character;
+  const { name, race, class: characterClass, alignment } = character;
 
   return (
     <div
@@ -64,9 +64,9 @@ export const CharacterPreview: React.FC<CharacterPreviewProps> = ({
         </p>
       )}
 
-      {(background || alignment) && (
+      {alignment && (
         <p className="text-nuaibria-text-secondary mt-1 text-sm">
-          {[background, alignment].filter(Boolean).join(' / ')}
+          {alignment}
         </p>
       )}
     </div>

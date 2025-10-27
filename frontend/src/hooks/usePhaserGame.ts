@@ -86,7 +86,7 @@ export const usePhaserGame = ({
         return;
       }
       // Check if game is being destroyed
-      if (phaserGame.isDestroyed || !phaserGame.scale) {
+      if ((phaserGame as any).isDestroyed || !phaserGame.scale) {
         return;
       }
       const targetWidth = Math.max(1, Math.floor(width));

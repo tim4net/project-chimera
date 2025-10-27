@@ -35,6 +35,7 @@ import travelRoutes from './routes/travel';
 import dmChatSecureRoutes from './routes/dmChatSecure'; // NEW secure architecture
 import verificationRoutes from './routes/verification';
 import adminMigrationsRoutes from './routes/admin-migrations';
+import characterImagesRoutes from './routes/characterImages';
 
 export const app = express();
 
@@ -100,6 +101,7 @@ app.use('/api/party', partyRoutes); // Party system for multiplayer (ADR-003, AD
 app.use('/api/travel', travelRoutes); // Travel system with interactive events (Phase 3B)
 app.use('/api/chat/dm', dmChatSecureRoutes); // PRIMARY GAMEPLAY INTERFACE (secure architecture)
 app.use('/api/admin/migrations', adminMigrationsRoutes); // Database migrations
+app.use('/api/character-images', characterImagesRoutes); // Character portrait generation
 app.use('/api', verificationRoutes);
 
 const port = Number(process.env.PORT ?? 3001);

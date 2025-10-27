@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { CharacterDraft } from '@/types/wizard';
+import type { CharacterDraft } from '@/context/characterDraftV2/validation';
+import type { AbilityScores } from '@/types';
 import { AbilitySlider } from './components/AbilitySlider';
 import { SkillsGrid } from './components/SkillsGrid';
 import { StatsPreview } from './components/StatsPreview';
 import {
-  AbilityScores,
+  AbilityScores as LocalAbilityScores,
   calculatePointsRemaining,
   calculateTotalPointsSpent,
   TOTAL_POINTS,
 } from './utils/abilityScoreCalculations';
 
 export interface Step3AbilitiesSkillsProps {
-  draft: CharacterDraft;
+  draft: Partial<CharacterDraft>;
   updateDraft: (updates: Partial<CharacterDraft>) => void;
-  errors: Record<string, string>;
+  errors?: Record<string, string>;
 }
 
-const DEFAULT_ABILITY_SCORES: AbilityScores = {
+const DEFAULT_ABILITY_SCORES: LocalAbilityScores = {
   str: 10,
   dex: 10,
   con: 10,
@@ -25,13 +26,36 @@ const DEFAULT_ABILITY_SCORES: AbilityScores = {
   cha: 10,
 };
 
+// Convert from local lowercase format to global uppercase format
+const toGlobalAbilityScores = (local: LocalAbilityScores): AbilityScores => ({
+  STR: local.str,
+  DEX: local.dex,
+  CON: local.con,
+  INT: local.int,
+  WIS: local.wis,
+  CHA: local.cha,
+});
+
+// Convert from global uppercase format to local lowercase format
+const toLocalAbilityScores = (global: AbilityScores | undefined): LocalAbilityScores => {
+  if (!global) return DEFAULT_ABILITY_SCORES;
+  return {
+    str: global.STR,
+    dex: global.DEX,
+    con: global.CON,
+    int: global.INT,
+    wis: global.WIS,
+    cha: global.CHA,
+  };
+};
+
 export const Step3AbilitiesSkills: React.FC<Step3AbilitiesSkillsProps> = ({
   draft,
   updateDraft,
-  errors,
+  errors = {},
 }) => {
-  const [abilityScores, setAbilityScores] = useState<AbilityScores>(
-    draft.abilityScores || DEFAULT_ABILITY_SCORES
+  const [abilityScores, setAbilityScores] = useState<LocalAbilityScores>(
+    toLocalAbilityScores(draft.abilityScores)
   );
 
   const pointsSpent = calculateTotalPointsSpent(abilityScores);
@@ -39,18 +63,19 @@ export const Step3AbilitiesSkills: React.FC<Step3AbilitiesSkillsProps> = ({
   const isBudgetValid = pointsSpent === TOTAL_POINTS;
   const isBudgetExceeded = pointsSpent > TOTAL_POINTS;
 
-  const racialBonuses = draft.race?.racialBonuses || {};
-  const backgroundSkills = draft.background?.skills || [];
-  const skillLimit = draft.class?.skillLimit || 2;
-  const selectedSkills = draft.skills || [];
-  const hitDie = draft.class?.hitDie || 10;
+  // Placeholder values - these would come from a config system
+  const racialBonuses: LocalAbilityScores = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+  const backgroundSkills: string[] = [];
+  const skillLimit = 2;
+  const selectedSkills = draft.proficientSkills || [];
+  const hitDie = 10; // Will vary by class
   const proficiencyBonus = 2; // Level 1
 
   useEffect(() => {
-    updateDraft({ abilityScores });
+    updateDraft({ abilityScores: toGlobalAbilityScores(abilityScores) });
   }, [abilityScores, updateDraft]);
 
-  const handleAbilityChange = (ability: keyof AbilityScores, newScore: number) => {
+  const handleAbilityChange = (ability: keyof LocalAbilityScores, newScore: number) => {
     setAbilityScores((prev) => ({
       ...prev,
       [ability]: newScore,
@@ -62,16 +87,16 @@ export const Step3AbilitiesSkills: React.FC<Step3AbilitiesSkillsProps> = ({
   };
 
   const handleSkillToggle = (skillId: string) => {
-    const isSelected = selectedSkills.includes(skillId);
+    const isSelected = selectedSkills.includes(skillId as any);
     const newSkills = isSelected
-      ? selectedSkills.filter((s) => s !== skillId)
+      ? selectedSkills.filter((s: any) => s !== skillId)
       : [...selectedSkills, skillId];
 
-    updateDraft({ skills: newSkills });
+    updateDraft({ proficientSkills: newSkills as any });
   };
 
   const classSkillsCount = selectedSkills.filter(
-    (skill) => !backgroundSkills.includes(skill)
+    (skill: any) => !backgroundSkills.includes(skill)
   ).length;
 
   const isNextButtonEnabled = isBudgetValid && classSkillsCount === skillLimit;
@@ -197,7 +222,7 @@ export const Step3AbilitiesSkills: React.FC<Step3AbilitiesSkillsProps> = ({
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .step3-abilities-skills {
           display: flex;
           flex-direction: column;

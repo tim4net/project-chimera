@@ -160,8 +160,28 @@ USING (character_id IN (SELECT id FROM public.characters WHERE user_id = auth.ui
 WITH CHECK (character_id IN (SELECT id FROM public.characters WHERE user_id = auth.uid()));
 `;
 
-// Create party system tables for multiplayer (future feature)
+// Create character images table for race and class selection portraits
 const MIGRATION_016 = `
+CREATE TABLE IF NOT EXISTS public.character_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT NOT NULL CHECK (type IN ('race', 'class')),
+  name TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(type, name)
+);
+
+CREATE INDEX IF NOT EXISTS character_images_type_name_idx ON public.character_images(type, name);
+CREATE INDEX IF NOT EXISTS character_images_created_at_idx ON public.character_images(created_at);
+
+ALTER TABLE public.character_images ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "character_images_read_all" ON public.character_images FOR SELECT USING (true);
+`;
+
+// Create party system tables for multiplayer (future feature)
+const MIGRATION_017 = `
 CREATE TABLE IF NOT EXISTS public.parties (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   party_name TEXT NOT NULL,
@@ -270,8 +290,12 @@ export async function applyMigrations(): Promise<MigrationResult[]> {
       sql: MIGRATION_015
     },
     {
-      name: '016_create_party_tables',
+      name: '016_create_character_images_table',
       sql: MIGRATION_016
+    },
+    {
+      name: '017_create_party_tables',
+      sql: MIGRATION_017
     }
   ];
 

@@ -142,7 +142,7 @@ export const SkillsGrid: React.FC<SkillsGridProps> = ({
         })}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .skills-grid {
           display: flex;
           flex-direction: column;

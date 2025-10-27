@@ -159,10 +159,14 @@ describe('Step4Loadout', () => {
 
       render(<Step4Loadout draft={draftWithEquipment} updateDraft={mockUpdateDraft} errors={{}} />);
 
-      // Should show item types
-      expect(screen.getByText(/weapon/i)).toBeInTheDocument();
-      expect(screen.getByText(/armor/i)).toBeInTheDocument();
-      expect(screen.getByText(/shield/i)).toBeInTheDocument();
+      // Should show equipment items in preview
+      const preview = screen.getByTestId('equipment-preview');
+      expect(preview).toBeInTheDocument();
+
+      // Verify all equipment items are displayed
+      expect(screen.getByText('Longsword')).toBeInTheDocument();
+      expect(screen.getByText('Shield')).toBeInTheDocument();
+      expect(screen.getByText('Chain Mail')).toBeInTheDocument();
     });
   });
 
@@ -345,10 +349,11 @@ describe('Step4Loadout', () => {
       // Create mock image file
       const imageFile = new File(['dummy content'], 'portrait.png', { type: 'image/png' });
 
-      // Simulate file selection
+      // Simulate file selection - use configurable property
       Object.defineProperty(fileInput, 'files', {
         value: [imageFile],
-        writable: false,
+        writable: true,
+        configurable: true,
       });
 
       fireEvent.change(fileInput);
@@ -358,11 +363,15 @@ describe('Step4Loadout', () => {
         expect(mockUpdateDraft).toHaveBeenCalled();
       });
 
-      // Test invalid file type
+      // Reset mock for second test
+      mockUpdateDraft.mockClear();
+
+      // Test invalid file type - now we can redefine since configurable: true
       const invalidFile = new File(['dummy content'], 'document.pdf', { type: 'application/pdf' });
       Object.defineProperty(fileInput, 'files', {
         value: [invalidFile],
-        writable: false,
+        writable: true,
+        configurable: true,
       });
 
       fireEvent.change(fileInput);
