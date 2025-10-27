@@ -1,16 +1,14 @@
 /**
  * @fileoverview Character Images Route
- * Generates AI-powered fantasy character images for race and class selection
- * Stores images in Supabase Storage with metadata in database
+ * Generates fantasy character art in Vox Machina style using Replicate API
+ * Falls back to DiceBear if Replicate is unavailable
  */
 
 import { Router, type Request, type Response } from 'express';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabaseServiceClient } from '../services/supabaseClient';
 
 const router = Router();
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const replicateApiToken = process.env.REPLICATE_API_TOKEN;
 const supabase = supabaseServiceClient;
 
 interface GenerateImageRequest {
@@ -42,8 +40,24 @@ router.post('/generate', async (req: Request, res: Response) => {
 
     console.log(`[CharacterImages] Generating image for ${type}/${name}`);
 
-    // Generate image URL using DiceBear (free fantasy avatars)
-    const imageUrl = generateFallbackImageUrl(type, name);
+    // Try to generate via Replicate first, fall back to DiceBear
+    let imageUrl: string;
+    let source = 'replicate';
+
+    if (replicateApiToken) {
+      try {
+        imageUrl = await generateViaReplicate(type, name);
+        console.log(`[CharacterImages] ✅ Generated via Replicate: ${type}/${name}`);
+      } catch (error) {
+        console.warn(`[CharacterImages] Replicate failed, falling back to DiceBear:`, error instanceof Error ? error.message : error);
+        imageUrl = generateFallbackImageUrl(type, name);
+        source = 'dicebear-fallback';
+      }
+    } else {
+      imageUrl = generateFallbackImageUrl(type, name);
+      source = 'dicebear-fallback';
+    }
+
     const now = new Date().toISOString();
 
     return res.status(200).json({
@@ -51,7 +65,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       type,
       name,
       imageUrl,
-      source: 'generated',
+      source,
       generatedAt: now,
     });
   } catch (error) {
@@ -62,6 +76,141 @@ router.post('/generate', async (req: Request, res: Response) => {
     });
   }
 });
+
+/**
+ * Generate image via Replicate's Stable Diffusion model
+ * Uses fantasy-specific prompts in the style of Vox Machina (Critical Role)
+ */
+async function generateViaReplicate(type: 'race' | 'class' | 'background', name: string): Promise<string> {
+  const prompt = generateReplicatePrompt(type, name);
+
+  try {
+    const response = await fetch('https://api.replicate.com/v1/predictions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Token ${replicateApiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        version: 'db21e45d3f7023abc2a46f5d517cecc3d7vx520f4d11852109085cfa5460dae4b',
+        input: {
+          prompt,
+          negative_prompt: 'blurry, low quality, cartoon, simple, ugly, deformed',
+          num_inference_steps: 20,
+          guidance_scale: 7.5,
+          width: 512,
+          height: 512,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Replicate API error: ${response.status} ${response.statusText}`);
+    }
+
+    const prediction = await response.json();
+
+    // Poll for completion
+    let completed = false;
+    let attempts = 0;
+    const maxAttempts = 30; // Max 30 seconds of polling
+
+    while (!completed && attempts < maxAttempts) {
+      const statusResponse = await fetch(
+        `https://api.replicate.com/v1/predictions/${prediction.id}`,
+        {
+          headers: { Authorization: `Token ${replicateApiToken}` },
+        }
+      );
+
+      if (!statusResponse.ok) {
+        throw new Error(`Failed to check prediction status: ${statusResponse.status}`);
+      }
+
+      const status = await statusResponse.json();
+
+      if (status.status === 'succeeded') {
+        completed = true;
+        if (status.output && Array.isArray(status.output) && status.output.length > 0) {
+          return status.output[0] as string;
+        }
+        throw new Error('No output from Replicate');
+      } else if (status.status === 'failed') {
+        throw new Error(`Prediction failed: ${status.error}`);
+      }
+
+      // Wait before polling again
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      attempts++;
+    }
+
+    throw new Error('Image generation timed out');
+  } catch (error) {
+    console.error('[CharacterImages] Replicate error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a Vox Machina-style fantasy prompt for Replicate/Stable Diffusion
+ */
+function generateReplicatePrompt(type: 'race' | 'class' | 'background', name: string): string {
+  const racePrompts: Record<string, string> = {
+    Aasimar: 'D&D fantasy character portrait, celestial aasimar with divine radiance, silver eyes, ethereal glowing aura, ornate divine clothing, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Dragonborn: 'D&D fantasy character portrait, draconic dragonborn with scales and horns, powerful draconic features, fantasy warrior, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Dwarf: 'D&D fantasy character portrait, sturdy dwarf with elaborate beard and rugged features, fantasy armor and tools, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Elf: 'D&D fantasy character portrait, graceful elf with pointed ears and ethereal beauty, noble fantasy clothing, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Gnome: 'D&D fantasy character portrait, clever gnome with magical features and curious expression, fantasy robes and magical aura, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    'Half-Elf': 'D&D fantasy character portrait, half-elf with blend of human and elven traits, graceful and noble, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    'Half-Orc': 'D&D fantasy character portrait, fierce half-orc with tusks and strong draconic features, intimidating warrior, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Halfling: 'D&D fantasy character portrait, small halfling with nimble features and curious eyes, adventuring gear, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Human: 'D&D fantasy character portrait, expressive human with diverse features and determined look, adventuring gear, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Tiefling: 'D&D fantasy character portrait, tiefling with infernal heritage, horns and tail, otherworldly features and arcane aura, professional fantasy art, critical role style, detailed, atmospheric lighting',
+  };
+
+  const classPrompts: Record<string, string> = {
+    Barbarian: 'D&D fantasy character portrait, fierce barbarian warrior in combat rage, weapons drawn, primal power and battle scars, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Bard: 'D&D fantasy character portrait, charismatic bard with musical instrument, magical aura and charm, colorful fantasy clothing, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Cleric: 'D&D fantasy character portrait, holy warrior cleric with divine symbols and sacred armor, glowing holy light, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Druid: 'D&D fantasy character portrait, nature guardian druid with wild features and natural magic, surrounded by nature, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Fighter: 'D&D fantasy character portrait, master combatant fighter in tactical stance with weapons and armor, confident warrior, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Monk: 'D&D fantasy character portrait, disciplined martial artist monk in meditation or combat stance, mystical aura, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Paladin: 'D&D fantasy character portrait, holy knight paladin in ornate armor with divine glow and sacred symbols, righteous warrior, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Ranger: 'D&D fantasy character portrait, wilderness scout ranger with bow and ranger equipment, nature connection, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Rogue: 'D&D fantasy character portrait, cunning infiltrator rogue in shadows with daggers ready, mysterious assassin, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Sorcerer: 'D&D fantasy character portrait, innate mage sorcerer with magical aura and raw arcane power, mystical features, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Warlock: 'D&D fantasy character portrait, pact mage warlock with eldritch symbols and otherworldly features, dark mystical aura, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Wizard: 'D&D fantasy character portrait, arcane scholar wizard with spellbook and magical apparatus, mystical robes, professional fantasy art, critical role style, detailed, atmospheric lighting',
+  };
+
+  const backgroundPrompts: Record<string, string> = {
+    Acolyte: 'D&D fantasy character portrait, religious cleric acolyte in temple robes with divine symbols, spiritual wisdom, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Charlatan: 'D&D fantasy character portrait, cunning con artist with rogueish charm and fine stolen clothes, mysterious and deceptive, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Criminal: 'D&D fantasy character portrait, street-hardened thief in dark leather with weapons and lock picks, dangerous criminal, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Entertainer: 'D&D fantasy character portrait, charismatic performer on stage with instruments and performance presence, colorful and expressive, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    'Folk Hero': 'D&D fantasy character portrait, noble peasant champion in humble clothing with heroic bearing, people\'s hero, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    'Guild Artisan': 'D&D fantasy character portrait, skilled craftsperson at work with tools and creations, masterful artisan, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Hermit: 'D&D fantasy character portrait, wise sage in meditation with robes of seclusion and mystical atmosphere, spiritual recluse, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Noble: 'D&D fantasy character portrait, aristocrat in fine clothing and jewelry, proud and dignified nobility, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Outlander: 'D&D fantasy character portrait, rugged wilderness wanderer with furs and survival gear, hardened adventurer, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Sage: 'D&D fantasy character portrait, scholar surrounded by books and scrolls, intellectual and focused researcher, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Sailor: 'D&D fantasy character portrait, seasoned sailor with nautical attire and sea experience, ocean in background, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Soldier: 'D&D fantasy character portrait, military warrior in armor and uniform, disciplined and battle-worn veteran, professional fantasy art, critical role style, detailed, atmospheric lighting',
+    Urchin: 'D&D fantasy character portrait, street urchin in tattered clothes, scrappy and resourceful survivor, professional fantasy art, critical role style, detailed, atmospheric lighting',
+  };
+
+  let basePrompt = name;
+
+  if (type === 'race' && racePrompts[name]) {
+    basePrompt = racePrompts[name];
+  } else if (type === 'class' && classPrompts[name]) {
+    basePrompt = classPrompts[name];
+  } else if (type === 'background' && backgroundPrompts[name]) {
+    basePrompt = backgroundPrompts[name];
+  }
+
+  return basePrompt;
+}
 
 /**
  * Create a detailed image generation prompt for a fantasy character
