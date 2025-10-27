@@ -11,6 +11,8 @@ const router = Router();
 const replicateApiToken = process.env.REPLICATE_API_TOKEN;
 const supabase = supabaseServiceClient;
 
+console.log(`[CharacterImages] Initialized - Replicate token available: ${!!replicateApiToken}`);
+
 interface GenerateImageRequest {
   type: 'race' | 'class' | 'background';
   name: string;
@@ -83,6 +85,7 @@ router.post('/generate', async (req: Request, res: Response) => {
  */
 async function generateViaReplicate(type: 'race' | 'class' | 'background', name: string): Promise<string> {
   const prompt = generateReplicatePrompt(type, name);
+  console.log(`[CharacterImages] Replicate request - type: ${type}, name: ${name}`);
 
   try {
     const response = await fetch('https://api.replicate.com/v1/predictions', {
@@ -92,7 +95,7 @@ async function generateViaReplicate(type: 'race' | 'class' | 'background', name:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: 'db21e45d3f7023abc2a46f5d517cecc3d7vx520f4d11852109085cfa5460dae4b',
+        version: 'ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4',
         input: {
           prompt,
           negative_prompt: 'blurry, low quality, cartoon, simple, ugly, deformed',
@@ -105,7 +108,9 @@ async function generateViaReplicate(type: 'race' | 'class' | 'background', name:
     });
 
     if (!response.ok) {
-      throw new Error(`Replicate API error: ${response.status} ${response.statusText}`);
+      const errorBody = await response.text();
+      console.error(`[CharacterImages] Replicate error body:`, errorBody);
+      throw new Error(`Replicate API error: ${response.status} ${response.statusText} - ${errorBody}`);
     }
 
     const prediction = await response.json();
